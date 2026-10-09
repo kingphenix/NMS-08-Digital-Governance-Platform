@@ -218,19 +218,19 @@ export function MemberDashboard() {
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Military Rank (NMS)</span>
-                <span className="font-semibold text-slate-800">{CURRENT_USER.rankMilitary}</span>
+                <span className="font-semibold text-slate-800">{CURRENT_USER.rankAppointment}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
-                <span className="text-slate-500 font-medium">Profession</span>
-                <span className="font-semibold text-slate-800">{CURRENT_USER.profession}</span>
+                <span className="text-slate-500 font-medium">Occupation</span>
+                <span className="font-semibold text-slate-800">{CURRENT_USER.occupation}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Email</span>
                 <span className="font-semibold text-emerald-700">{CURRENT_USER.email}</span>
               </div>
               <div className="flex justify-between py-2">
-                <span className="text-slate-500 font-medium">Location</span>
-                <span className="font-semibold text-slate-800">{CURRENT_USER.city}, {CURRENT_USER.country}</span>
+                <span className="text-slate-500 font-medium">Residence</span>
+                <span className="font-semibold text-slate-800">{CURRENT_USER.stateOfResidence}</span>
               </div>
             </CardContent>
           </Card>

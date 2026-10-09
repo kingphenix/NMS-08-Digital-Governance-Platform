@@ -10,10 +10,23 @@ export interface MemberProfile {
   homeCell: string;
   phone: string;
   email: string;
-  profession: string;
-  rankMilitary?: string;
-  city: string;
-  country: string;
+  dob: string;
+  stateOfOrigin: string;
+  stateOfResidence: string;
+  address?: string;
+  maritalStatus: string;
+  rankAppointment: string;
+  setAppointment: string;
+  occupation: string;
+  industry: string;
+  business: string;
+  skills: string;
+  professionalQualifications: string;
+  bloodGroup?: string;
+  genotype?: string;
+  nextOfKin: string;
+  relationship: string;
+  nextOfKinPhone: string;
   membershipStatus: "Active" | "Pending Verification" | "Honorary" | "Inactive";
   duesStatus: {
     year2026: "Paid" | "Pending" | "Overdue";
@@ -136,10 +149,23 @@ export const CURRENT_USER: MemberProfile = {
   homeCell: "Abuja Executive Chapter",
   phone: "+234 803 123 4567",
   email: "chidi.abubakar@nms08alumni.org",
-  profession: "Cybersecurity Architect & Tech Founder",
-  rankMilitary: "Ex-Boy Sergeant (NMS)",
-  city: "Abuja, FCT",
-  country: "Nigeria",
+  dob: "1992-05-14",
+  stateOfOrigin: "Kano",
+  stateOfResidence: "FCT Abuja",
+  address: "12 Asokoro Drive, Abuja",
+  maritalStatus: "Married",
+  rankAppointment: "Ex-Boy Sergeant",
+  setAppointment: "Assistant Set PRO",
+  occupation: "Cybersecurity Architect",
+  industry: "Technology",
+  business: "Trinity Vote Ltd",
+  skills: "Strategic Planning, Leadership, Python",
+  professionalQualifications: "B.Sc Computer Science, CISSP",
+  bloodGroup: "O+",
+  genotype: "AA",
+  nextOfKin: "Aisha Abubakar",
+  relationship: "Spouse",
+  nextOfKinPhone: "+234 802 999 8877",
   membershipStatus: "Active",
   duesStatus: {
     year2026: "Paid",
