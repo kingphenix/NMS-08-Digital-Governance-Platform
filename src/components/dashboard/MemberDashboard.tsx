@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import mainLogo from '@/assets/nms-new-logo.webp';
 import {
@@ -39,6 +39,17 @@ import {
   Search,
   Check,
   AlertCircle,
+  User,
+  MapPin,
+  Mail,
+  Phone,
+  Briefcase,
+  GraduationCap,
+  Activity,
+  Shield,
+  Clock,
+  Printer,
+  RefreshCw,
 } from 'lucide-react';
 
 export function MemberDashboard() {
@@ -50,6 +61,130 @@ export function MemberDashboard() {
   const [votedCandidate, setVotedCandidate] = useState<string | null>('cand-1');
   const [welfareForm, setWelfareForm] = useState({ type: 'Medical', amount: '', description: '' });
 
+  // Dynamic user profile state (hydrated from session and Supabase)
+  const [profile, setProfile] = useState({
+    id: CURRENT_USER.id,
+    name: CURRENT_USER.name,
+    nmsNo: CURRENT_USER.nmsNo,
+    squad: CURRENT_USER.squad,
+    company: CURRENT_USER.company,
+    homeCell: CURRENT_USER.homeCell,
+    phone: CURRENT_USER.phone,
+    email: CURRENT_USER.email,
+    dob: CURRENT_USER.dob,
+    stateOfOrigin: CURRENT_USER.stateOfOrigin,
+    stateOfResidence: CURRENT_USER.stateOfResidence,
+    address: CURRENT_USER.address || 'Abuja, Nigeria',
+    maritalStatus: CURRENT_USER.maritalStatus,
+    rankAppointment: CURRENT_USER.rankAppointment,
+    setAppointment: CURRENT_USER.setAppointment || 'Member',
+    occupation: CURRENT_USER.occupation,
+    industry: CURRENT_USER.industry,
+    business: CURRENT_USER.business,
+    skills: CURRENT_USER.skills,
+    professionalQualifications: CURRENT_USER.professionalQualifications,
+    bloodGroup: CURRENT_USER.bloodGroup || 'O+',
+    genotype: CURRENT_USER.genotype || 'AA',
+    nextOfKin: CURRENT_USER.nextOfKin,
+    relationship: CURRENT_USER.relationship,
+    nextOfKinPhone: CURRENT_USER.nextOfKinPhone,
+    membershipStatus: CURRENT_USER.membershipStatus,
+    avatarUrl: CURRENT_USER.avatarUrl,
+    isLiveProfile: false,
+    registeredAt: '',
+  });
+  const [loadingProfile, setLoadingProfile] = useState(false);
+
+  useEffect(() => {
+    async function loadProfile() {
+      let savedData: any = null;
+      try {
+        const stored = sessionStorage.getItem('nms08_current_profile');
+        if (stored) {
+          savedData = JSON.parse(stored);
+        }
+      } catch (err) {
+        console.error('Failed to parse session profile', err);
+      }
+
+      const nmsQuery = savedData?.nms_number || savedData?.nmsNo;
+      try {
+        setLoadingProfile(true);
+        const url = nmsQuery ? `/api/profile?nms=${encodeURIComponent(nmsQuery)}` : '/api/profile';
+        const res = await fetch(url);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.ok && json.profile) {
+            const dbP = json.profile;
+            setProfile(prev => ({
+              ...prev,
+              name: dbP.full_name || savedData?.full_name || savedData?.name || prev.name,
+              nmsNo: dbP.nms_number || savedData?.nms_number || savedData?.nmsNo || prev.nmsNo,
+              company: dbP.company || savedData?.company || prev.company,
+              rankAppointment: dbP.rank_appointment || savedData?.rank_appointment || savedData?.rankAppointment || prev.rankAppointment,
+              setAppointment: dbP.set_appointment || savedData?.set_appointment || savedData?.setAppointment || prev.setAppointment,
+              dob: dbP.dob || savedData?.dob || prev.dob,
+              stateOfOrigin: dbP.state_of_origin || savedData?.state_of_origin || savedData?.stateOfOrigin || prev.stateOfOrigin,
+              stateOfResidence: dbP.state_of_residence || savedData?.state_of_residence || savedData?.stateOfResidence || prev.stateOfResidence,
+              address: dbP.address || savedData?.address || prev.address,
+              maritalStatus: dbP.marital_status || savedData?.marital_status || savedData?.maritalStatus || prev.maritalStatus,
+              email: dbP.email || savedData?.email || prev.email,
+              phone: dbP.phone || savedData?.phone || prev.phone,
+              occupation: dbP.occupation || savedData?.occupation || prev.occupation,
+              industry: dbP.industry || savedData?.industry || prev.industry,
+              business: dbP.business || savedData?.business || prev.business,
+              skills: dbP.skills || savedData?.skills || prev.skills,
+              professionalQualifications: dbP.professional_qualifications || savedData?.professional_qualifications || savedData?.professionalQualifications || prev.professionalQualifications,
+              bloodGroup: dbP.blood_group || savedData?.blood_group || savedData?.bloodGroup || prev.bloodGroup,
+              genotype: dbP.genotype || savedData?.genotype || prev.genotype,
+              nextOfKin: dbP.next_of_kin || savedData?.next_of_kin || savedData?.nextOfKin || prev.nextOfKin,
+              relationship: dbP.relationship || savedData?.relationship || prev.relationship,
+              nextOfKinPhone: dbP.next_of_kin_phone || savedData?.next_of_kin_phone || savedData?.nextOfKinPhone || prev.nextOfKinPhone,
+              isLiveProfile: true,
+              registeredAt: dbP.created_at || '',
+            }));
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('API profile fetch error:', err);
+      } finally {
+        setLoadingProfile(false);
+      }
+
+      if (savedData) {
+        setProfile(prev => ({
+          ...prev,
+          name: savedData.full_name || savedData.name || prev.name,
+          nmsNo: savedData.nms_number || savedData.nmsNo || prev.nmsNo,
+          company: savedData.company || prev.company,
+          rankAppointment: savedData.rank_appointment || savedData.rankAppointment || prev.rankAppointment,
+          setAppointment: savedData.set_appointment || savedData.setAppointment || prev.setAppointment,
+          dob: savedData.dob || prev.dob,
+          stateOfOrigin: savedData.state_of_origin || savedData.stateOfOrigin || prev.stateOfOrigin,
+          stateOfResidence: savedData.state_of_residence || savedData.stateOfResidence || prev.stateOfResidence,
+          address: savedData.address || prev.address,
+          maritalStatus: savedData.marital_status || savedData.maritalStatus || prev.maritalStatus,
+          email: savedData.email || prev.email,
+          phone: savedData.phone || prev.phone,
+          occupation: savedData.occupation || prev.occupation,
+          industry: savedData.industry || prev.industry,
+          business: savedData.business || prev.business,
+          skills: savedData.skills || prev.skills,
+          professionalQualifications: savedData.professional_qualifications || savedData.professionalQualifications || prev.professionalQualifications,
+          bloodGroup: savedData.blood_group || savedData.bloodGroup || prev.bloodGroup,
+          genotype: savedData.genotype || prev.genotype,
+          nextOfKin: savedData.next_of_kin || savedData.nextOfKin || prev.nextOfKin,
+          relationship: savedData.relationship || prev.relationship,
+          nextOfKinPhone: savedData.next_of_kin_phone || savedData.nextOfKinPhone || prev.nextOfKinPhone,
+          isLiveProfile: true,
+        }));
+      }
+    }
+
+    loadProfile();
+  }, []);
+
   const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
 
   const handleWelfareSubmit = (e: React.FormEvent) => {
@@ -57,8 +192,8 @@ export function MemberDashboard() {
     if (!welfareForm.amount) return;
     const newClaim = {
       id: `wel-${Date.now().toString().slice(-3)}`,
-      memberId: CURRENT_USER.id,
-      memberName: CURRENT_USER.name,
+      memberId: profile.id,
+      memberName: profile.name,
       type: welfareForm.type as any,
       amountRequested: Number(welfareForm.amount),
       status: 'Under Review' as const,
@@ -74,7 +209,9 @@ export function MemberDashboard() {
     setNotifications(notifications.map(n => ({ ...n, isRead: true })));
   };
 
-  const userCompany = COMPANIES_LIST.find(c => c.name.includes('Alpha')) || COMPANIES_LIST[0];
+  const userCompany = COMPANIES_LIST.find(c => 
+    profile.company && c.name.toLowerCase().includes(profile.company.toLowerCase().split(' ')[0])
+  ) || COMPANIES_LIST[0];
 
   return (
     <div className="space-y-8 pb-16">
@@ -105,8 +242,8 @@ export function MemberDashboard() {
           <div className="flex items-center gap-5">
             <div className="relative">
               <Image
-                src={CURRENT_USER.avatarUrl}
-                alt={CURRENT_USER.name}
+                src={profile.avatarUrl}
+                alt={profile.name}
                 width={80}
                 height={80}
                 className="w-20 h-20 rounded-3xl object-cover ring-4 ring-white/30 shadow-2xl"
@@ -119,17 +256,22 @@ export function MemberDashboard() {
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="bg-white/20 text-white border-white/30">
-                  {CURRENT_USER.membershipStatus} Member
+                  {profile.membershipStatus} Member
                 </Badge>
-                <Badge variant="outline" className="bg-emerald-950/40 text-emerald-100 border-white/20">
-                  {CURRENT_USER.nmsNo}
+                <Badge variant="outline" className="bg-emerald-950/40 text-emerald-100 border-white/20 font-mono">
+                  {profile.nmsNo}
                 </Badge>
+                {profile.isLiveProfile && (
+                  <Badge variant="outline" className="bg-emerald-400/20 text-emerald-200 border-emerald-400/30">
+                    Live Verified
+                  </Badge>
+                )}
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                Welcome, {CURRENT_USER.name}
+                Welcome, {profile.name}
               </h1>
               <p className="text-xs sm:text-sm text-emerald-100 font-medium">
-                {CURRENT_USER.squad} • {CURRENT_USER.company} • {CURRENT_USER.homeCell}
+                {profile.squad} • {profile.company} • {profile.homeCell}
               </p>
             </div>
           </div>
@@ -164,7 +306,7 @@ export function MemberDashboard() {
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
         {[
           { key: 'all', label: 'Dashboard Overview', icon: Sparkles },
-          { key: 'profile', label: 'Profile & Company', icon: Users },
+          { key: 'profile', label: 'Full Member Profile', icon: Users },
           { key: 'dues', label: 'Dues & Financials', icon: CreditCard },
           { key: 'welfare', label: 'Welfare Fund', icon: Heart },
           { key: 'elections', label: 'Voting & Elections', icon: Vote },
@@ -189,8 +331,340 @@ export function MemberDashboard() {
         })}
       </div>
 
-      {/* MAIN DASHBOARD CONTENT GRID */}
-      {(activeTab === 'all' || activeTab === 'profile') && (
+      {/* COMPREHENSIVE MEMBER PROFILE DOSSIER (Rendered on 'profile' tab) */}
+      {activeTab === 'profile' && (
+        <div className="space-y-6">
+          {/* Dossier Header Banner */}
+          <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 text-white border border-emerald-900 shadow-apple-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-500 text-emerald-950">
+                  Accredited Dossier
+                </span>
+                <span className="text-xs text-emerald-300 font-mono">
+                  {profile.nmsNo}
+                </span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+                {profile.name}
+              </h2>
+              <p className="text-xs text-slate-300">
+                Official NMS 08 Ex-Boys Personnel Record • {profile.company} • {profile.rankAppointment}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                icon={<Printer className="w-3.5 h-3.5" />}
+                onClick={() => window.print()}
+              >
+                Print Dossier
+              </Button>
+            </div>
+          </div>
+
+          {/* Dossier Information Grid: 6 Categorical Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* 1. Military Service & Set Identity */}
+            <Card hoverEffect variant="glass">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-800">
+                    <Shield className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <CardTitle>Military Service & Identity</CardTitle>
+                    <CardDescription>Nigerian Military School Record</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs">
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">NMS Service No</span>
+                  <span className="font-mono font-bold text-emerald-800">{profile.nmsNo}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">School Company</span>
+                  <span className="font-semibold text-slate-900">{profile.company}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Rank as Boy Soldier</span>
+                  <span className="font-semibold text-slate-800">{profile.rankAppointment || 'Ex-Boy Soldier'}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Set Appointment</span>
+                  <span className="font-semibold text-slate-800">{profile.setAppointment || 'Member'}</span>
+                </div>
+                <div className="flex justify-between py-1.5">
+                  <span className="text-slate-500 font-medium">Accreditation</span>
+                  <Badge variant="emerald" size="sm">Roster Verified</Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 2. Personal Particulars */}
+            <Card hoverEffect variant="glass">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-2xl bg-blue-100 text-blue-800">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <CardTitle>Personal Information</CardTitle>
+                    <CardDescription>Identity & Demographics</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs">
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Full Legal Name</span>
+                  <span className="font-bold text-slate-900">{profile.name}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Date of Birth</span>
+                  <span className="font-semibold text-slate-800">{profile.dob || 'Not specified'}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Marital Status</span>
+                  <span className="font-semibold text-slate-800">{profile.maritalStatus || 'Single'}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">State of Origin</span>
+                  <span className="font-semibold text-slate-800">{profile.stateOfOrigin || 'Nigeria'}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">State of Residence</span>
+                  <span className="font-semibold text-slate-800">{profile.stateOfResidence || 'FCT Abuja'}</span>
+                </div>
+                <div className="py-1.5">
+                  <span className="text-slate-500 font-medium block mb-1">Residential Address</span>
+                  <span className="font-medium text-slate-800 block text-[11px] bg-slate-50 p-2 rounded-xl">
+                    {profile.address || 'Not specified'}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 3. Contact & Communication */}
+            <Card hoverEffect variant="glass">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-2xl bg-purple-100 text-purple-800">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <CardTitle>Contact Channels</CardTitle>
+                    <CardDescription>Official Communications</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs">
+                <div className="py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium block text-[11px]">Primary Email</span>
+                  <a href={`mailto:${profile.email}`} className="font-semibold text-emerald-700 hover:underline break-all">
+                    {profile.email}
+                  </a>
+                </div>
+                <div className="py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium block text-[11px]">Phone / WhatsApp</span>
+                  <a href={`tel:${profile.phone}`} className="font-semibold text-slate-900 hover:underline">
+                    {profile.phone || '+234 800 000 0000'}
+                  </a>
+                </div>
+                <div className="py-1.5">
+                  <span className="text-slate-500 font-medium block text-[11px]">Home Cell Association</span>
+                  <span className="font-semibold text-slate-800">{profile.homeCell}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 4. Professional & Career Profile */}
+            <Card hoverEffect variant="glass">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-2xl bg-indigo-100 text-indigo-800">
+                    <Briefcase className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <CardTitle>Career & Profession</CardTitle>
+                    <CardDescription>Industry & Expertise</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs">
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Occupation</span>
+                  <span className="font-bold text-slate-900">{profile.occupation || 'Professional'}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Industry Sector</span>
+                  <span className="font-semibold text-slate-800">{profile.industry || 'Technology'}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Employer / Business</span>
+                  <span className="font-semibold text-slate-800">{profile.business || 'Private Practice'}</span>
+                </div>
+                <div className="py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium block mb-1">Qualifications</span>
+                  <span className="font-medium text-slate-800 block text-[11px] bg-slate-50 p-2 rounded-xl">
+                    {profile.professionalQualifications || 'B.Sc / HND'}
+                  </span>
+                </div>
+                <div className="py-1.5">
+                  <span className="text-slate-500 font-medium block mb-1">Skills & Expertise</span>
+                  <span className="font-medium text-slate-800 block text-[11px] bg-slate-50 p-2 rounded-xl">
+                    {profile.skills || 'Leadership, Strategy'}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 5. Medical Emergency Data */}
+            <Card hoverEffect variant="glass">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-2xl bg-rose-100 text-rose-800">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <CardTitle>Medical Emergency</CardTitle>
+                    <CardDescription>Welfare & Medical Profile</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 text-xs">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-2xl bg-rose-50/70 border border-rose-100 text-center">
+                    <span className="text-[10px] uppercase font-bold text-rose-700 block mb-1">Blood Group</span>
+                    <span className="text-xl font-extrabold text-rose-900">{profile.bloodGroup || 'O+'}</span>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-amber-50/70 border border-amber-100 text-center">
+                    <span className="text-[10px] uppercase font-bold text-amber-700 block mb-1">Genotype</span>
+                    <span className="text-xl font-extrabold text-amber-900">{profile.genotype || 'AA'}</span>
+                  </div>
+                </div>
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600">
+                  <p className="font-semibold text-slate-800 mb-0.5">Welfare Committee Access</p>
+                  This emergency health data is strictly reserved for medical emergency response and welfare aid assistance.
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 6. Next of Kin Particulars */}
+            <Card hoverEffect variant="glass">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-800">
+                    <Heart className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <CardTitle>Next of Kin Details</CardTitle>
+                    <CardDescription>Emergency Contact Record</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs">
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Next of Kin Name</span>
+                  <span className="font-bold text-slate-900">{profile.nextOfKin || 'Designated Contact'}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Relationship</span>
+                  <span className="font-semibold text-slate-800">{profile.relationship || 'Next of Kin'}</span>
+                </div>
+                <div className="flex justify-between py-1.5">
+                  <span className="text-slate-500 font-medium">Emergency Phone</span>
+                  <a href={`tel:${profile.nextOfKinPhone}`} className="font-semibold text-emerald-700 hover:underline">
+                    {profile.nextOfKinPhone || 'Not specified'}
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Secondary Affiliation Cards (Company & Home Cell) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            {/* COMPANY CARD */}
+            <Card hoverEffect variant="glass">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700">
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <CardTitle>Company Affiliation</CardTitle>
+                    <CardDescription>{userCompany.name}</CardDescription>
+                  </div>
+                </div>
+                <Badge variant="emerald">{userCompany.code}</Badge>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-xs text-slate-600 italic">
+                  "{userCompany.motto}"
+                </p>
+                <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100 space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-600">Company Commander</span>
+                    <span className="font-bold text-slate-900">{userCompany.commander}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-600">Active Ex-Boys</span>
+                    <span className="font-bold text-emerald-800">{userCompany.totalMembers} Members</span>
+                  </div>
+                </div>
+                <ProgressBar
+                  value={userCompany.duesComplianceRate}
+                  label="Company Dues Compliance Rate"
+                  sublabel="Top performing company in 2026 dues"
+                  color="emerald"
+                />
+              </CardContent>
+            </Card>
+
+            {/* HOME CELL CARD */}
+            <Card hoverEffect variant="glass">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700">
+                    <Building className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <CardTitle>Home Cell Chapter</CardTitle>
+                    <CardDescription>Regional Governance Network</CardDescription>
+                  </div>
+                </div>
+                <Badge variant="subtle">Abuja Chapter</Badge>
+              </CardHeader>
+              <CardContent className="space-y-4 text-xs">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Chapter Location</span>
+                    <span className="font-bold text-slate-900">Abuja, FCT</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Chapter Chairman</span>
+                    <span className="font-bold text-slate-900">Ex-Boy Barr. Obinna Eze</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Monthly Meetings</span>
+                    <span className="font-semibold text-emerald-700">3rd Sunday of Every Month</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-xs text-slate-600 pt-2">
+                  <span>Active Regional Members</span>
+                  <span className="font-bold text-slate-900">114 Ex-Boys in FCT</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* OVERVIEW CONTENT GRID (Rendered on 'all' tab) */}
+      {activeTab === 'all' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
           {/* PROFILE SUMMARY CARD */}
@@ -210,29 +684,39 @@ export function MemberDashboard() {
             <CardContent className="space-y-4 text-xs">
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Service No</span>
-                <span className="font-bold text-slate-900">{CURRENT_USER.nmsNo}</span>
+                <span className="font-mono font-bold text-slate-900">{profile.nmsNo}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Squad / Platoon</span>
-                <span className="font-semibold text-slate-800">{CURRENT_USER.squad}</span>
+                <span className="font-semibold text-slate-800">{profile.squad}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Military Rank (NMS)</span>
-                <span className="font-semibold text-slate-800">{CURRENT_USER.rankAppointment}</span>
+                <span className="font-semibold text-slate-800">{profile.rankAppointment}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Occupation</span>
-                <span className="font-semibold text-slate-800">{CURRENT_USER.occupation}</span>
+                <span className="font-semibold text-slate-800">{profile.occupation}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Email</span>
-                <span className="font-semibold text-emerald-700">{CURRENT_USER.email}</span>
+                <span className="font-semibold text-emerald-700">{profile.email}</span>
               </div>
               <div className="flex justify-between py-2">
                 <span className="text-slate-500 font-medium">Residence</span>
-                <span className="font-semibold text-slate-800">{CURRENT_USER.stateOfResidence}</span>
+                <span className="font-semibold text-slate-800">{profile.stateOfResidence}</span>
               </div>
             </CardContent>
+            <CardFooter>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-center text-emerald-700 text-xs"
+                onClick={() => setActiveTab('profile')}
+              >
+                View Complete Dossier →
+              </Button>
+            </CardFooter>
           </Card>
 
           {/* COMPANY CARD */}
@@ -556,7 +1040,7 @@ export function MemberDashboard() {
       )}
 
       {/* EVENTS & ANNOUNCEMENTS SECTION */}
-      {(activeTab === 'all' || activeTab === 'profile') && (
+      {activeTab === 'all' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* UPCOMING EVENTS CARD */}
