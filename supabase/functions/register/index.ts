@@ -35,12 +35,6 @@ const normNms = (s: string): string | null => {
   return m ? `NMS/${m[1]}/${m[2]}` : null;
 };
 
-function makeCode(len = 6) {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-  const bytes = crypto.getRandomValues(new Uint8Array(len));
-  return Array.from(bytes, (b) => chars[b % chars.length]).join('');
-}
-
 async function sha256(text: string) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -150,7 +144,7 @@ Deno.serve(async (req) => {
       await log(false, nms);
       return json({
         ok: false,
-        message: 'This NMS number has already registered. If you lost your code, contact the electoral committee.',
+        message: 'This NMS number has already registered. If you believe this is an error, contact the electoral committee.',
       }, 409);
     }
 
@@ -197,24 +191,11 @@ Deno.serve(async (req) => {
       console.error('Member profile upsert error:', upsertErr);
     }
 
-    const code = makeCode();
-    const { error } = await supabase
-      .from('voters')
-      .insert({ roster_id: row.id, code_hash: await sha256(code) });
-
-    if (error) {
-      await supabase.from('roster').update({ registered: false, registered_at: null }).eq('id', row.id);
-      try {
-        await supabase.from('member_profiles').delete().eq('roster_id', row.id);
-      } catch {
-        // Non-blocking
-      }
-      await log(false, nms);
-      return json({ ok: false, message: 'Something went wrong. Please try again.' }, 500);
-    }
-
+    // Registration is complete: the member is marked registered and their
+    // profile is stored. No voting code is issued at this time; voter
+    // credentialing is deferred until the elections phase.
     await log(true, nms);
-    return json({ ok: true, code });
+    return json({ ok: true, message: 'Registration successful.' });
   } catch (err) {
     console.error('Unhandled register error:', err);
     return json({ ok: false, message: 'Something went wrong. Please try again.' }, 500);

@@ -24,7 +24,7 @@ const anonSupabase = ANON_KEY
 const FUNCTION_URL = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/register`;
 
 const GENERIC_FAIL_MSG = "We couldn't verify those details. Check your NMS number and full name, or contact the electoral committee.";
-const ALREADY_REG_MSG = "This NMS number has already registered. If you lost your code, contact the electoral committee.";
+const ALREADY_REG_MSG = "This NMS number has already registered. If you believe this is an error, contact the electoral committee.";
 const RATE_LIMIT_MSG = "Too many attempts. Try again in 15 minutes.";
 
 // Dedicated test row
@@ -119,7 +119,7 @@ async function runTests() {
   await resetTestRow();
   const res1 = await invokeRegister({ nms_number: TEST_NMS, full_name: TEST_FULL_NAME });
   assert('Registers successfully (status 200, ok=true)', res1.status === 200 && res1.data?.ok === true, JSON.stringify(res1.data));
-  assert('Returns 6-character code', typeof res1.data?.code === 'string' && res1.data.code.length === 6, `Code: ${res1.data?.code}`);
+  assert('No voting code is returned at registration', res1.data?.code === undefined, `Code: ${res1.data?.code}`);
   const registeredCode = res1.data?.code;
 
   // 2. Typed variants of valid number
@@ -256,22 +256,16 @@ async function runTests() {
     console.warn('[SKIP] Anon key not provided; skipping direct anon RLS select test.');
   }
 
-  // 13. Stored code_hash in voters is 64-char hex string, not plaintext
-  console.log('\n--- Test Case 13: Code hash verification ---');
+  // 13. No voting code is issued — no voters row and no code returned
+  console.log('\n--- Test Case 13: No voting code issued at registration ---');
   await resetAttempts();
   await resetTestRow();
   const regCheck = await invokeRegister({ nms_number: TEST_NMS, full_name: TEST_FULL_NAME });
-  const plaintextCode = regCheck.data?.code;
+  assert('Registration succeeds without returning a code', regCheck.status === 200 && regCheck.data?.ok === true && regCheck.data?.code === undefined, JSON.stringify(regCheck.data));
 
-  const { data: testRoster } = await adminSupabase.from('roster').select('id').eq('nms_number', TEST_NMS).single();
-  const { data: voterDirect } = await adminSupabase.from('voters').select('code_hash').eq('roster_id', testRoster.id).single();
-
-  const codeHash = voterDirect?.code_hash;
-  const is64Hex = typeof codeHash === 'string' && /^[0-9a-f]{64}$/i.test(codeHash);
-  const isNotPlaintext = codeHash !== plaintextCode;
-
-  assert('Stored code_hash is 64-character hex string', is64Hex, `Hash: ${codeHash}`);
-  assert('Stored code_hash never equals plaintext code', isNotPlaintext, `Plaintext: ${plaintextCode}`);
+  const { data: rowafterReg } = await adminSupabase.from('roster').select('id').eq('nms_number', TEST_NMS).single();
+  const { data: voterRows, error: voterCheckErr } = await adminSupabase.from('voters').select('id').eq('roster_id', rowafterReg.id);
+  assert('No voter row is created (code generation deferred)', voterCheckErr === null && (!voterRows || voterRows.length === 0), `voters rows: ${JSON.stringify(voterRows)}`);
 
   // 14. Password creation during registration and login verification
   console.log('\n--- Test Case 14: Password creation and NMS login access ---');

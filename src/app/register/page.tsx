@@ -18,11 +18,7 @@ import {
   Users,
   Droplets,
   Medal,
-  KeyRound,
-  Copy,
-  Check,
   AlertCircle,
-  AlertTriangle,
   Award,
   Sparkles,
 } from 'lucide-react';
@@ -83,21 +79,25 @@ export default function RegisterPage() {
   });
 
   const [loading, setLoading] = useState(false);
-  const [code, setCode] = useState<string | null>(null);
+  const [isRegistered, setIsRegistered] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const supabase = createClient();
 
-  // Detect a silently-unconfigured Supabase client. NEXT_PUBLIC_* vars are
-  // inlined into the browser bundle at dev-server/build start, so if the
-  // server was started before .env had real values this is placeholder text
-  // and every Edge Function call will fail with a confusing network error.
-  const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  // Read the base URL the client will ACTUALLY call at runtime instead of a
+  // compile-time env var, so this check is always accurate to the exact bundle
+  // the visitor's browser is running. A silently-unconfigured client points at
+  // a dead placeholder URL and every Edge Function call would fail with a
+  // confusing network error, so we surface a clear message up front instead.
+  // (FunctionsClient stores its base URL on a protected `url` field, which is
+  // guarded behind an `any` cast since TypeScript only enforces `protected` at
+  // compile time.)
+  const functionsBaseUrl: string =
+    ((supabase.functions as any)?.url as string) || '';
   const supabaseMisconfigured =
-    !configuredSupabaseUrl ||
-    configuredSupabaseUrl.includes('your-project-ref') ||
-    configuredSupabaseUrl.includes('placeholder-nms08-project');
+    !functionsBaseUrl ||
+    functionsBaseUrl.includes('your-project-ref') ||
+    functionsBaseUrl.includes('placeholder-nms08');
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +127,8 @@ export default function RegisterPage() {
     if (supabaseMisconfigured) {
       setErrorMessage(
         'Portal configuration error: the verification service is not configured on this build. ' +
-          'Please contact the platform administrator.'
+          'If the site was just updated, refresh the page (Ctrl/Cmd+Shift+R) to load the latest version; ' +
+          'otherwise contact the platform administrator.'
       );
       setLoading(false);
       window.scrollTo({ top: 120, behavior: 'smooth' });
@@ -180,12 +181,12 @@ export default function RegisterPage() {
         }
       }
 
-      if (resData?.ok && resData?.code) {
-        // Plaintext one-time code stored only in ephemeral state
-        setCode(resData.code);
+      if (resData?.ok) {
+        // Registration complete (no voting code is issued).
+        setIsRegistered(true);
         setErrorMessage(null);
 
-        // Store submitted profile in session for dashboard view (strictly omitting one-time code)
+        // Store submitted profile in session for dashboard view
         try {
           sessionStorage.setItem(
             'nms08_current_profile',
@@ -226,17 +227,6 @@ export default function RegisterPage() {
     }
   };
 
-  const copyToClipboard = async () => {
-    if (!code) return;
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 3000);
-    } catch {
-      // Fallback
-    }
-  };
-
   const inputClasses =
     'w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 transition-all text-sm placeholder:text-slate-400';
   const labelClasses = 'block font-bold text-slate-700 mb-1.5 flex items-center gap-2 text-xs';
@@ -265,48 +255,21 @@ export default function RegisterPage() {
             NMS 08 Digital Governance Platform
           </h1>
           <p className="text-sm text-slate-500 max-w-lg mx-auto">
-            Complete your profile registration for class verification, voter accreditation, and access to the digital alumni governance portal.
+            Complete your profile registration for alumni class verification and access to the digital governance portal.
           </p>
         </div>
 
-        {/* Success View: Display One-Time Login Code */}
-        {code ? (
+        {/* Success View: Registration Complete */}
+        {isRegistered ? (
           <Card variant="glass" className="p-8 md:p-12 shadow-apple-lg border-emerald-500/40 bg-white/90 space-y-8 animate-in fade-in zoom-in-95 duration-300">
             <div className="text-center space-y-2">
               <div className="w-14 h-14 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto border border-emerald-200 mb-2">
-                <KeyRound className="w-7 h-7" />
+                <ShieldCheck className="w-7 h-7" />
               </div>
-              <Badge variant="emerald" className="px-3 py-0.5 text-xs">Accredited Member</Badge>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Accreditation Successful!</h2>
+              <Badge variant="emerald" className="px-3 py-0.5 text-xs">Verified Member</Badge>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Registration Successful!</h2>
               <p className="text-sm text-slate-600 max-w-md mx-auto">
-                Welcome, <strong className="text-slate-900">{form.name}</strong> ({form.nmsNo}). Your alumni credentials have been verified against the official set roster.
-              </p>
-            </div>
-
-            {/* Warning Callout */}
-            <div className="bg-amber-50 border border-amber-300/80 rounded-2xl p-4 text-amber-900 text-xs flex items-start gap-3 shadow-sm">
-              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="font-bold text-amber-950 text-sm">Write this down now.</p>
-                <p className="leading-relaxed">
-                  This one-time voting code will <strong>NOT</strong> be displayed again after you leave this page. It is stored cryptographically hashed and cannot be recovered. Keep it secure for ballot accreditation.
-                </p>
-              </div>
-            </div>
-
-            {/* Code Display Box */}
-            <div className="bg-slate-900 text-white rounded-2xl p-6 text-center shadow-xl border-2 border-emerald-500/80 relative">
-              <div className="text-[11px] uppercase tracking-widest font-mono text-emerald-400 font-bold mb-1">
-                Your One-Time Accreditation Code
-              </div>
-              <div
-                id="registration-code-display"
-                className="font-mono text-4xl md:text-5xl font-black tracking-[0.25em] text-white py-2 selection:bg-emerald-500 selection:text-black"
-              >
-                {code}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-2">
-                6-character cryptographic voter accreditation token
+                Welcome, <strong className="text-slate-900">{form.name}</strong> ({form.nmsNo}). Your alumni profile has been created and verified against the official class roster. You can now sign in with your NMS number or email and password.
               </p>
             </div>
 
@@ -314,7 +277,7 @@ export default function RegisterPage() {
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-2 text-slate-700">
               <div className="font-bold text-slate-900 text-xs uppercase tracking-wider border-b border-slate-200 pb-1 mb-2 flex items-center gap-1.5">
                 <Award className="w-3.5 h-3.5 text-emerald-600" />
-                Accredited Profile Summary
+                Registered Profile Summary
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 <div><span className="text-slate-400 block">Service Number:</span> <strong className="font-mono">{form.nmsNo}</strong></div>
@@ -326,32 +289,14 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Action Buttons */}
+            {/* Single Action */}
             <div className="space-y-3 pt-2">
-              <button
-                type="button"
-                id="copy-code-btn"
-                onClick={copyToClipboard}
-                className="w-full py-3.5 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-md active:scale-[0.99]"
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-4 h-4 text-emerald-200" />
-                    <span>Copied to Clipboard</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-4 h-4" />
-                    <span>Copy Code</span>
-                  </>
-                )}
-              </button>
-
               <Link
                 href="/login"
-                className="block text-center w-full py-3 px-4 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-slate-200"
+                id="go-to-login-btn"
+                className="block w-full py-3.5 px-4 rounded-xl font-bold text-sm text-center bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-md active:scale-[0.99]"
               >
-                Proceed to Member Sign In
+                Go to Member Sign In
               </Link>
             </div>
           </Card>
@@ -806,14 +751,14 @@ export default function RegisterPage() {
               <div className="pt-4 border-t border-slate-200">
                 <button
                   type="submit"
-                  id="get-code-submit-btn"
+                  id="register-submit-btn"
                   disabled={loading || !form.nmsNo.trim() || !form.name.trim()}
                   className="w-full py-4 px-6 rounded-xl font-bold text-sm tracking-wide bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white transition-all shadow-md shadow-emerald-900/10 flex items-center justify-center gap-2 active:scale-[0.99]"
                 >
                   {loading ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>Verifying with Roster & Generating Code...</span>
+                      <span>Verifying with Official Roster...</span>
                     </>
                   ) : (
                     <>
@@ -823,7 +768,7 @@ export default function RegisterPage() {
                   )}
                 </button>
                 <p className="text-center text-[11px] text-slate-400 mt-3">
-                  By registering, you confirm that your details are accurate and acknowledge that your one-time code is required for election voting.
+                  By registering, you confirm that your details are accurate and agree to the platform's governance terms.
                 </p>
               </div>
             </form>

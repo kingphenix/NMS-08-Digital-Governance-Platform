@@ -213,6 +213,16 @@ export function MemberDashboard() {
     profile.company && c.name.toLowerCase().includes(profile.company.toLowerCase().split(' ')[0])
   ) || COMPANIES_LIST[0];
 
+  // Initials-based identity chip (no personal photo on the governance platform)
+  const nameInitials =
+    profile.name
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase() || 'NMS';
+
   return (
     <div className="space-y-8 pb-16">
       {/* Toast Notification */}
@@ -241,13 +251,9 @@ export function MemberDashboard() {
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
             <div className="relative">
-              <Image
-                src={profile.avatarUrl}
-                alt={profile.name}
-                width={80}
-                height={80}
-                className="w-20 h-20 rounded-3xl object-cover ring-4 ring-white/30 shadow-2xl"
-              />
+              <div className="w-20 h-20 rounded-3xl bg-emerald-950/40 ring-4 ring-white/30 shadow-2xl flex items-center justify-center">
+                <span className="text-white font-extrabold text-2xl tracking-wide">{nameInitials}</span>
+              </div>
               <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-400 border-2 border-white flex items-center justify-center text-[10px] text-emerald-950 font-bold">
                 ✓
               </span>
