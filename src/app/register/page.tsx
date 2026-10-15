@@ -89,6 +89,16 @@ export default function RegisterPage() {
 
   const supabase = createClient();
 
+  // Detect a silently-unconfigured Supabase client. NEXT_PUBLIC_* vars are
+  // inlined into the browser bundle at dev-server/build start, so if the
+  // server was started before .env had real values this is placeholder text
+  // and every Edge Function call will fail with a confusing network error.
+  const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseMisconfigured =
+    !configuredSupabaseUrl ||
+    configuredSupabaseUrl.includes('your-project-ref') ||
+    configuredSupabaseUrl.includes('placeholder-nms08-project');
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
@@ -111,6 +121,16 @@ export default function RegisterPage() {
       setErrorMessage('Passwords do not match. Please ensure both password fields are identical.');
       setLoading(false);
       window.scrollTo({ top: 300, behavior: 'smooth' });
+      return;
+    }
+
+    if (supabaseMisconfigured) {
+      setErrorMessage(
+        'Portal configuration error: the verification service is not configured on this build. ' +
+          'Please contact the platform administrator.'
+      );
+      setLoading(false);
+      window.scrollTo({ top: 120, behavior: 'smooth' });
       return;
     }
 
@@ -179,9 +199,20 @@ export default function RegisterPage() {
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
+        // supabase-js throws FunctionsFetchError with this message when the
+        // fetch itself fails (DNS / network / offline) rather than the edge
+        // function returning an error, so replace it with helpful copy.
+        const rawMsg =
+          typeof error?.message === 'string' ? error.message : null;
+        const fetchLevelFailure =
+          rawMsg === 'Failed to send a request to the Edge Function';
+
         const msg =
           resData?.message ||
-          (typeof error?.message === 'string' ? error.message : null) ||
+          (rawMsg && !fetchLevelFailure ? rawMsg : null) ||
+          (fetchLevelFailure
+            ? 'Could not reach the verification service. Check your internet connection and try again.'
+            : null) ||
           'Registration failed. Check your details or contact the electoral committee.';
         setErrorMessage(msg);
         window.scrollTo({ top: 120, behavior: 'smooth' });
