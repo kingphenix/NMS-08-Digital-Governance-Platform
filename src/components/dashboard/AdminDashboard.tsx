@@ -89,6 +89,28 @@ export function AdminDashboard() {
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [broadcastMessage, setBroadcastMessage] = useState('');
 
+  // Admin portal password gate
+  const [adminAuthed, setAdminAuthed] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminError, setAdminError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('nms08_admin_authed') === 'true') {
+      setAdminAuthed(true);
+    }
+  }, []);
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminPassword === 'NMS08') {
+      sessionStorage.setItem('nms08_admin_authed', 'true');
+      setAdminError(null);
+      setAdminAuthed(true);
+    } else {
+      setAdminError('Incorrect admin password. Please try again.');
+    }
+  };
+
   const fetchMembers = async () => {
     try {
       setLoading(true);
@@ -207,6 +229,59 @@ export function AdminDashboard() {
     stats.totalRoster > 0
       ? ((stats.totalRegistered / stats.totalRoster) * 100).toFixed(1)
       : '0';
+
+  if (!adminAuthed) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md space-y-6">
+          <Card variant="glass" className="p-8 space-y-6">
+            <div className="text-center space-y-3 flex flex-col items-center">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                <Shield className="w-7 h-7" />
+              </div>
+              <Badge variant="emerald">Restricted Access</Badge>
+              <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                Admin Portal Access
+              </h1>
+              <p className="text-xs text-slate-500">
+                Enter the administrative password to unlock the National Executive Console.
+              </p>
+            </div>
+
+            {adminError && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2.5">
+                <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+                <p className="font-medium">{adminError}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleAdminLogin} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Admin Password</label>
+                <input
+                  type="password"
+                  required
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                variant="emerald"
+                className="w-full justify-center text-sm py-3"
+                icon={<Shield className="w-4 h-4" />}
+              >
+                Unlock Admin Console
+              </Button>
+            </form>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-16">

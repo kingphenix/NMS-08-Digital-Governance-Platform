@@ -438,8 +438,8 @@ export const ELECTION_DATA: Election = {
   status: "Active",
   endDate: "October 30, 2026",
   totalEligibleVoters: 485,
-  totalVotesCast: 320,
-  userHasVoted: true,
+  totalVotesCast: 0,
+  userHasVoted: false,
   candidates: [
     {
       id: "cand-1",
@@ -448,7 +448,7 @@ export const ELECTION_DATA: Election = {
       nmsNo: "NMS/08/4801",
       company: "Alpha Company",
       manifesto: "Strengthening set unity, expanding welfare fund investments to ₦50M, and creating an Ex-Boy venture incubator.",
-      votesCount: 210,
+      votesCount: 0,
       avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400",
     },
     {
@@ -458,7 +458,7 @@ export const ELECTION_DATA: Election = {
       nmsNo: "NMS/08/4812",
       company: "Bravo Company",
       manifesto: "Enhancing health insurance schemes for all Ex-Boys, digital transparency, and international chapter expansion.",
-      votesCount: 110,
+      votesCount: 0,
       avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=400",
     }
   ]

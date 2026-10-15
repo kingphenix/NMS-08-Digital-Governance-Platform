@@ -58,7 +58,7 @@ export function MemberDashboard() {
   const [welfareClaims, setWelfareClaims] = useState(WELFARE_CLAIMS);
   const [showWelfareModal, setShowWelfareModal] = useState(false);
   const [showReceiptToast, setShowReceiptToast] = useState(false);
-  const [votedCandidate, setVotedCandidate] = useState<string | null>('cand-1');
+  const [votedCandidate, setVotedCandidate] = useState<string | null>(null);
   const [welfareForm, setWelfareForm] = useState({ type: 'Medical', amount: '', description: '' });
 
   // Dynamic user profile state (hydrated from session and Supabase)
@@ -991,7 +991,11 @@ export function MemberDashboard() {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between text-xs text-slate-600 p-3 rounded-2xl bg-slate-100/70">
                 <span>Voter Turnout ({ELECTION_DATA.totalVotesCast} / {ELECTION_DATA.totalEligibleVoters})</span>
-                <span className="font-bold text-emerald-800">66% Votes Cast</span>
+                <span className="font-bold text-emerald-800">
+                  {ELECTION_DATA.totalEligibleVoters > 0
+                    ? `${((ELECTION_DATA.totalVotesCast / ELECTION_DATA.totalEligibleVoters) * 100).toFixed(0)}% Votes Cast`
+                    : 'No votes cast yet'}
+                </span>
               </div>
 
               {/* Live Candidate Poll Chart */}

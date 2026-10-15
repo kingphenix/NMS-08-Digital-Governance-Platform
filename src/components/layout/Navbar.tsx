@@ -14,6 +14,7 @@ export function Navbar() {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,6 +23,13 @@ export function Navbar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Reflect member auth state: hide the login CTA once a session profile exists.
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsLoggedIn(!!sessionStorage.getItem('nms08_current_profile'));
+    }
+  }, [pathname]);
 
   // Removed 'Home' and 'Contact' per user instructions.
   // Clicking the main logo takes the user Home.
@@ -90,13 +98,15 @@ export function Navbar() {
             })}
           </nav>
 
-          {/* Login CTA */}
+          {/* Login CTA (hidden once the member is signed in) */}
           <div className="hidden lg:flex items-center gap-2">
-            <Link href="/login">
-              <Button variant="emerald" size="sm" icon={<User className="w-4 h-4" />}>
-                Member Login
-              </Button>
-            </Link>
+            {!isLoggedIn && (
+              <Link href="/login">
+                <Button variant="emerald" size="sm" icon={<User className="w-4 h-4" />}>
+                  Member Login
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -134,13 +144,15 @@ export function Navbar() {
             })}
           </div>
 
-          <div className="pt-4 border-t border-slate-200">
-            <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="emerald" className="w-full justify-center">
-                Member Login
-              </Button>
-            </Link>
-          </div>
+          {!isLoggedIn && (
+            <div className="pt-4 border-t border-slate-200">
+              <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                <Button variant="emerald" className="w-full justify-center">
+                  Member Login
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
       )}
     </header>

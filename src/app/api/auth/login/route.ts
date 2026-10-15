@@ -33,10 +33,20 @@ function normalizeNms(input: string): string | null {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { identifier, password } = body;
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { ok: false, message: 'Invalid request. Please try again.' },
+        { status: 400 }
+      );
+    }
 
-    if (!identifier || !password) {
+    const identifier = typeof body?.identifier === 'string' ? body.identifier : '';
+    const password = typeof body?.password === 'string' ? body.password : '';
+
+    if (!identifier.trim() || !password) {
       return NextResponse.json(
         { ok: false, message: 'Please provide your NMS Number or Email and Password.' },
         { status: 400 }
@@ -48,8 +58,8 @@ export async function POST(request: Request) {
 
     if (!supabaseUrl || !serviceKey) {
       return NextResponse.json(
-        { ok: false, message: 'Server configuration error' },
-        { status: 500 }
+        { ok: false, message: 'Sign in is temporarily unavailable. Please contact the platform administrator.' },
+        { status: 503 }
       );
     }
 
@@ -160,8 +170,9 @@ export async function POST(request: Request) {
       },
     });
   } catch (err: any) {
+    console.error('Login error:', err);
     return NextResponse.json(
-      { ok: false, message: err?.message || 'Authentication error' },
+      { ok: false, message: 'We could not complete your sign in right now. Please try again in a moment.' },
       { status: 500 }
     );
   }
