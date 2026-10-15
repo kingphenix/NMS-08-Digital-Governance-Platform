@@ -21,11 +21,12 @@ import {
   AlertCircle,
   Award,
   Sparkles,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@/lib/supabase/client';
 import secondaryLogo from '@/assets/slogo@2x.png';
 
 const NIGERIAN_STATES = [
@@ -81,23 +82,8 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const supabase = createClient();
-
-  // Read the base URL the client will ACTUALLY call at runtime instead of a
-  // compile-time env var, so this check is always accurate to the exact bundle
-  // the visitor's browser is running. A silently-unconfigured client points at
-  // a dead placeholder URL and every Edge Function call would fail with a
-  // confusing network error, so we surface a clear message up front instead.
-  // (FunctionsClient stores its base URL on a protected `url` field, which is
-  // guarded behind an `any` cast since TypeScript only enforces `protected` at
-  // compile time.)
-  const functionsBaseUrl: string =
-    ((supabase.functions as any)?.url as string) || '';
-  const supabaseMisconfigured =
-    !functionsBaseUrl ||
-    functionsBaseUrl.includes('your-project-ref') ||
-    functionsBaseUrl.includes('placeholder-nms08');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,17 +107,6 @@ export default function RegisterPage() {
       setErrorMessage('Passwords do not match. Please ensure both password fields are identical.');
       setLoading(false);
       window.scrollTo({ top: 300, behavior: 'smooth' });
-      return;
-    }
-
-    if (supabaseMisconfigured) {
-      setErrorMessage(
-        'Portal configuration error: the verification service is not configured on this build. ' +
-          'If the site was just updated, refresh the page (Ctrl/Cmd+Shift+R) to load the latest version; ' +
-          'otherwise contact the platform administrator.'
-      );
-      setLoading(false);
-      window.scrollTo({ top: 120, behavior: 'smooth' });
       return;
     }
 
@@ -162,31 +137,23 @@ export default function RegisterPage() {
     };
 
     try {
-      const { data, error } = await supabase.functions.invoke('register', {
-        body: payload,
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
 
-      let resData = data;
-      if (error) {
-        if ('context' in error && error.context) {
-          try {
-            const ctx = error.context as Response;
-            const parsed = typeof ctx.clone === 'function' ? await ctx.clone().json() : await ctx.json();
-            if (parsed && typeof parsed === 'object') {
-              resData = parsed;
-            }
-          } catch {
-            // Context was not JSON or already consumed
-          }
-        }
+      let resData: any = null;
+      try {
+        resData = await res.json();
+      } catch {
+        resData = null;
       }
 
-      if (resData?.ok) {
-        // Registration complete (no voting code is issued).
+      if (res.ok && resData?.ok) {
         setIsRegistered(true);
         setErrorMessage(null);
 
-        // Store submitted profile in session for dashboard view
         try {
           sessionStorage.setItem(
             'nms08_current_profile',
@@ -200,21 +167,11 @@ export default function RegisterPage() {
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        // supabase-js throws FunctionsFetchError with this message when the
-        // fetch itself fails (DNS / network / offline) rather than the edge
-        // function returning an error, so replace it with helpful copy.
-        const rawMsg =
-          typeof error?.message === 'string' ? error.message : null;
-        const fetchLevelFailure =
-          rawMsg === 'Failed to send a request to the Edge Function';
-
         const msg =
           resData?.message ||
-          (rawMsg && !fetchLevelFailure ? rawMsg : null) ||
-          (fetchLevelFailure
-            ? 'Could not reach the verification service. Check your internet connection and try again.'
-            : null) ||
-          'Registration failed. Check your details or contact the electoral committee.';
+          (res.status >= 500
+            ? 'The verification service is temporarily unavailable. Please try again in a moment.'
+            : 'Registration failed. Check your details or contact the electoral committee.');
         setErrorMessage(msg);
         window.scrollTo({ top: 120, behavior: 'smooth' });
       }
@@ -713,17 +670,28 @@ export default function RegisterPage() {
                     <label htmlFor="password" className={labelClasses}>
                       <Lock className="w-3.5 h-3.5 text-slate-400" /> Password *
                     </label>
-                    <input
-                      id="password"
-                      type="password"
-                      required
-                      placeholder="Minimum 6 characters"
-                      value={form.password}
-                      onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      disabled={loading}
-                      autoComplete="new-password"
-                      className={inputClasses}
-                    />
+                    <div className="relative">
+                      <input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        placeholder="Minimum 6 characters"
+                        value={form.password}
+                        onChange={(e) => setForm({ ...form, password: e.target.value })}
+                        disabled={loading}
+                        autoComplete="new-password"
+                        className={`${inputClasses} pr-11`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        title={showPassword ? 'Hide password' : 'Show password'}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                     <p className="text-[10px] text-slate-400 mt-1">Must be at least 6 characters</p>
                   </div>
 
@@ -731,17 +699,28 @@ export default function RegisterPage() {
                     <label htmlFor="confirmPassword" className={labelClasses}>
                       <Lock className="w-3.5 h-3.5 text-slate-400" /> Confirm Password *
                     </label>
-                    <input
-                      id="confirmPassword"
-                      type="password"
-                      required
-                      placeholder="Re-enter your password"
-                      value={form.confirmPassword}
-                      onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-                      disabled={loading}
-                      autoComplete="new-password"
-                      className={inputClasses}
-                    />
+                    <div className="relative">
+                      <input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        required
+                        placeholder="Re-enter your password"
+                        value={form.confirmPassword}
+                        onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                        disabled={loading}
+                        autoComplete="new-password"
+                        className={`${inputClasses} pr-11`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword((v) => !v)}
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                        title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                     <p className="text-[10px] text-slate-400 mt-1">Re-enter same password to confirm</p>
                   </div>
                 </div>

@@ -53,6 +53,7 @@ export default function LoginPage() {
       if (data.profile) {
         sessionStorage.setItem('nms08_current_profile', JSON.stringify(data.profile));
       }
+      sessionStorage.setItem('nms08_member_authed', 'true');
       router.push('/dashboard');
     } catch (err: any) {
       setError(err?.message || 'Network error occurred. Please try again.');

@@ -24,10 +24,10 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Reflect member auth state: hide the login CTA once a session profile exists.
+  // Reflect member auth state: hide the login CTA once a signed-in session exists.
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setIsLoggedIn(!!sessionStorage.getItem('nms08_current_profile'));
+      setIsLoggedIn(sessionStorage.getItem('nms08_member_authed') === 'true');
     }
   }, [pathname]);
 
