@@ -12,7 +12,12 @@ export async function POST(request: Request) {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !serviceKey) {
+  const isLikelyJwt = (v?: string) => typeof v === 'string' && v.startsWith('eyJ') && v.length > 40;
+  const hasValidAnon = isLikelyJwt(anonKey);
+  const hasValidService = isLikelyJwt(serviceKey);
+  const effectiveKey = hasValidAnon ? anonKey! : hasValidService ? serviceKey! : null;
+
+  if (!supabaseUrl || !effectiveKey) {
     return NextResponse.json(
       {
         ok: false,
@@ -24,7 +29,6 @@ export async function POST(request: Request) {
   }
 
   const functionUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/register`;
-  const effectiveKey = anonKey && anonKey.startsWith('eyJ') ? anonKey : serviceKey;
 
   const forwardedFor =
     request.headers.get('x-forwarded-for') ||
