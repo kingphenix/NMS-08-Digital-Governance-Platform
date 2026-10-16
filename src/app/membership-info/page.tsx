@@ -1,5 +1,9 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import shieldSvg from '@/assets/shield.svg';
+import cardSvg from '@/assets/card.svg';
+import medalSvg from '@/assets/medal.svg';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -9,7 +13,10 @@ export default function MembershipInfoPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
       <div className="text-center max-w-2xl mx-auto space-y-3">
-        <Badge variant="emerald" size="lg">Governance Guidelines</Badge>
+        <Badge variant="emerald" size="lg" className="inline-flex items-center gap-2">
+          <Image src={shieldSvg} alt="Governance Shield" width={18} height={18} className="w-4.5 h-4.5 object-contain" />
+          <span>Governance Guidelines</span>
+        </Badge>
         <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
           Membership & Dues Information
         </h1>
@@ -21,7 +28,10 @@ export default function MembershipInfoPage() {
       {/* Dues Breakdown Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card hoverEffect variant="glass" className="p-6 space-y-4">
-          <Badge variant="emerald">Standard Member Dues</Badge>
+          <Badge variant="emerald" className="inline-flex items-center gap-1.5">
+            <Image src={cardSvg} alt="Dues Card" width={14} height={14} className="w-3.5 h-3.5 object-contain" />
+            <span>Standard Member Dues</span>
+          </Badge>
           <div className="space-y-1">
             <h3 className="text-3xl font-extrabold text-slate-900">₦150,000</h3>
             <span className="text-xs text-slate-500">Per Annum (2026)</span>
@@ -42,7 +52,10 @@ export default function MembershipInfoPage() {
         </Card>
 
         <Card hoverEffect variant="emerald" className="p-6 space-y-4">
-          <Badge variant="outline" className="bg-white/20 text-white border-white/30">Welfare Fund Levy</Badge>
+          <Badge variant="outline" className="bg-white/20 text-white border-white/30 inline-flex items-center gap-1.5">
+            <Image src={medalSvg} alt="Welfare Medal" width={14} height={14} className="w-3.5 h-3.5 object-contain" />
+            <span>Welfare Fund Levy</span>
+          </Badge>
           <div className="space-y-1">
             <h3 className="text-3xl font-extrabold text-white">₦50,000</h3>
             <span className="text-xs text-emerald-100">Annual Mandatory Support</span>
@@ -63,7 +76,10 @@ export default function MembershipInfoPage() {
         </Card>
 
         <Card hoverEffect variant="glass" className="p-6 space-y-4">
-          <Badge variant="emerald">Reunion Gala Contribution</Badge>
+          <Badge variant="emerald" className="inline-flex items-center gap-1.5">
+            <Image src={medalSvg} alt="Reunion Medal" width={14} height={14} className="w-3.5 h-3.5 object-contain" />
+            <span>Reunion Gala Contribution</span>
+          </Badge>
           <div className="space-y-1">
             <h3 className="text-3xl font-extrabold text-slate-900">₦30,000</h3>
             <span className="text-xs text-slate-500">Per Event Levy</span>

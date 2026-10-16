@@ -17,19 +17,7 @@ export async function GET(request: Request) {
   });
 
   if (!nms) {
-    // If no specific nms is requested, fetch the most recently registered profile as demo/fallback
-    const { data, error } = await supabase
-      .from('member_profiles')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error || !data) {
-      return NextResponse.json({ ok: false, message: 'Profile not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ ok: true, profile: data });
+    return NextResponse.json({ ok: false, message: 'NMS number parameter is required' }, { status: 400 });
   }
 
   const { data, error } = await supabase

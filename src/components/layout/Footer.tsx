@@ -2,7 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import mainLogo from '@/assets/nms-new-logo.webp';
-import { Heart, ExternalLink, Mail, Phone, MapPin, ShieldAlert } from 'lucide-react';
+import shieldSvg from '@/assets/shield.svg';
+import { Heart, ExternalLink, Mail, Phone, MapPin } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -88,10 +89,12 @@ export function Footer() {
             {/* Admin Console link placed at the very end of the site */}
             <Link
               href="/admin"
-              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-emerald-400 border border-slate-800 transition-colors flex items-center gap-1.5 font-medium"
+              className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-emerald-400 border border-slate-800 transition-colors flex items-center gap-2 font-medium group shadow-apple-sm"
             >
-              <ShieldAlert className="w-3.5 h-3.5 text-emerald-400" />
-              Admin Portal Access
+              <div className="w-5 h-5 rounded-lg bg-emerald-950/80 border border-emerald-500/40 flex items-center justify-center p-0.5 group-hover:scale-110 transition-transform">
+                <Image src={shieldSvg} alt="Admin Shield Badge" width={14} height={14} className="w-3.5 h-3.5 invert brightness-200" />
+              </div>
+              <span>Admin Portal Access</span>
             </Link>
 
             <span className="flex items-center gap-1 text-slate-400">

@@ -74,3 +74,24 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #059669;
 }
+
+/* Continuous News & Birthday Ticker Animation (moves right to left) */
+@keyframes tickerMove {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.ticker-track {
+  display: inline-flex;
+  width: max-content;
+  will-change: transform;
+  animation: tickerMove 80s linear infinite;
+}
+
+.ticker-track:hover {
+  animation-play-state: paused;
+}

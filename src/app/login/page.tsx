@@ -8,7 +8,7 @@ import { Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-
+import militaryManSvg from '@/assets/military-man.svg';
 import mainLogo from '@/assets/nms-new-logo.webp';
 
 export default function LoginPage() {
@@ -66,19 +66,22 @@ export default function LoginPage() {
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-3 flex flex-col items-center">
-          <div className="w-16 h-16 rounded-full bg-white border border-slate-200/80 flex items-center justify-center p-2 shadow-apple-sm mx-auto">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-100/80 border border-emerald-300/60 flex items-center justify-center p-3 shadow-apple-sm mx-auto">
             <Image
-              src={mainLogo}
-              alt="NMS 08 Logo"
-              width={56}
-              height={56}
-              className="w-12 h-auto object-contain"
+              src={militaryManSvg}
+              alt="Ex-Boy Soldier Badge"
+              width={42}
+              height={42}
+              className="w-10 h-10 object-contain text-emerald-900"
               priority
             />
           </div>
-          <Badge variant="emerald">NMS 08 Portal</Badge>
+          <Badge variant="emerald" className="flex items-center gap-1.5 px-3 py-1">
+            <Image src={militaryManSvg} alt="" width={13} height={13} className="w-3.5 h-3.5" />
+            <span>Ex-Boy Member Sign In</span>
+          </Badge>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Ex-Boy Member Sign In
+            Ex-Boy Portal Access
           </h1>
           <p className="text-xs text-slate-500">
             Access your profile, dues receipts, welfare claims & voting.
@@ -147,7 +150,7 @@ export default function LoginPage() {
               variant="emerald"
               className="w-full justify-center text-sm py-3"
               disabled={loading}
-              icon={<ArrowRight className="w-4 h-4" />}
+              icon={<Image src={militaryManSvg} alt="" width={16} height={16} className="w-4 h-4 invert brightness-200" />}
             >
               {loading ? 'Authenticating...' : 'Sign In to Portal'}
             </Button>

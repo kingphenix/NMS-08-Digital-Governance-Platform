@@ -1,4 +1,7 @@
 import React from 'react';
+import Image from 'next/image';
+import chariotSvg from '@/assets/chariot.svg';
+import shieldSvg from '@/assets/shield.svg';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Shield, Award, Users, Heart, Target, CheckCircle2 } from 'lucide-react';
@@ -8,7 +11,10 @@ export default function AboutPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
       {/* Hero Header */}
       <div className="text-center max-w-3xl mx-auto space-y-4">
-        <Badge variant="emerald" size="lg">History & Heritage</Badge>
+        <Badge variant="emerald" size="lg" className="inline-flex items-center gap-2">
+          <Image src={chariotSvg} alt="Chariot Heritage" width={20} height={20} className="w-5 h-5 object-contain" />
+          <span>History & Heritage</span>
+        </Badge>
         <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
           About NMS Class of 2008
         </h1>
@@ -20,8 +26,8 @@ export default function AboutPage() {
       {/* Core Values Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card hoverEffect variant="glass" className="p-6 space-y-3">
-          <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-700 w-fit">
-            <Shield className="w-6 h-6" />
+          <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-700 w-fit flex items-center justify-center">
+            <Image src={shieldSvg} alt="Discipline Shield" width={24} height={24} className="w-6 h-6 object-contain" />
           </div>
           <h3 className="text-lg font-bold text-slate-900">Unyielding Discipline</h3>
           <p className="text-xs text-slate-500 leading-relaxed">
@@ -52,9 +58,14 @@ export default function AboutPage() {
 
       {/* Class Timeline */}
       <Card hoverEffect variant="glass" className="p-8 space-y-6">
-        <div className="border-b border-slate-200 pb-4">
-          <h2 className="text-xl font-extrabold text-slate-900">NMS 08 Journey Timeline</h2>
-          <p className="text-xs text-slate-500">From Boy Cadets to Global Leaders</p>
+        <div className="border-b border-slate-200 pb-4 flex items-center gap-3">
+          <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shadow-apple-sm">
+            <Image src={chariotSvg} alt="Chariot Timeline" width={24} height={24} className="w-6 h-6 object-contain" />
+          </div>
+          <div>
+            <h2 className="text-xl font-extrabold text-slate-900">NMS 08 Journey Timeline</h2>
+            <p className="text-xs text-slate-500">From Boy Cadets to Global Leaders</p>
+          </div>
         </div>
 
         <div className="space-y-6 text-xs">

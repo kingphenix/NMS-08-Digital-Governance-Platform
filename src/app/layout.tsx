@@ -23,7 +23,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-[#fbfbfd] text-slate-900 min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
         <Navbar />
-        <main className="flex-1 pt-24">{children}</main>
+        <main className="flex-1 pt-28 sm:pt-32">{children}</main>
         <Footer />
       </body>
     </html>

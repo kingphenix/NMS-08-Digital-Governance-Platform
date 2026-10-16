@@ -567,6 +567,195 @@ export const NOTIFICATIONS_LIST: NotificationItem[] = [
   },
 ];
 
+export interface GlobalNotification {
+  id: string;
+  title: string;
+  message: string;
+  postedAt: string;
+  postedBy: string;
+  severity: "info" | "warning" | "urgent";
+  active: boolean;
+}
+
+export interface MemberRosterEntry {
+  id: string;
+  name: string;
+  nmsNo: string;
+  dob: string;
+  company: string;
+  bloodGroup: string;
+  stateOfOrigin: string;
+  stateOfResidence: string;
+  occupation: string;
+  industry: string;
+  business: string;
+  skills: string;
+  professionalQualifications: string;
+}
+
+export const MEMBERS_ROSTER: MemberRosterEntry[] = [
+  {
+    id: "roster-001",
+    name: "Chidi E. Abubakar",
+    nmsNo: "NMS/08/4912",
+    dob: "1992-05-14",
+    company: "Alpha Company",
+    bloodGroup: "O+",
+    stateOfOrigin: "Kano",
+    stateOfResidence: "FCT Abuja",
+    occupation: "Cybersecurity Architect",
+    industry: "Technology",
+    business: "Trinity Vote Ltd",
+    skills: "Strategic Planning, Leadership, Python",
+    professionalQualifications: "B.Sc Computer Science, CISSP",
+  },
+  {
+    id: "roster-002",
+    name: "Ibrahim Musa",
+    nmsNo: "NMS/08/4801",
+    dob: "1990-10-16",
+    company: "Alpha Company",
+    bloodGroup: "A+",
+    stateOfOrigin: "Kaduna",
+    stateOfResidence: "Kaduna",
+    occupation: "Military Officer (Capt.)",
+    industry: "Defence",
+    business: "Nigerian Army",
+    skills: "Leadership, Tactics, Operations",
+    professionalQualifications: "NDA, B.Sc Military Science",
+  },
+  {
+    id: "roster-003",
+    name: "Segun Adeleke",
+    nmsNo: "NMS/08/4812",
+    dob: "1991-08-22",
+    company: "Bravo Company",
+    bloodGroup: "B+",
+    stateOfOrigin: "Oyo",
+    stateOfResidence: "Lagos",
+    occupation: "Consultant Physician",
+    industry: "Healthcare",
+    business: "Lagos Island Hospital",
+    skills: "Diagnostics, Public Health, Research",
+    professionalQualifications: "MBBS, FWACS",
+  },
+  {
+    id: "roster-004",
+    name: "Emeka Nwosu",
+    nmsNo: "NMS/08/4820",
+    dob: "1992-02-09",
+    company: "Charlie Company",
+    bloodGroup: "O-",
+    stateOfOrigin: "Enugu",
+    stateOfResidence: "FCT Abuja",
+    occupation: "Civil Engineer",
+    industry: "Construction",
+    business: "Nwosu & Sons Engineering Ltd",
+    skills: "Project Management, AutoCAD, Structural Analysis",
+    professionalQualifications: "B.Eng Civil Engineering, MNSE",
+  },
+  {
+    id: "roster-005",
+    name: "Tunde Bakare",
+    nmsNo: "NMS/08/4835",
+    dob: "1991-11-30",
+    company: "Delta Company",
+    bloodGroup: "AB+",
+    stateOfOrigin: "Ogun",
+    stateOfResidence: "Lagos",
+    occupation: "Legal Practitioner",
+    industry: "Legal",
+    business: "Bakare & Co. Chambers",
+    skills: "Litigation, Corporate Law, Arbitration",
+    professionalQualifications: "LLB, BL, LLM",
+  },
+  {
+    id: "roster-006",
+    name: "Usman Garba",
+    nmsNo: "NMS/08/4842",
+    dob: "1990-06-17",
+    company: "Echo Company",
+    bloodGroup: "A-",
+    stateOfOrigin: "Borno",
+    stateOfResidence: "FCT Abuja",
+    occupation: "Investment Banker",
+    industry: "Finance",
+    business: "Garba Holdings Ltd",
+    skills: "Portfolio Management, Negotiation, Risk Analysis",
+    professionalQualifications: "B.Sc Economics, MBA, CFA",
+  },
+  {
+    id: "roster-007",
+    name: "Daniel Okon",
+    nmsNo: "NMS/08/4850",
+    dob: "1992-09-03",
+    company: "Foxtrot Company",
+    bloodGroup: "O+",
+    stateOfOrigin: "Akwa Ibom",
+    stateOfResidence: "Port Harcourt",
+    occupation: "Major (Nigerian Army)",
+    industry: "Defence",
+    business: "Nigerian Army",
+    skills: "Logistics, Command, Strategic Planning",
+    professionalQualifications: "NDA, B.Sc Military Science",
+  },
+  {
+    id: "roster-008",
+    name: "Kazeem Bello",
+    nmsNo: "NMS/08/4863",
+    dob: "1991-04-25",
+    company: "Gulf Company",
+    bloodGroup: "B+",
+    stateOfOrigin: "Kwara",
+    stateOfResidence: "Ilorin",
+    occupation: "Software Engineer",
+    industry: "Technology",
+    business: "Bello Tech Solutions",
+    skills: "JavaScript, Cloud Architecture, DevOps",
+    professionalQualifications: "B.Sc Computer Science, AWS Certified",
+  },
+];
+
+export const TICKER_MESSAGES: string[] = [
+  "A friendly reminder to all Ex-Boys: kindly ensure your 2026 annual dues and welfare levies are settled to support set governance and brotherhood initiatives.",
+  "📢 The 2026 Virtual National AGM will hold on October 28, 2026 at 6:00 PM WAT. All Ex-Boys are enjoined to attend via the Digital Portal.",
+  "🗳️ Voting is now OPEN for the 2026 NMS 08 Executive Committee Elections. Cast your ballot via the Member Dashboard before October 30.",
+  "📅 Mark your calendars: The 18th Anniversary Reunion Gala holds November 20–22, 2026 at Transcorp Hilton, Abuja. Register today!",
+  "⚖️ The Secretariat has published proposed amendments to the NMS 08 Constitution (2025 Revised). Members may review and submit comments via the Documents Library.",
+  "🎖️ Discipline, Knowledge & Patriotism — the timeless motto of NMS Ex-Boys. Wear it with pride in all set engagements.",
+  "💼 Welfare Committee reminds all Ex-Boys to update their medical emergency information (blood group, genotype, next of kin) on the Member Portal.",
+];
+
+export const GLOBAL_NOTIFICATIONS: GlobalNotification[] = [
+  {
+    id: "glob-1",
+    title: "2026 AGM & Financial Presentation — October 28",
+    message: "The National Secretariat hereby notifies all Ex-Boys that the 2026 Annual General Meeting will hold virtually on October 28, 2026 at 6:00 PM WAT. Quorum requirements apply.",
+    postedAt: "October 12, 2026",
+    postedBy: "Ex-Boy Barr. Obinna Eze (Secretary General)",
+    severity: "info",
+    active: true,
+  },
+  {
+    id: "glob-2",
+    title: "Constitutional Amendment Public Review Window Open",
+    message: "The Constitutional Review Committee has opened a 14-day public review window for the proposed amendments to the NMS 08 Constitution. Members in good standing may submit written comments via the Documents Library.",
+    postedAt: "October 5, 2026",
+    postedBy: "Constitutional Review Committee",
+    severity: "warning",
+    active: true,
+  },
+  {
+    id: "glob-3",
+    title: "URGENT: Welfare Levy Defaulters List Update",
+    message: "Members who are yet to settle their 2026 welfare levy are reminded that the deadline is October 31, 2026. Failure to comply may affect voting eligibility in the ongoing elections.",
+    postedAt: "October 8, 2026",
+    postedBy: "Ex-Boy Alh. Farouk Sanusi (Financial Secretary)",
+    severity: "urgent",
+    active: false,
+  },
+];
+
 export const FINANCIAL_METRICS = {
   totalDuesCollected: 36500000, // NGN
   targetDues: 40000000,

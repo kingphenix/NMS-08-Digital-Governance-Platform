@@ -1,5 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
+import medalSvg from '@/assets/medal.svg';
 import { LEADERSHIP_LIST } from '@/lib/mock-data';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -10,7 +11,10 @@ export default function LeadershipPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
       <div className="text-center max-w-2xl mx-auto space-y-3">
-        <Badge variant="emerald" size="lg">Executive Governance</Badge>
+        <Badge variant="emerald" size="lg" className="inline-flex items-center gap-2">
+          <Image src={medalSvg} alt="Executive Honors Medal" width={18} height={18} className="w-4.5 h-4.5 object-contain" />
+          <span>Executive Governance</span>
+        </Badge>
         <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
           NMS 08 Alumni Executive Council
         </h1>

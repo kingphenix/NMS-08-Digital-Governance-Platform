@@ -4,6 +4,9 @@ import Image from 'next/image';
 import mainLogo from '@/assets/nms-new-logo.webp';
 import marchImage from '@/assets/march.webp';
 import setChairman from '@/assets/set chairman.jpeg';
+import militaryManSvg from '@/assets/military-man.svg';
+import tankSvg from '@/assets/tank.svg';
+import speakerSvg from '@/assets/speaker.svg';
 import {
   Shield,
   Award,
@@ -47,7 +50,11 @@ export default function HomePage() {
 
             <div className="flex flex-wrap items-center gap-4 pt-2">
               <Link href="/dashboard">
-                <Button variant="emerald" size="lg" icon={<ArrowRight className="w-5 h-5" />}>
+                <Button
+                  variant="emerald"
+                  size="lg"
+                  icon={<Image src={militaryManSvg} alt="Member Portal" width={18} height={18} className="w-4.5 h-4.5 object-contain" />}
+                >
                   Enter Member Portal
                 </Button>
               </Link>
@@ -130,7 +137,10 @@ export default function HomePage() {
       {/* COMPANIES SHOWCASE PREVIEW */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="text-center max-w-2xl mx-auto space-y-2">
-          <Badge variant="emerald">NMS 08 Companies</Badge>
+          <Badge variant="emerald" className="inline-flex items-center gap-1.5">
+            <Image src={tankSvg} alt="Military Companies" width={14} height={14} className="w-3.5 h-3.5 object-contain" />
+            <span>NMS 08 Companies</span>
+          </Badge>
           <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
             The Seven Military Companies
           </h2>
@@ -169,7 +179,10 @@ export default function HomePage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <Badge variant="emerald">Latest Updates</Badge>
+            <Badge variant="emerald" className="inline-flex items-center gap-1.5">
+              <Image src={speakerSvg} alt="Latest Updates" width={14} height={14} className="w-3.5 h-3.5 object-contain" />
+              <span>Latest Updates</span>
+            </Badge>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
               News, Announcements & Events
             </h2>

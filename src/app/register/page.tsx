@@ -28,6 +28,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import secondaryLogo from '@/assets/slogo@2x.png';
+import dogTagsSvg from '@/assets/Dog-tags.svg';
 
 const NIGERIAN_STATES = [
   'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno',
@@ -278,7 +279,7 @@ export default function RegisterPage() {
               {/* Section 1: Military Background & Accreditation */}
               <section>
                 <h2 className={sectionHeaderClasses}>
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" /> 1. Military Background & Accreditation
+                  <Image src={dogTagsSvg} alt="Military Dog Tags" width={18} height={18} className="w-4.5 h-4.5 object-contain" /> 1. Military Background & Accreditation
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>

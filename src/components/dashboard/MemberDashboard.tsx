@@ -3,8 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import mainLogo from '@/assets/nms-new-logo.webp';
+import militaryManSvg from '@/assets/military-man.svg';
+import cardSvg from '@/assets/card.svg';
+import voteSvg from '@/assets/vote.svg';
+import dogTagsSvg from '@/assets/Dog-tags.svg';
+import rankSvg from '@/assets/rank.svg';
+import speakerSvg from '@/assets/speaker.svg';
+import tankSvg from '@/assets/tank.svg';
+import medalSvg from '@/assets/medal.svg';
 import {
-  CURRENT_USER,
   COMPANIES_LIST,
   NEWS_LIST,
   EVENTS_LIST,
@@ -12,7 +19,6 @@ import {
   WELFARE_CLAIMS,
   DOCUMENTS_LIST,
   NOTIFICATIONS_LIST,
-  FINANCIAL_METRICS,
 } from '@/lib/mock-data';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -50,6 +56,9 @@ import {
   Clock,
   Printer,
   RefreshCw,
+  Megaphone,
+  X,
+  AlertTriangle,
 } from 'lucide-react';
 
 export function MemberDashboard() {
@@ -58,42 +67,50 @@ export function MemberDashboard() {
   const [welfareClaims, setWelfareClaims] = useState(WELFARE_CLAIMS);
   const [showWelfareModal, setShowWelfareModal] = useState(false);
   const [showReceiptToast, setShowReceiptToast] = useState(false);
+  const [adminBroadcasts, setAdminBroadcasts] = useState<any[]>([]);
+  const [dismissedBroadcasts, setDismissedBroadcasts] = useState<string[]>([]);
   const [votedCandidate, setVotedCandidate] = useState<string | null>(null);
   const [welfareForm, setWelfareForm] = useState({ type: 'Medical', amount: '', description: '' });
+  const [treasuryMetrics, setTreasuryMetrics] = useState({
+    totalDuesCollected: 0,
+    complianceRate: 0,
+    targetDues: 0,
+  });
 
   // Dynamic user profile state (hydrated from session and Supabase)
   const [profile, setProfile] = useState({
-    id: CURRENT_USER.id,
-    name: CURRENT_USER.name,
-    nmsNo: CURRENT_USER.nmsNo,
-    squad: CURRENT_USER.squad,
-    company: CURRENT_USER.company,
-    homeCell: CURRENT_USER.homeCell,
-    phone: CURRENT_USER.phone,
-    email: CURRENT_USER.email,
-    dob: CURRENT_USER.dob,
-    stateOfOrigin: CURRENT_USER.stateOfOrigin,
-    stateOfResidence: CURRENT_USER.stateOfResidence,
-    address: CURRENT_USER.address || 'Abuja, Nigeria',
-    maritalStatus: CURRENT_USER.maritalStatus,
-    rankAppointment: CURRENT_USER.rankAppointment,
-    setAppointment: CURRENT_USER.setAppointment || 'Member',
-    occupation: CURRENT_USER.occupation,
-    industry: CURRENT_USER.industry,
-    business: CURRENT_USER.business,
-    skills: CURRENT_USER.skills,
-    professionalQualifications: CURRENT_USER.professionalQualifications,
-    bloodGroup: CURRENT_USER.bloodGroup || 'O+',
-    genotype: CURRENT_USER.genotype || 'AA',
-    nextOfKin: CURRENT_USER.nextOfKin,
-    relationship: CURRENT_USER.relationship,
-    nextOfKinPhone: CURRENT_USER.nextOfKinPhone,
-    membershipStatus: CURRENT_USER.membershipStatus,
-    avatarUrl: CURRENT_USER.avatarUrl,
+    id: '',
+    name: 'Ex-Boy Member',
+    nmsNo: 'NMS/08/----',
+    squad: 'Alpha',
+    company: 'Unassigned',
+    homeCell: 'National',
+    phone: '',
+    email: '',
+    dob: '',
+    stateOfOrigin: '',
+    stateOfResidence: '',
+    address: '',
+    maritalStatus: 'Single',
+    rankAppointment: 'Ex-Boy',
+    setAppointment: 'Member',
+    occupation: '',
+    industry: '',
+    business: '',
+    skills: '',
+    professionalQualifications: '',
+    bloodGroup: 'O+',
+    genotype: 'AA',
+    nextOfKin: '',
+    relationship: '',
+    nextOfKinPhone: '',
+    membershipStatus: 'Active' as const,
+    avatarUrl: '',
     isLiveProfile: false,
     registeredAt: '',
   });
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
 
   useEffect(() => {
     async function loadProfile() {
@@ -107,16 +124,30 @@ export function MemberDashboard() {
         console.error('Failed to parse session profile', err);
       }
 
+      const authed = typeof window !== 'undefined' && sessionStorage.getItem('nms08_member_authed') === 'true';
+      if (!savedData && !authed) {
+        setIsAuthed(false);
+        return;
+      }
+      setIsAuthed(true);
+
       const nmsQuery = savedData?.nms_number || savedData?.nmsNo;
+      if (!nmsQuery) {
+        if (savedData) {
+          setProfile((prev) => ({ ...prev, ...savedData, isLiveProfile: true }));
+        }
+        return;
+      }
+
       try {
         setLoadingProfile(true);
-        const url = nmsQuery ? `/api/profile?nms=${encodeURIComponent(nmsQuery)}` : '/api/profile';
+        const url = `/api/profile?nms=${encodeURIComponent(nmsQuery)}`;
         const res = await fetch(url);
         if (res.ok) {
           const json = await res.json();
           if (json.ok && json.profile) {
             const dbP = json.profile;
-            setProfile(prev => ({
+            setProfile((prev) => ({
               ...prev,
               name: dbP.full_name || savedData?.full_name || savedData?.name || prev.name,
               nmsNo: dbP.nms_number || savedData?.nms_number || savedData?.nmsNo || prev.nmsNo,
@@ -153,7 +184,7 @@ export function MemberDashboard() {
       }
 
       if (savedData) {
-        setProfile(prev => ({
+        setProfile((prev) => ({
           ...prev,
           name: savedData.full_name || savedData.name || prev.name,
           nmsNo: savedData.nms_number || savedData.nmsNo || prev.nmsNo,
@@ -213,6 +244,79 @@ export function MemberDashboard() {
     profile.company && c.name.toLowerCase().includes(profile.company.toLowerCase().split(' ')[0])
   ) || COMPANIES_LIST[0];
 
+  // Fetch admin broadcast announcements that appear on every registered page
+  useEffect(() => {
+    const loadAnnouncements = async () => {
+      try {
+        const res = await fetch('/api/announcements');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && Array.isArray(data.announcements)) {
+            setAdminBroadcasts(data.announcements.filter((a: any) => a.active !== false));
+          }
+        }
+      } catch {
+        if (typeof window !== 'undefined') {
+          try {
+            const stored = localStorage.getItem('nms08_admin_announcements');
+            if (stored) setAdminBroadcasts(JSON.parse(stored));
+          } catch {}
+        }
+      }
+    };
+
+    loadAnnouncements();
+
+    const loadTreasury = async () => {
+      try {
+        const res = await fetch('/api/admin/members');
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.metrics) {
+            setTreasuryMetrics({
+              totalDuesCollected: data.metrics.totalDuesCollected || 0,
+              complianceRate: data.metrics.complianceRate || 0,
+              targetDues: data.metrics.targetDues || 0,
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load treasury metrics:', err);
+      }
+    };
+    loadTreasury();
+
+    if (typeof window !== 'undefined') {
+      try {
+        const dismissed = localStorage.getItem('nms08_dismissed_announcements');
+        if (dismissed) setDismissedBroadcasts(JSON.parse(dismissed));
+      } catch {}
+    }
+
+    const handleUpdate = () => loadAnnouncements();
+    window.addEventListener('nms08-announcements-updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('nms08-announcements-updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
+  const handleDismissAnnouncement = (id: string) => {
+    const updated = [...dismissedBroadcasts, id];
+    setDismissedBroadcasts(updated);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('nms08_dismissed_announcements', JSON.stringify(updated));
+      } catch {}
+    }
+  };
+
+  const visibleBroadcasts = adminBroadcasts.filter(
+    (a) => !dismissedBroadcasts.includes(a.id)
+  );
+
   // Initials-based identity chip (no personal photo on the governance platform)
   const nameInitials =
     profile.name
@@ -222,6 +326,32 @@ export function MemberDashboard() {
       .map((w) => w[0])
       .join('')
       .toUpperCase() || 'NMS';
+
+  if (isAuthed === false) {
+    return (
+      <div className="max-w-2xl mx-auto py-12 px-4">
+        <Card className="glass-panel p-8 sm:p-12 text-center space-y-6 rounded-3xl border border-slate-200 shadow-apple-md">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-emerald-900/10 border border-emerald-900/20 flex items-center justify-center">
+            <Image src={militaryManSvg} alt="Ex-Boy Portal" width={40} height={40} className="w-10 h-10 object-contain" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Ex-Boy Portal Authentication Required</h2>
+            <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+              Please sign in with your NMS Service Number and Password to access your official membership records, dues receipts, welfare claims, and election ballot.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            <Button variant="emerald" onClick={() => window.location.href = '/login'} className="gap-2">
+              Sign In to Member Portal
+            </Button>
+            <Button variant="outline" onClick={() => window.location.href = '/register'} className="gap-2">
+              Register Membership
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-16">
@@ -261,7 +391,8 @@ export function MemberDashboard() {
 
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="bg-white/20 text-white border-white/30">
+                <Badge variant="outline" className="bg-white/20 text-white border-white/30 flex items-center gap-1.5">
+                  <Image src={militaryManSvg} alt="Ex-Boy Member" width={14} height={14} className="w-3.5 h-3.5 object-contain" />
                   {profile.membershipStatus} Member
                 </Badge>
                 <Badge variant="outline" className="bg-emerald-950/40 text-emerald-100 border-white/20 font-mono">
@@ -308,17 +439,113 @@ export function MemberDashboard() {
         </div>
       </Card>
 
+      {/* OFFICIAL EXECUTIVE ANNOUNCEMENTS & NOTIFICATIONS (Requested by user) */}
+      {visibleBroadcasts.length > 0 && (
+        <div className="space-y-3 animate-in fade-in slide-in-from-top-3 duration-300">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <Image src={speakerSvg} alt="Speaker Broadcast" width={16} height={16} className="w-4 h-4 object-contain" />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                Official Secretariat Notifications ({visibleBroadcasts.length})
+              </span>
+            </div>
+            {dismissedBroadcasts.length > 0 && (
+              <button
+                onClick={() => {
+                  setDismissedBroadcasts([]);
+                  if (typeof window !== 'undefined') {
+                    localStorage.removeItem('nms08_dismissed_announcements');
+                  }
+                }}
+                className="text-[11px] text-emerald-700 hover:text-emerald-800 underline font-medium"
+              >
+                Restore Hidden Notices
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2.5">
+            {visibleBroadcasts.map((ann) => {
+              const isUrgent = ann.severity === 'urgent';
+              const isWarning = ann.severity === 'warning';
+
+              return (
+                <div
+                  key={ann.id}
+                  className={`p-4 sm:p-5 rounded-3xl border shadow-apple-sm transition-all relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                    isUrgent
+                      ? 'bg-rose-50/90 border-rose-300 text-rose-950 ring-1 ring-rose-200'
+                      : isWarning
+                      ? 'bg-amber-50/90 border-amber-300 text-amber-950 ring-1 ring-amber-200'
+                      : 'bg-emerald-50/80 border-emerald-300/80 text-emerald-950'
+                  }`}
+                >
+                  <div className="flex items-start gap-3.5 flex-1">
+                    <div
+                      className={`p-2 rounded-2xl shrink-0 mt-0.5 flex items-center justify-center ${
+                        isUrgent
+                          ? 'bg-rose-200 text-rose-800'
+                          : isWarning
+                          ? 'bg-amber-200 text-amber-800'
+                          : 'bg-emerald-200 text-emerald-800'
+                      }`}
+                    >
+                      {isUrgent ? (
+                        <AlertTriangle className="w-4 h-4" />
+                      ) : (
+                        <Image src={speakerSvg} alt="Speaker" width={16} height={16} className="w-4 h-4 object-contain" />
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge
+                          variant={isUrgent ? 'rose' : isWarning ? 'amber' : 'emerald'}
+                          size="sm"
+                        >
+                          {isUrgent ? 'URGENT NOTICE' : isWarning ? 'IMPORTANT' : ann.type?.toUpperCase() || 'OFFICIAL'}
+                        </Badge>
+                        <h3 className="font-bold text-sm text-slate-900">{ann.title}</h3>
+                      </div>
+                      <p className="text-xs text-slate-700 leading-relaxed font-normal">
+                        {ann.message}
+                      </p>
+                      <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-1">
+                        <span>Issued by: {ann.postedBy || 'National Secretariat'}</span>
+                        <span>•</span>
+                        <span>{new Date(ann.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 self-end sm:self-center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDismissAnnouncement(ann.id)}
+                      className="text-xs text-slate-500 hover:text-slate-800 hover:bg-black/5"
+                      icon={<X className="w-3.5 h-3.5" />}
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Navigation Filter Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
         {[
-          { key: 'all', label: 'Dashboard Overview', icon: Sparkles },
-          { key: 'profile', label: 'Full Member Profile', icon: Users },
-          { key: 'dues', label: 'Dues & Financials', icon: CreditCard },
-          { key: 'welfare', label: 'Welfare Fund', icon: Heart },
-          { key: 'elections', label: 'Voting & Elections', icon: Vote },
-          { key: 'docs', label: 'Documents', icon: FileText },
+          { key: 'all', label: 'Dashboard Overview', icon: Sparkles, isSvg: false },
+          { key: 'profile', label: 'Full Member Profile', icon: militaryManSvg, isSvg: true },
+          { key: 'dues', label: 'Dues & Financials', icon: cardSvg, isSvg: true },
+          { key: 'welfare', label: 'Welfare Fund', icon: Heart, isSvg: false },
+          { key: 'elections', label: 'Voting & Elections', icon: voteSvg, isSvg: true },
+          { key: 'docs', label: 'Documents', icon: FileText, isSvg: false },
         ].map((tab) => {
-          const Icon = tab.icon;
           const isActive = activeTab === tab.key;
           return (
             <button
@@ -330,7 +557,11 @@ export function MemberDashboard() {
                   : 'glass-panel text-slate-700 hover:bg-white'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              {tab.isSvg ? (
+                <Image src={tab.icon as any} alt={tab.label} width={16} height={16} className={`w-4 h-4 object-contain ${isActive ? 'brightness-200' : ''}`} />
+              ) : (
+                <tab.icon className="w-4 h-4" />
+              )}
               <span>{tab.label}</span>
             </button>
           );
@@ -378,8 +609,8 @@ export function MemberDashboard() {
             <Card hoverEffect variant="glass">
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-800">
-                    <Shield className="w-4 h-4" />
+                  <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                    <Image src={dogTagsSvg} alt="Dog Tags" width={18} height={18} className="w-4.5 h-4.5 object-contain" />
                   </div>
                   <div>
                     <CardTitle>Military Service & Identity</CardTitle>
@@ -397,11 +628,17 @@ export function MemberDashboard() {
                   <span className="font-semibold text-slate-900">{profile.company}</span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500 font-medium">Rank as Boy Soldier</span>
+                  <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                    <Image src={rankSvg} alt="Rank" width={14} height={14} className="w-3.5 h-3.5 object-contain inline-block" />
+                    Rank as Boy Soldier
+                  </span>
                   <span className="font-semibold text-slate-800">{profile.rankAppointment || 'Ex-Boy Soldier'}</span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500 font-medium">Set Appointment</span>
+                  <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                    <Image src={medalSvg} alt="Medal / Appointment" width={14} height={14} className="w-3.5 h-3.5 object-contain inline-block" />
+                    Set Appointment
+                  </span>
                   <span className="font-semibold text-slate-800">{profile.setAppointment || 'Member'}</span>
                 </div>
                 <div className="flex justify-between py-1.5">
@@ -597,8 +834,8 @@ export function MemberDashboard() {
             <Card hoverEffect variant="glass">
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700">
-                    <Award className="w-5 h-5" />
+                  <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                    <Image src={tankSvg} alt="Company Tank" width={20} height={20} className="w-5 h-5 object-contain" />
                   </div>
                   <div>
                     <CardTitle>Company Affiliation</CardTitle>
@@ -677,8 +914,8 @@ export function MemberDashboard() {
           <Card hoverEffect variant="glass" className="md:col-span-1">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700">
-                  <ShieldCheck className="w-5 h-5" />
+                <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <Image src={militaryManSvg} alt="Member Profile" width={20} height={20} className="w-5 h-5 object-contain" />
                 </div>
                 <div>
                   <CardTitle>Member Profile</CardTitle>
@@ -729,8 +966,8 @@ export function MemberDashboard() {
           <Card hoverEffect variant="glass" className="md:col-span-1">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700">
-                  <Award className="w-5 h-5" />
+                <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <Image src={tankSvg} alt="Company Tank" width={20} height={20} className="w-5 h-5 object-contain" />
                 </div>
                 <div>
                   <CardTitle>Company Affiliation</CardTitle>
@@ -811,8 +1048,8 @@ export function MemberDashboard() {
           <Card hoverEffect variant="glass" className="lg:col-span-2">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700">
-                  <CreditCard className="w-5 h-5" />
+                <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <Image src={cardSvg} alt="Dues Levies" width={20} height={20} className="w-5 h-5 object-contain" />
                 </div>
                 <div>
                   <CardTitle>Membership & Dues Status 2026</CardTitle>
@@ -892,17 +1129,21 @@ export function MemberDashboard() {
               <div className="text-center p-4 rounded-3xl bg-gradient-to-b from-emerald-50 to-white border border-emerald-100">
                 <span className="text-xs font-semibold text-slate-500 uppercase">Total Collected</span>
                 <h3 className="text-3xl font-extrabold text-emerald-700 tracking-tight">
-                  ₦{(FINANCIAL_METRICS.totalDuesCollected / 1000000).toFixed(1)}M
+                  {treasuryMetrics.totalDuesCollected > 0
+                    ? `₦${(treasuryMetrics.totalDuesCollected / 1_000_000).toFixed(1)}M`
+                    : '₦0.00'}
                 </h3>
                 <span className="text-xs text-slate-500 font-medium">
-                  Target: ₦{(FINANCIAL_METRICS.targetDues / 1000000).toFixed(1)}M (91.7%)
+                  {treasuryMetrics.targetDues > 0
+                    ? `Target: ₦${(treasuryMetrics.targetDues / 1_000_000).toFixed(1)}M (${treasuryMetrics.complianceRate}%)`
+                    : '2026 Collection Cycle Active'}
                 </span>
               </div>
 
               <ProgressBar
-                value={FINANCIAL_METRICS.complianceRate}
+                value={treasuryMetrics.complianceRate}
                 label="Class Dues Participation"
-                sublabel="445 out of 485 Ex-Boys have completed 2026 dues"
+                sublabel={`${treasuryMetrics.complianceRate}% of verified Ex-Boys have completed 2026 dues`}
                 color="emerald"
               />
 
@@ -977,8 +1218,8 @@ export function MemberDashboard() {
           <Card hoverEffect variant="glass">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700">
-                  <Vote className="w-5 h-5" />
+                <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <Image src={voteSvg} alt="Voting & Elections" width={20} height={20} className="w-5 h-5 object-contain" />
                 </div>
                 <div>
                   <CardTitle>Democratic Elections</CardTitle>
