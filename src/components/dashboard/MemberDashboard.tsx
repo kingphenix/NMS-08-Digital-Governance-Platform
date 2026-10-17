@@ -30,7 +30,6 @@ import {
   Award,
   Users,
   Building,
-  CreditCard,
   Calendar,
   Bell,
   FileText,
@@ -219,8 +218,6 @@ export function MemberDashboard() {
   const [photoToastMessage, setPhotoToastMessage] = useState('Passport photo updated successfully!');
   const [showChapterModal, setShowChapterModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
-  const [showIdCardModal, setShowIdCardModal] = useState(false);
-  const [idCardSide, setIdCardSide] = useState<'front' | 'back'>('front');
   const [editProfileSaving, setEditProfileSaving] = useState(false);
   const [profileEditForm, setProfileEditForm] = useState({
     phone: '',
@@ -877,16 +874,6 @@ export function MemberDashboard() {
             <Button
               variant="glass"
               size="sm"
-              onClick={() => setShowIdCardModal(true)}
-              icon={<CreditCard className="w-4 h-4 text-emerald-700" />}
-              className="text-slate-900 font-semibold"
-            >
-              Digital ID Card
-            </Button>
-
-            <Button
-              variant="glass"
-              size="sm"
               onClick={() => {
                 setShowReceiptToast(true);
                 setTimeout(() => setShowReceiptToast(false), 4000);
@@ -1085,15 +1072,6 @@ export function MemberDashboard() {
                 variant="outline"
                 size="sm"
                 className="bg-white/10 text-white border-white/20 hover:bg-white/20"
-                icon={<CreditCard className="w-3.5 h-3.5" />}
-                onClick={() => setShowIdCardModal(true)}
-              >
-                Digital ID Card
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-white/10 text-white border-white/20 hover:bg-white/20"
                 icon={<Printer className="w-3.5 h-3.5" />}
                 onClick={() => window.print()}
               >
@@ -1102,141 +1080,6 @@ export function MemberDashboard() {
             </div>
           </div>
 
-          {/* OFFICIAL DIGITAL EX-BOY IDENTITY CARD SHOWCASE */}
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-slate-900 to-emerald-950 border-2 border-emerald-500/40 shadow-2xl p-6 sm:p-8 text-white">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-10 -left-10 w-80 h-80 bg-emerald-700/10 rounded-full blur-2xl pointer-events-none" />
-
-            {/* Card Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-6 border-b border-emerald-500/20 gap-4">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-900/60 border border-emerald-500/30 p-2 flex items-center justify-center shrink-0">
-                  <Image src={mainLogo} alt="NMS Crest" width={40} height={40} className="w-full h-auto object-contain" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] uppercase font-mono tracking-widest text-emerald-400 font-bold">NMS 08 Association</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[10px] text-slate-300">Official Digital Credential</span>
-                  </div>
-                  <h3 className="text-base sm:text-lg font-extrabold tracking-tight text-white">
-                    Nigerian Military School Ex-Boys Identity Card
-                  </h3>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="outline" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-mono text-xs">
-                  ★ ACCREDITED
-                </Badge>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-white/10 text-white border-white/20 hover:bg-white/20 text-xs gap-1.5"
-                  onClick={() => setShowIdCardModal(true)}
-                  icon={<CreditCard className="w-3.5 h-3.5" />}
-                >
-                  Full Card View
-                </Button>
-              </div>
-            </div>
-
-            {/* Card Body Grid */}
-            <div className="pt-6 grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
-              {/* Photo & Medical Data */}
-              <div className="flex flex-col items-center sm:items-start md:items-center text-center space-y-3">
-                <div className="relative group">
-                  <div className="w-28 h-32 rounded-2xl overflow-hidden border-2 border-emerald-400/60 shadow-lg bg-emerald-900/60 relative flex items-center justify-center">
-                    {profile.avatarUrl ? (
-                      <img
-                        src={profile.avatarUrl}
-                        alt={profile.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center p-2 text-center">
-                        <span className="text-3xl font-extrabold text-white/80">{nameInitials}</span>
-                        <span className="text-[10px] text-emerald-300 mt-1">Passport Photo</span>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => avatarInputRef.current?.click()}
-                      className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[11px] font-semibold"
-                    >
-                      <Camera className="w-5 h-5 mb-1" />
-                      <span>Update Photo</span>
-                    </button>
-                  </div>
-                  <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border border-slate-900 flex items-center justify-center text-slate-950 font-bold text-xs">
-                    ✓
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-lg bg-emerald-950/80 border border-emerald-500/30 text-[10px] font-mono text-emerald-300 font-bold">
-                    Blood: {profile.bloodGroup || 'O+'}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-lg bg-emerald-950/80 border border-emerald-500/30 text-[10px] font-mono text-emerald-300 font-bold">
-                    Genotype: {profile.genotype || 'AA'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Identity Particulars */}
-              <div className="md:col-span-2 space-y-4">
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Member Name</span>
-                  <h4 className="text-xl sm:text-2xl font-black text-white tracking-wide uppercase">
-                    {profile.name}
-                  </h4>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold block">Service No.</span>
-                    <span className="text-base font-extrabold font-mono text-emerald-400">{profile.nmsNo}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold block">Company / Squad</span>
-                    <span className="text-sm font-bold text-white">{profile.company} ({profile.squad})</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold block">Boy Soldier Rank</span>
-                    <span className="text-xs font-semibold text-slate-200">{profile.rankAppointment}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold block">Home Cell Chapter</span>
-                    <span className="text-xs font-semibold text-emerald-300">{userChapter.shortName}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Barcode & Security Hologram */}
-              <div className="flex flex-col items-center md:items-end justify-between space-y-4 border-t md:border-t-0 md:border-l border-emerald-500/20 pt-4 md:pt-0 md:pl-6 text-center md:text-right">
-                <div className="space-y-1">
-                  <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold block">Card Status</span>
-                  <Badge variant="emerald" className="text-[11px] font-bold">
-                    ACTIVE 2026 / 2027
-                  </Badge>
-                </div>
-
-                {/* Simulated Barcode */}
-                <div className="p-2 rounded-xl bg-white/90 text-slate-950 font-mono text-center shadow-inner">
-                  <div className="text-[14px] tracking-[6px] font-bold select-none leading-none scale-y-125 mb-1">
-                    ||||| | |||| ||| |||| |
-                  </div>
-                  <div className="text-[9px] font-mono tracking-wider font-semibold text-slate-700">
-                    {profile.nmsNo.replace(/[^A-Za-z0-9]/g, '')}-2026-NMS08
-                  </div>
-                </div>
-
-                <div className="text-[10px] text-slate-400 font-mono">
-                  Sec-Token: {profile.nmsNo.slice(-4) || '0800'}-SEC-VERIFIED
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Dossier Information Grid: 6 Categorical Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -2411,211 +2254,7 @@ export function MemberDashboard() {
         </div>
       )}
 
-      {/* INTERACTIVE DIGITAL EX-BOY IDENTITY CARD MODAL */}
-      {showIdCardModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-xl flex flex-col glass-panel rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl border border-white/50">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-800">
-                  <CreditCard className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">Official Ex-Boy Digital Identity Card</h3>
-                  <p className="text-xs text-slate-500">Nigerian Military School 08 Association</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowIdCardModal(false)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-xl hover:bg-slate-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            {/* Flip Controls */}
-            <div className="flex justify-center">
-              <div className="inline-flex rounded-xl bg-slate-100 p-1">
-                <button
-                  type="button"
-                  onClick={() => setIdCardSide('front')}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    idCardSide === 'front'
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Front Side
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIdCardSide('back')}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    idCardSide === 'back'
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Reverse Side
-                </button>
-              </div>
-            </div>
-
-            {/* The Digital ID Card Component */}
-            {idCardSide === 'front' ? (
-              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-slate-950 to-emerald-900 border-2 border-emerald-400/50 shadow-2xl p-6 text-white space-y-5">
-                <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
-                {/* Card Top Strip */}
-                <div className="flex items-center justify-between pb-3 border-b border-emerald-500/20">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-900/80 border border-emerald-400/40 p-1.5 flex items-center justify-center">
-                      <Image src={mainLogo} alt="NMS Emblem" width={32} height={32} className="w-full h-auto object-contain" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black tracking-widest text-emerald-400 uppercase">
-                        Nigerian Military School
-                      </h4>
-                      <p className="text-[10px] text-slate-300 font-medium">Ex-Boys 08 Association Official Credential</p>
-                    </div>
-                  </div>
-                  <Badge variant="emerald" size="sm" className="font-mono text-[10px]">
-                    2026 VALID
-                  </Badge>
-                </div>
-
-                {/* Card Main Body */}
-                <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
-                  {/* Photo Frame */}
-                  <div className="flex flex-col items-center space-y-2 shrink-0">
-                    <div className="w-24 h-28 rounded-2xl overflow-hidden border-2 border-emerald-400/70 shadow-md bg-emerald-900/60 relative flex items-center justify-center">
-                      {profile.avatarUrl ? (
-                        <img
-                          src={profile.avatarUrl}
-                          alt={profile.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-2xl font-black text-white/80">{nameInitials}</span>
-                      )}
-                    </div>
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-900/80 border border-emerald-400/30 text-[9px] font-mono font-bold text-emerald-300">
-                      {profile.bloodGroup || 'O+'} / {profile.genotype || 'AA'}
-                    </span>
-                  </div>
-
-                  {/* Personal details */}
-                  <div className="space-y-2.5 flex-1 w-full text-left">
-                    <div>
-                      <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">Full Name</span>
-                      <h5 className="text-base font-extrabold uppercase tracking-wide text-white">
-                        {profile.name}
-                      </h5>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">Service No</span>
-                        <span className="font-mono font-bold text-emerald-400">{profile.nmsNo}</span>
-                      </div>
-                      <div>
-                        <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">Company</span>
-                        <span className="font-bold text-slate-200">{profile.company}</span>
-                      </div>
-                      <div>
-                        <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">Rank</span>
-                        <span className="font-medium text-slate-300">{profile.rankAppointment}</span>
-                      </div>
-                      <div>
-                        <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">Home Cell</span>
-                        <span className="font-medium text-emerald-300 truncate block">{userChapter.shortName}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card Footer Strip with Barcode */}
-                <div className="pt-3 border-t border-emerald-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <div className="bg-white/95 px-3 py-1.5 rounded-lg text-slate-950 font-mono text-center">
-                    <div className="text-[12px] tracking-[5px] font-bold select-none leading-none scale-y-125">
-                      ||||| | |||| ||| |||| |
-                    </div>
-                    <div className="text-[8px] tracking-wider text-slate-700">
-                      NMS08-{profile.nmsNo.replace(/[^A-Za-z0-9]/g, '')}-SEC
-                    </div>
-                  </div>
-
-                  <div className="text-center sm:text-right">
-                    <span className="text-[9px] font-mono text-emerald-300 block">STATUS: FINANCIAL MEMBER</span>
-                    <span className="text-[8px] text-slate-400">Accredited by National Electoral & Set Secretariat</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* Reverse Side */
-              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-emerald-950 to-slate-950 border-2 border-emerald-400/50 shadow-2xl p-6 text-white space-y-4 text-xs">
-                <div className="border-b border-emerald-500/20 pb-3">
-                  <h4 className="font-bold text-emerald-400 text-sm">Official Terms of Association</h4>
-                  <p className="text-[11px] text-slate-400">Nigerian Military School Ex-Boys 08 Set Governance System</p>
-                </div>
-
-                <div className="space-y-2 text-[11px] text-slate-300 leading-relaxed">
-                  <p>
-                    1. This digital credential remains the property of the Nigerian Military School Ex-Boys 08 Set National Secretariat.
-                  </p>
-                  <p>
-                    2. Cardholder is an accredited Ex-Boy soldier of the Nigerian Military School Zaria, admitted into the 2008 Set.
-                  </p>
-                  <p>
-                    3. Entitles the bearer to full democratic voting rights, welfare grants, and national general assembly participation.
-                  </p>
-                </div>
-
-                <div className="p-3 rounded-2xl bg-emerald-950/60 border border-emerald-500/20 space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-emerald-400 block">Secretariat Liaison & Inquiries</span>
-                  <p className="text-[11px] text-slate-200">National Headquarters, Suite 402, CBD Abuja, Nigeria</p>
-                  <p className="text-[11px] text-emerald-300 font-mono">Emergency Hotline: +234 800 000 NMS08</p>
-                </div>
-
-                <div className="pt-2 flex justify-between items-center text-[10px] text-slate-400 border-t border-emerald-500/20">
-                  <span>Signatory: Set Chairman & GenSec</span>
-                  <span className="font-mono text-emerald-400">HASH: VERIFIED-NMS08-2026</span>
-                </div>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => avatarInputRef.current?.click()}
-                icon={<Camera className="w-3.5 h-3.5" />}
-              >
-                Change Passport Photo
-              </Button>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="emerald"
-                  size="sm"
-                  onClick={() => window.print()}
-                  icon={<Printer className="w-3.5 h-3.5" />}
-                >
-                  Print ID Card
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowIdCardModal(false)}
-                >
-                  Done
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
