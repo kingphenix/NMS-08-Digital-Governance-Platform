@@ -217,9 +217,12 @@ export function MemberDashboard() {
   const [showPhotoToast, setShowPhotoToast] = useState(false);
   const [photoToastMessage, setPhotoToastMessage] = useState('Passport photo updated successfully!');
   const [showChapterModal, setShowChapterModal] = useState(false);
+  const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [editProfileSaving, setEditProfileSaving] = useState(false);
   const [profileEditForm, setProfileEditForm] = useState({
+    company: '',
+    homeCell: '',
     phone: '',
     stateOfResidence: '',
     address: '',
@@ -555,8 +558,42 @@ export function MemberDashboard() {
     setTimeout(() => setShowPhotoToast(false), 4000);
   };
 
+  const handleUpdateCompany = (companyName: string) => {
+    setProfile((prev) => ({ ...prev, company: companyName }));
+    try {
+      const currentStored = sessionStorage.getItem('nms08_current_profile');
+      const parsed = currentStored ? JSON.parse(currentStored) : {};
+      parsed.company = companyName;
+      sessionStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
+    } catch {}
+
+    try {
+      const currentStored = localStorage.getItem('nms08_current_profile');
+      const parsed = currentStored ? JSON.parse(currentStored) : {};
+      parsed.company = companyName;
+      localStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
+    } catch {}
+
+    if (profile.nmsNo) {
+      fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nms: profile.nmsNo,
+          company: companyName,
+        }),
+      }).catch((err) => console.warn('Company update error:', err));
+    }
+    setShowCompanyModal(false);
+    setPhotoToastMessage(`Company Affiliation updated to ${companyName}`);
+    setShowPhotoToast(true);
+    setTimeout(() => setShowPhotoToast(false), 4000);
+  };
+
   const openEditProfile = () => {
     setProfileEditForm({
+      company: profile.company || 'Alpha Company',
+      homeCell: profile.homeCell || 'Abuja Executive Chapter',
       phone: profile.phone || '',
       stateOfResidence: profile.stateOfResidence || '',
       address: profile.address || '',
@@ -587,6 +624,7 @@ export function MemberDashboard() {
         const stored = sessionStorage.getItem('nms08_current_profile');
         const parsed = stored ? JSON.parse(stored) : {};
         Object.assign(parsed, profileEditForm);
+        parsed.home_cell = profileEditForm.homeCell;
         sessionStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
       } catch {}
 
@@ -594,6 +632,7 @@ export function MemberDashboard() {
         const stored = localStorage.getItem('nms08_current_profile');
         const parsed = stored ? JSON.parse(stored) : {};
         Object.assign(parsed, profileEditForm);
+        parsed.home_cell = profileEditForm.homeCell;
         localStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
       } catch {}
 
@@ -604,6 +643,7 @@ export function MemberDashboard() {
           body: JSON.stringify({
             nms: profile.nmsNo,
             ...profileEditForm,
+            home_cell: profileEditForm.homeCell,
           }),
         });
       }
@@ -1101,9 +1141,20 @@ export function MemberDashboard() {
                   <span className="text-slate-500 font-medium">NMS Service No</span>
                   <span className="font-mono font-bold text-emerald-800">{profile.nmsNo}</span>
                 </div>
-                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
                   <span className="text-slate-500 font-medium">School Company</span>
-                  <span className="font-semibold text-slate-900">{profile.company}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-slate-900">{profile.company}</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowCompanyModal(true)}
+                      className="text-xs text-emerald-700 hover:text-emerald-800 hover:underline font-semibold flex items-center gap-0.5 ml-1"
+                      title="Edit Company Affiliation"
+                    >
+                      <Edit2 className="w-3 h-3 inline" />
+                      Edit
+                    </button>
+                  </div>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500 font-medium flex items-center gap-1.5">
@@ -1195,9 +1246,20 @@ export function MemberDashboard() {
                     {profile.phone || '+234 800 000 0000'}
                   </a>
                 </div>
-                <div className="py-1.5">
-                  <span className="text-slate-500 font-medium block text-[11px]">Home Cell Association</span>
-                  <span className="font-semibold text-slate-800">{profile.homeCell}</span>
+                <div className="flex justify-between items-center py-1.5">
+                  <div>
+                    <span className="text-slate-500 font-medium block text-[11px]">Home Cell Association</span>
+                    <span className="font-semibold text-slate-800">{profile.homeCell}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowChapterModal(true)}
+                    className="text-xs text-emerald-700 hover:text-emerald-800 hover:underline font-semibold flex items-center gap-0.5"
+                    title="Change Home Cell Chapter"
+                  >
+                    <Edit2 className="w-3 h-3 inline" />
+                    Edit
+                  </button>
                 </div>
               </CardContent>
             </Card>
@@ -1343,6 +1405,17 @@ export function MemberDashboard() {
                   color="emerald"
                 />
               </CardContent>
+              <CardFooter>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-center text-xs text-emerald-800"
+                  onClick={() => setShowCompanyModal(true)}
+                  icon={<Shield className="w-3.5 h-3.5" />}
+                >
+                  Change Company Affiliation
+                </Button>
+              </CardFooter>
             </Card>
 
             {/* HOME CELL CARD */}
@@ -1494,6 +1567,17 @@ export function MemberDashboard() {
                 color="emerald"
               />
             </CardContent>
+            <CardFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-center text-xs text-emerald-800"
+                onClick={() => setShowCompanyModal(true)}
+                icon={<Shield className="w-3.5 h-3.5" />}
+              >
+                Change Company Affiliation
+              </Button>
+            </CardFooter>
           </Card>
 
           {/* HOME CELL CARD */}
@@ -2078,6 +2162,89 @@ export function MemberDashboard() {
         </div>
       )}
 
+      {/* MILITARY COMPANY AFFILIATION SELECTION MODAL */}
+      {showCompanyModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl max-h-[90vh] flex flex-col glass-panel rounded-3xl p-6 sm:p-8 space-y-5 shadow-2xl border border-white">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                  <Image src={tankSvg} alt="Company Tank" width={24} height={24} className="w-6 h-6 object-contain" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Select Your Military Company</h3>
+                  <p className="text-xs text-slate-500">Update your school company affiliation and battalion unit</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCompanyModal(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 shrink-0">
+              Your military company determines your inter-company drill standing, sports roster, company dues tracking, and cadet company identity.
+            </p>
+
+            <div className="overflow-y-auto space-y-3 pr-1 max-h-[50vh]">
+              {COMPANIES_LIST.map((comp) => {
+                const isSelected =
+                  profile.company.toLowerCase().includes(comp.name.toLowerCase().split(' ')[0]) ||
+                  profile.company.toLowerCase().includes(comp.id.toLowerCase());
+                return (
+                  <div
+                    key={comp.id}
+                    onClick={() => handleUpdateCompany(comp.name)}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                      isSelected
+                        ? 'bg-emerald-50/90 border-emerald-500 shadow-apple-sm ring-1 ring-emerald-500'
+                        : 'bg-white border-slate-200/90 hover:border-emerald-300 hover:bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-slate-900">{comp.name}</span>
+                        <Badge variant="subtle" size="sm">{comp.code}</Badge>
+                        {isSelected && (
+                          <Badge variant="emerald" size="sm">
+                            CURRENT
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-600 italic">
+                        "{comp.motto}"
+                      </p>
+                      <p className="text-[11px] text-slate-700 font-medium">
+                        Commander: <strong>{comp.commander}</strong> • {comp.description}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+                      <span className="text-xs font-semibold text-slate-500">{comp.totalMembers} Ex-Boys</span>
+                      <Button
+                        variant={isSelected ? 'emerald' : 'outline'}
+                        size="sm"
+                        className="text-xs"
+                      >
+                        {isSelected ? 'Active Company' : 'Select'}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-3 border-t border-slate-200 flex justify-end shrink-0">
+              <Button variant="ghost" onClick={() => setShowCompanyModal(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* EDIT PROFILE PARTICULARS MODAL */}
       {showEditProfileModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -2102,6 +2269,40 @@ export function MemberDashboard() {
 
             <form onSubmit={handleSaveProfile} className="overflow-y-auto space-y-4 pr-1 max-h-[60vh]">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Military Company Affiliation <span className="text-emerald-700">*</span>
+                  </label>
+                  <select
+                    value={profileEditForm.company}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, company: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                  >
+                    {COMPANIES_LIST.map((comp) => (
+                      <option key={comp.id} value={comp.name}>
+                        {comp.name} ({comp.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Home Cell Chapter <span className="text-emerald-700">*</span>
+                  </label>
+                  <select
+                    value={profileEditForm.homeCell}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, homeCell: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                  >
+                    {CHAPTERS_LIST.map((chap) => (
+                      <option key={chap.id} value={chap.name}>
+                        {chap.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Phone / WhatsApp Number</label>
                   <input
