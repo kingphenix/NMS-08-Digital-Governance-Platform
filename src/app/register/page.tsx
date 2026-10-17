@@ -23,6 +23,7 @@ import {
   Sparkles,
   Eye,
   EyeOff,
+  Building,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -36,6 +37,19 @@ const NIGERIAN_STATES = [
   'Imo', 'Jigawa', 'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara', 'Lagos',
   'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau', 'Rivers', 'Sokoto',
   'Taraba', 'Yobe', 'Zamfara'
+];
+
+export const HOME_CELL_CHAPTERS = [
+  'Abuja Executive Chapter',
+  'Lagos Metropolitan Chapter',
+  'Rivers & Niger Delta Chapter',
+  'Kaduna Regional Chapter',
+  'Plateau / Jos Chapter',
+  'Enugu & Eastern Chapter',
+  'Ibadan & Western Chapter',
+  'Kano & Northern Chapter',
+  'Diaspora Chapter (International)',
+  'National Secretariat Chapter',
 ];
 
 export default function RegisterPage() {
@@ -52,6 +66,7 @@ export default function RegisterPage() {
     dob: '',
     stateOfOrigin: 'Plateau',
     stateOfResidence: '',
+    homeCell: 'Abuja Executive Chapter',
     address: '',
     maritalStatus: 'Single',
 
@@ -120,6 +135,7 @@ export default function RegisterPage() {
       dob: form.dob,
       state_of_origin: form.stateOfOrigin,
       state_of_residence: form.stateOfResidence,
+      home_cell: form.homeCell,
       address: form.address,
       marital_status: form.maritalStatus,
       email: form.email,
@@ -162,6 +178,9 @@ export default function RegisterPage() {
               ...payload,
               name: nameInput,
               nmsNo: nmsInput,
+              company: form.company,
+              homeCell: form.homeCell,
+              home_cell: form.homeCell,
             })
           );
         } catch {}
@@ -240,10 +259,12 @@ export default function RegisterPage() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 <div><span className="text-slate-400 block">Service Number:</span> <strong className="font-mono">{form.nmsNo}</strong></div>
                 <div><span className="text-slate-400 block">Military Company:</span> <strong>{form.company}</strong></div>
+                <div><span className="text-slate-400 block">Home Cell:</span> <strong className="text-emerald-700">{form.homeCell}</strong></div>
                 <div><span className="text-slate-400 block">Blood Group:</span> <strong>{form.bloodGroup} ({form.genotype})</strong></div>
                 <div><span className="text-slate-400 block">Email Address:</span> <span>{form.email || 'N/A'}</span></div>
                 <div><span className="text-slate-400 block">Phone:</span> <span>{form.phone || 'N/A'}</span></div>
                 <div><span className="text-slate-400 block">State of Origin:</span> <span>{form.stateOfOrigin}</span></div>
+                <div><span className="text-slate-400 block">State of Residence:</span> <span>{form.stateOfResidence || 'N/A'}</span></div>
               </div>
             </div>
 
@@ -430,10 +451,41 @@ export default function RegisterPage() {
                       type="text"
                       placeholder="e.g. Abuja, Lagos, Port Harcourt, UK"
                       value={form.stateOfResidence}
-                      onChange={(e) => setForm({ ...form, stateOfResidence: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        let autoCell = form.homeCell;
+                        const vLower = val.toLowerCase();
+                        if (vLower.includes('abuja') || vLower.includes('fct')) autoCell = 'Abuja Executive Chapter';
+                        else if (vLower.includes('lagos')) autoCell = 'Lagos Metropolitan Chapter';
+                        else if (vLower.includes('river') || vLower.includes('port harcourt') || vLower.includes('ph')) autoCell = 'Rivers & Niger Delta Chapter';
+                        else if (vLower.includes('kaduna')) autoCell = 'Kaduna Regional Chapter';
+                        else if (vLower.includes('jos') || vLower.includes('plateau')) autoCell = 'Plateau / Jos Chapter';
+                        else if (vLower.includes('enugu')) autoCell = 'Enugu & Eastern Chapter';
+                        else if (vLower.includes('ibadan') || vLower.includes('oyo')) autoCell = 'Ibadan & Western Chapter';
+                        else if (vLower.includes('kano')) autoCell = 'Kano & Northern Chapter';
+                        else if (vLower.includes('uk') || vLower.includes('usa') || vLower.includes('london') || vLower.includes('canada')) autoCell = 'Diaspora Chapter (International)';
+                        setForm({ ...form, stateOfResidence: val, homeCell: autoCell });
+                      }}
                       disabled={loading}
                       className={inputClasses}
                     />
+                  </div>
+
+                  <div>
+                    <label htmlFor="homeCell" className={labelClasses}>
+                      <Building className="w-3.5 h-3.5 text-slate-400" /> Home Cell Chapter <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="homeCell"
+                      value={form.homeCell}
+                      onChange={(e) => setForm({ ...form, homeCell: e.target.value })}
+                      disabled={loading}
+                      className={inputClasses}
+                    >
+                      {HOME_CELL_CHAPTERS.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="md:col-span-2">

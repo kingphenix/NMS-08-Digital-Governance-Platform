@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import mainLogo from '@/assets/nms-new-logo.webp';
 import militaryManSvg from '@/assets/military-man.svg';
@@ -59,7 +59,155 @@ import {
   Megaphone,
   X,
   AlertTriangle,
+  Camera,
+  Trash2,
+  Upload,
+  Globe,
+  Edit2,
 } from 'lucide-react';
+
+export interface ChapterInfo {
+  id: string;
+  name: string;
+  shortName: string;
+  location: string;
+  region: string;
+  chairman: string;
+  meetingSchedule: string;
+  secretariat: string;
+  activeMembers: number;
+}
+
+export const CHAPTERS_LIST: ChapterInfo[] = [
+  {
+    id: 'abuja',
+    name: 'Abuja Executive Chapter',
+    shortName: 'Abuja Chapter',
+    location: 'Abuja, Federal Capital Territory',
+    region: 'North-Central & FCT',
+    chairman: 'Ex-Boy Barr. Obinna Eze',
+    meetingSchedule: '3rd Sunday of Every Month (5:00 PM)',
+    secretariat: 'Suite 402, NMS 08 National Liaison Office, Central Business District, Abuja',
+    activeMembers: 114,
+  },
+  {
+    id: 'lagos',
+    name: 'Lagos Metropolitan Chapter',
+    shortName: 'Lagos Chapter',
+    location: 'Ikeja / Victoria Island, Lagos',
+    region: 'South-West',
+    chairman: 'Ex-Boy Engr. Femi Adeleke',
+    meetingSchedule: '2nd Sunday of Every Month (4:00 PM)',
+    secretariat: 'Plot 18, Commercial Avenue, Ikeja GRA, Lagos',
+    activeMembers: 98,
+  },
+  {
+    id: 'rivers',
+    name: 'Rivers & Niger Delta Chapter',
+    shortName: 'Port Harcourt Chapter',
+    location: 'Port Harcourt, Rivers State',
+    region: 'South-South',
+    chairman: 'Ex-Boy Dr. Tamuno Briggs',
+    meetingSchedule: 'Last Sunday of Every Month (5:00 PM)',
+    secretariat: '12 Tombia Street, GRA Phase 2, Port Harcourt',
+    activeMembers: 52,
+  },
+  {
+    id: 'kaduna',
+    name: 'Kaduna Regional Chapter',
+    shortName: 'Kaduna Chapter',
+    location: 'Kaduna Central, Kaduna State',
+    region: 'North-West',
+    chairman: 'Ex-Boy Capt. Aliyu Mohammed',
+    meetingSchedule: '1st Saturday of Every Month (11:00 AM)',
+    secretariat: 'Old NDA Road, Ungwan Rimi, Kaduna',
+    activeMembers: 64,
+  },
+  {
+    id: 'plateau',
+    name: 'Plateau / Jos Chapter',
+    shortName: 'Jos Chapter',
+    location: 'Jos, Plateau State',
+    region: 'North-Central',
+    chairman: 'Ex-Boy Pam Dung',
+    meetingSchedule: '2nd Saturday of Every Month (3:00 PM)',
+    secretariat: 'Rayfield Club House, Jos',
+    activeMembers: 45,
+  },
+  {
+    id: 'enugu',
+    name: 'Enugu & Eastern Chapter',
+    shortName: 'Enugu Chapter',
+    location: 'Enugu, Enugu State',
+    region: 'South-East',
+    chairman: 'Ex-Boy Chinedu Okafor',
+    meetingSchedule: '3rd Sunday of Every Month (4:30 PM)',
+    secretariat: 'Independence Layout, Enugu',
+    activeMembers: 39,
+  },
+  {
+    id: 'ibadan',
+    name: 'Ibadan & Western Chapter',
+    shortName: 'Ibadan Chapter',
+    location: 'Ibadan, Oyo State',
+    region: 'South-West',
+    chairman: 'Ex-Boy Dr. Kehinde Ojo',
+    meetingSchedule: 'Last Sunday of Every Month (4:00 PM)',
+    secretariat: 'Bodija Estate, Ibadan',
+    activeMembers: 33,
+  },
+  {
+    id: 'kano',
+    name: 'Kano & Northern Chapter',
+    shortName: 'Kano Chapter',
+    location: 'Kano, Kano State',
+    region: 'North-West',
+    chairman: 'Ex-Boy Aminu Sanusi',
+    meetingSchedule: '1st Sunday of Every Month (3:00 PM)',
+    secretariat: 'Bompai Industrial Area, Kano',
+    activeMembers: 28,
+  },
+  {
+    id: 'diaspora',
+    name: 'Diaspora Chapter (International)',
+    shortName: 'Diaspora Chapter',
+    location: 'Global (UK, USA, Canada, Europe)',
+    region: 'International Diaspora',
+    chairman: 'Ex-Boy Dr. Kunle Adeyemi',
+    meetingSchedule: 'Monthly Virtual Townhall via Zoom',
+    secretariat: 'Global Diaspora Coordination Bureau, London & Washington',
+    activeMembers: 58,
+  },
+  {
+    id: 'national',
+    name: 'National Secretariat Chapter',
+    shortName: 'National Roster',
+    location: 'National Assembly of Ex-Boys',
+    region: 'Federation of Nigeria',
+    chairman: 'Set Executive Council',
+    meetingSchedule: 'Quarterly General Assembly',
+    secretariat: 'National Headquarters, Abuja',
+    activeMembers: 533,
+  },
+];
+
+export function getChapterForMember(homeCell?: string, stateOfResidence?: string): ChapterInfo {
+  const query = `${homeCell || ''} ${stateOfResidence || ''}`.toLowerCase();
+  if (query.includes('lagos')) return CHAPTERS_LIST[1];
+  if (query.includes('river') || query.includes('port harcourt') || query.includes('ph')) return CHAPTERS_LIST[2];
+  if (query.includes('kaduna')) return CHAPTERS_LIST[3];
+  if (query.includes('plateau') || query.includes('jos')) return CHAPTERS_LIST[4];
+  if (query.includes('enugu') || query.includes('anambra') || query.includes('imo') || query.includes('abia') || query.includes('ebonyi')) return CHAPTERS_LIST[5];
+  if (query.includes('ibadan') || query.includes('oyo') || query.includes('osun') || query.includes('ogun') || query.includes('ondo') || query.includes('ekiti')) return CHAPTERS_LIST[6];
+  if (query.includes('kano') || query.includes('katsina') || query.includes('jigawa') || query.includes('sokoto')) return CHAPTERS_LIST[7];
+  if (query.includes('diaspora') || query.includes('uk') || query.includes('usa') || query.includes('london') || query.includes('canada') || query.includes('abroad')) return CHAPTERS_LIST[8];
+  if (query.includes('abuja') || query.includes('fct') || query.includes('nasarawa') || query.includes('niger')) return CHAPTERS_LIST[0];
+
+  const found = CHAPTERS_LIST.find(c => homeCell && (c.name.toLowerCase().includes(homeCell.toLowerCase()) || homeCell.toLowerCase().includes(c.id)));
+  if (found) return found;
+
+  return CHAPTERS_LIST[0];
+}
 
 export function MemberDashboard() {
   const [activeTab, setActiveTab] = useState<'all' | 'profile' | 'dues' | 'welfare' | 'elections' | 'docs'>('all');
@@ -67,6 +215,28 @@ export function MemberDashboard() {
   const [welfareClaims, setWelfareClaims] = useState(WELFARE_CLAIMS);
   const [showWelfareModal, setShowWelfareModal] = useState(false);
   const [showReceiptToast, setShowReceiptToast] = useState(false);
+  const [showPhotoToast, setShowPhotoToast] = useState(false);
+  const [photoToastMessage, setPhotoToastMessage] = useState('Passport photo updated successfully!');
+  const [showChapterModal, setShowChapterModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [showIdCardModal, setShowIdCardModal] = useState(false);
+  const [idCardSide, setIdCardSide] = useState<'front' | 'back'>('front');
+  const [editProfileSaving, setEditProfileSaving] = useState(false);
+  const [profileEditForm, setProfileEditForm] = useState({
+    phone: '',
+    stateOfResidence: '',
+    address: '',
+    maritalStatus: 'Single',
+    occupation: '',
+    industry: '',
+    business: '',
+    skills: '',
+    professionalQualifications: '',
+    nextOfKin: '',
+    relationship: '',
+    nextOfKinPhone: '',
+  });
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [adminBroadcasts, setAdminBroadcasts] = useState<any[]>([]);
   const [dismissedBroadcasts, setDismissedBroadcasts] = useState<string[]>([]);
   const [votedCandidate, setVotedCandidate] = useState<string | null>(null);
@@ -77,14 +247,14 @@ export function MemberDashboard() {
     targetDues: 0,
   });
 
-  // Dynamic user profile state (hydrated from session and Supabase)
+  // Dynamic user profile state (hydrated from session, localStorage and Supabase)
   const [profile, setProfile] = useState({
     id: '',
     name: 'Ex-Boy Member',
     nmsNo: 'NMS/08/----',
     squad: 'Alpha',
     company: 'Unassigned',
-    homeCell: 'National',
+    homeCell: '',
     phone: '',
     email: '',
     dob: '',
@@ -116,7 +286,9 @@ export function MemberDashboard() {
     async function loadProfile() {
       let savedData: any = null;
       try {
-        const stored = sessionStorage.getItem('nms08_current_profile');
+        const stored =
+          sessionStorage.getItem('nms08_current_profile') ||
+          localStorage.getItem('nms08_current_profile');
         if (stored) {
           savedData = JSON.parse(stored);
         }
@@ -124,7 +296,10 @@ export function MemberDashboard() {
         console.error('Failed to parse session profile', err);
       }
 
-      const authed = typeof window !== 'undefined' && sessionStorage.getItem('nms08_member_authed') === 'true';
+      const authed =
+        typeof window !== 'undefined' &&
+        (sessionStorage.getItem('nms08_member_authed') === 'true' ||
+          localStorage.getItem('nms08_member_authed') === 'true');
       if (!savedData && !authed) {
         setIsAuthed(false);
         return;
@@ -132,9 +307,23 @@ export function MemberDashboard() {
       setIsAuthed(true);
 
       const nmsQuery = savedData?.nms_number || savedData?.nmsNo;
+      const cachedAvatar =
+        (nmsQuery && localStorage.getItem(`nms08_avatar_${nmsQuery}`)) ||
+        localStorage.getItem('nms08_active_avatar') ||
+        savedData?.avatarUrl ||
+        savedData?.avatar_url ||
+        '';
+
       if (!nmsQuery) {
         if (savedData) {
-          setProfile((prev) => ({ ...prev, ...savedData, isLiveProfile: true }));
+          const defaultChapter = getChapterForMember(savedData.home_cell || savedData.homeCell, savedData.state_of_residence || savedData.stateOfResidence);
+          setProfile((prev) => ({
+            ...prev,
+            ...savedData,
+            homeCell: savedData.home_cell || savedData.homeCell || defaultChapter.name,
+            avatarUrl: cachedAvatar || savedData.avatarUrl || savedData.avatar_url || prev.avatarUrl,
+            isLiveProfile: true,
+          }));
         }
         return;
       }
@@ -147,11 +336,17 @@ export function MemberDashboard() {
           const json = await res.json();
           if (json.ok && json.profile) {
             const dbP = json.profile;
+            const computedChapter = getChapterForMember(
+              dbP.home_cell || savedData?.home_cell || savedData?.homeCell,
+              dbP.state_of_residence || savedData?.state_of_residence || savedData?.stateOfResidence
+            );
+
             setProfile((prev) => ({
               ...prev,
               name: dbP.full_name || savedData?.full_name || savedData?.name || prev.name,
               nmsNo: dbP.nms_number || savedData?.nms_number || savedData?.nmsNo || prev.nmsNo,
               company: dbP.company || savedData?.company || prev.company,
+              homeCell: dbP.home_cell || savedData?.home_cell || savedData?.homeCell || computedChapter.name,
               rankAppointment: dbP.rank_appointment || savedData?.rank_appointment || savedData?.rankAppointment || prev.rankAppointment,
               setAppointment: dbP.set_appointment || savedData?.set_appointment || savedData?.setAppointment || prev.setAppointment,
               dob: dbP.dob || savedData?.dob || prev.dob,
@@ -171,6 +366,7 @@ export function MemberDashboard() {
               nextOfKin: dbP.next_of_kin || savedData?.next_of_kin || savedData?.nextOfKin || prev.nextOfKin,
               relationship: dbP.relationship || savedData?.relationship || prev.relationship,
               nextOfKinPhone: dbP.next_of_kin_phone || savedData?.next_of_kin_phone || savedData?.nextOfKinPhone || prev.nextOfKinPhone,
+              avatarUrl: cachedAvatar || dbP.avatar_url || savedData?.avatar_url || savedData?.avatarUrl || prev.avatarUrl,
               isLiveProfile: true,
               registeredAt: dbP.created_at || '',
             }));
@@ -184,11 +380,16 @@ export function MemberDashboard() {
       }
 
       if (savedData) {
+        const computedChapter = getChapterForMember(
+          savedData.home_cell || savedData.homeCell,
+          savedData.state_of_residence || savedData.stateOfResidence
+        );
         setProfile((prev) => ({
           ...prev,
           name: savedData.full_name || savedData.name || prev.name,
           nmsNo: savedData.nms_number || savedData.nmsNo || prev.nmsNo,
           company: savedData.company || prev.company,
+          homeCell: savedData.home_cell || savedData.homeCell || computedChapter.name,
           rankAppointment: savedData.rank_appointment || savedData.rankAppointment || prev.rankAppointment,
           setAppointment: savedData.set_appointment || savedData.setAppointment || prev.setAppointment,
           dob: savedData.dob || prev.dob,
@@ -208,6 +409,7 @@ export function MemberDashboard() {
           nextOfKin: savedData.next_of_kin || savedData.nextOfKin || prev.nextOfKin,
           relationship: savedData.relationship || prev.relationship,
           nextOfKinPhone: savedData.next_of_kin_phone || savedData.nextOfKinPhone || prev.nextOfKinPhone,
+          avatarUrl: cachedAvatar || savedData.avatar_url || savedData.avatarUrl || prev.avatarUrl,
           isLiveProfile: true,
         }));
       }
@@ -215,6 +417,210 @@ export function MemberDashboard() {
 
     loadProfile();
   }, []);
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file (JPEG, PNG, WEBP).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new (window as any).Image();
+      img.onload = () => {
+        // Compress and scale down to 400x400 max to keep storage nimble and crisp
+        const canvas = document.createElement('canvas');
+        const maxDim = 400;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+          // Update local state
+          setProfile((prev) => ({ ...prev, avatarUrl: dataUrl }));
+
+          // Update session storage
+          try {
+            const currentStored = sessionStorage.getItem('nms08_current_profile');
+            const parsed = currentStored ? JSON.parse(currentStored) : {};
+            parsed.avatarUrl = dataUrl;
+            parsed.avatar_url = dataUrl;
+            sessionStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
+          } catch {}
+
+          // Update localStorage
+          try {
+            if (profile.nmsNo) {
+              localStorage.setItem(`nms08_avatar_${profile.nmsNo}`, dataUrl);
+            }
+            localStorage.setItem('nms08_active_avatar', dataUrl);
+          } catch {}
+
+          // Persist to API
+          if (profile.nmsNo) {
+            fetch('/api/profile', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                nms: profile.nmsNo,
+                avatar_url: dataUrl,
+              }),
+            }).catch((err) => console.warn('Profile picture sync error:', err));
+          }
+
+          setPhotoToastMessage('Passport photo updated successfully!');
+          setShowPhotoToast(true);
+          setTimeout(() => setShowPhotoToast(false), 4000);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleRemovePhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setProfile((prev) => ({ ...prev, avatarUrl: '' }));
+    try {
+      const currentStored = sessionStorage.getItem('nms08_current_profile');
+      if (currentStored) {
+        const parsed = JSON.parse(currentStored);
+        delete parsed.avatarUrl;
+        delete parsed.avatar_url;
+        sessionStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
+      }
+      if (profile.nmsNo) {
+        localStorage.removeItem(`nms08_avatar_${profile.nmsNo}`);
+      }
+      localStorage.removeItem('nms08_active_avatar');
+    } catch {}
+
+    if (profile.nmsNo) {
+      fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nms: profile.nmsNo,
+          avatar_url: '',
+        }),
+      }).catch((err) => console.warn('Profile remove error:', err));
+    }
+
+    setPhotoToastMessage('Passport photo removed.');
+    setShowPhotoToast(true);
+    setTimeout(() => setShowPhotoToast(false), 4000);
+  };
+
+  const handleUpdateChapter = (chapterName: string) => {
+    setProfile((prev) => ({ ...prev, homeCell: chapterName }));
+    try {
+      const currentStored = sessionStorage.getItem('nms08_current_profile');
+      const parsed = currentStored ? JSON.parse(currentStored) : {};
+      parsed.homeCell = chapterName;
+      parsed.home_cell = chapterName;
+      sessionStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
+    } catch {}
+
+    if (profile.nmsNo) {
+      fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nms: profile.nmsNo,
+          home_cell: chapterName,
+        }),
+      }).catch((err) => console.warn('Chapter update error:', err));
+    }
+    setShowChapterModal(false);
+    setPhotoToastMessage(`Home Cell updated to ${chapterName}`);
+    setShowPhotoToast(true);
+    setTimeout(() => setShowPhotoToast(false), 4000);
+  };
+
+  const openEditProfile = () => {
+    setProfileEditForm({
+      phone: profile.phone || '',
+      stateOfResidence: profile.stateOfResidence || '',
+      address: profile.address || '',
+      maritalStatus: profile.maritalStatus || 'Single',
+      occupation: profile.occupation || '',
+      industry: profile.industry || '',
+      business: profile.business || '',
+      skills: profile.skills || '',
+      professionalQualifications: profile.professionalQualifications || '',
+      nextOfKin: profile.nextOfKin || '',
+      relationship: profile.relationship || '',
+      nextOfKinPhone: profile.nextOfKinPhone || '',
+    });
+    setShowEditProfileModal(true);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditProfileSaving(true);
+    try {
+      const updated = {
+        ...profile,
+        ...profileEditForm,
+      };
+      setProfile(updated);
+
+      try {
+        const stored = sessionStorage.getItem('nms08_current_profile');
+        const parsed = stored ? JSON.parse(stored) : {};
+        Object.assign(parsed, profileEditForm);
+        sessionStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
+      } catch {}
+
+      try {
+        const stored = localStorage.getItem('nms08_current_profile');
+        const parsed = stored ? JSON.parse(stored) : {};
+        Object.assign(parsed, profileEditForm);
+        localStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
+      } catch {}
+
+      if (profile.nmsNo) {
+        await fetch('/api/profile', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nms: profile.nmsNo,
+            ...profileEditForm,
+          }),
+        });
+      }
+
+      setShowEditProfileModal(false);
+      setPhotoToastMessage('Personal particulars saved successfully!');
+      setShowPhotoToast(true);
+      setTimeout(() => setShowPhotoToast(false), 4000);
+    } catch (err) {
+      console.error('Error saving profile particulars:', err);
+    } finally {
+      setEditProfileSaving(false);
+    }
+  };
 
   const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
 
@@ -243,6 +649,8 @@ export function MemberDashboard() {
   const userCompany = COMPANIES_LIST.find(c => 
     profile.company && c.name.toLowerCase().includes(profile.company.toLowerCase().split(' ')[0])
   ) || COMPANIES_LIST[0];
+
+  const userChapter = getChapterForMember(profile.homeCell, profile.stateOfResidence);
 
   // Fetch admin broadcast announcements that appear on every registered page
   useEffect(() => {
@@ -355,13 +763,33 @@ export function MemberDashboard() {
 
   return (
     <div className="space-y-8 pb-16">
-      {/* Toast Notification */}
+      {/* Hidden File Input for Avatar Upload */}
+      <input
+        ref={avatarInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handlePhotoUpload}
+        className="hidden"
+        aria-hidden="true"
+      />
+
+      {/* Toast Notifications */}
       {showReceiptToast && (
         <div className="fixed bottom-6 right-6 z-50 glass-emerald px-6 py-4 rounded-3xl shadow-apple-lg flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5">
           <CheckCircle2 className="w-5 h-5 text-white shrink-0" />
           <div>
             <p className="text-sm font-semibold">Receipt Downloaded</p>
             <p className="text-xs text-emerald-100">Official 2026 NMS 08 Dues Receipt #NMS08-8921 saved.</p>
+          </div>
+        </div>
+      )}
+
+      {showPhotoToast && (
+        <div className="fixed bottom-6 right-6 z-50 glass-emerald px-6 py-4 rounded-3xl shadow-apple-lg flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5">
+          <CheckCircle2 className="w-5 h-5 text-white shrink-0" />
+          <div>
+            <p className="text-sm font-semibold">Profile Updated</p>
+            <p className="text-xs text-emerald-100">{photoToastMessage}</p>
           </div>
         </div>
       )}
@@ -380,13 +808,45 @@ export function MemberDashboard() {
 
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
-            <div className="relative">
-              <div className="w-20 h-20 rounded-3xl bg-emerald-950/40 ring-4 ring-white/30 shadow-2xl flex items-center justify-center">
-                <span className="text-white font-extrabold text-2xl tracking-wide">{nameInitials}</span>
+            <div className="relative group">
+              <div
+                onClick={() => avatarInputRef.current?.click()}
+                className="w-20 h-20 rounded-3xl bg-emerald-950/40 ring-4 ring-white/30 shadow-2xl overflow-hidden flex items-center justify-center cursor-pointer relative"
+                title="Click to upload or update Ex-Boy passport photo"
+              >
+                {profile.avatarUrl ? (
+                  <img
+                    src={profile.avatarUrl}
+                    alt={profile.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-white font-extrabold text-2xl tracking-wide">{nameInitials}</span>
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera className="w-5 h-5 text-white drop-shadow" />
+                </div>
               </div>
-              <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-400 border-2 border-white flex items-center justify-center text-[10px] text-emerald-950 font-bold">
-                ✓
-              </span>
+
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-400 hover:bg-emerald-300 border-2 border-white flex items-center justify-center text-emerald-950 shadow-md transition-transform hover:scale-110"
+                title="Upload / Change Photo"
+              >
+                <Camera className="w-3 h-3 text-emerald-950" />
+              </button>
+
+              {profile.avatarUrl && (
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 hover:bg-rose-600 border border-white flex items-center justify-center text-white shadow-md transition-transform hover:scale-110"
+                  title="Remove Photo"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
 
             <div className="space-y-1">
@@ -408,12 +868,22 @@ export function MemberDashboard() {
                 Welcome, {profile.name}
               </h1>
               <p className="text-xs sm:text-sm text-emerald-100 font-medium">
-                {profile.squad} • {profile.company} • {profile.homeCell}
+                {profile.squad} Platoon • {profile.company} • {userChapter.name}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="glass"
+              size="sm"
+              onClick={() => setShowIdCardModal(true)}
+              icon={<CreditCard className="w-4 h-4 text-emerald-700" />}
+              className="text-slate-900 font-semibold"
+            >
+              Digital ID Card
+            </Button>
+
             <Button
               variant="glass"
               size="sm"
@@ -581,6 +1051,8 @@ export function MemberDashboard() {
                 <span className="text-xs text-emerald-300 font-mono">
                   {profile.nmsNo}
                 </span>
+                <span className="text-xs text-slate-400">•</span>
+                <span className="text-xs text-emerald-200">{userChapter.shortName}</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
                 {profile.name}
@@ -590,7 +1062,34 @@ export function MemberDashboard() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                icon={<Camera className="w-3.5 h-3.5" />}
+                onClick={() => avatarInputRef.current?.click()}
+              >
+                {profile.avatarUrl ? 'Change Photo' : 'Upload Photo'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                icon={<Edit2 className="w-3.5 h-3.5" />}
+                onClick={openEditProfile}
+              >
+                Edit Particulars
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                icon={<CreditCard className="w-3.5 h-3.5" />}
+                onClick={() => setShowIdCardModal(true)}
+              >
+                Digital ID Card
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -600,6 +1099,142 @@ export function MemberDashboard() {
               >
                 Print Dossier
               </Button>
+            </div>
+          </div>
+
+          {/* OFFICIAL DIGITAL EX-BOY IDENTITY CARD SHOWCASE */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-slate-900 to-emerald-950 border-2 border-emerald-500/40 shadow-2xl p-6 sm:p-8 text-white">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-80 h-80 bg-emerald-700/10 rounded-full blur-2xl pointer-events-none" />
+
+            {/* Card Header */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-6 border-b border-emerald-500/20 gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-900/60 border border-emerald-500/30 p-2 flex items-center justify-center shrink-0">
+                  <Image src={mainLogo} alt="NMS Crest" width={40} height={40} className="w-full h-auto object-contain" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-mono tracking-widest text-emerald-400 font-bold">NMS 08 Association</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[10px] text-slate-300">Official Digital Credential</span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-extrabold tracking-tight text-white">
+                    Nigerian Military School Ex-Boys Identity Card
+                  </h3>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge variant="outline" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-mono text-xs">
+                  ★ ACCREDITED
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-white/10 text-white border-white/20 hover:bg-white/20 text-xs gap-1.5"
+                  onClick={() => setShowIdCardModal(true)}
+                  icon={<CreditCard className="w-3.5 h-3.5" />}
+                >
+                  Full Card View
+                </Button>
+              </div>
+            </div>
+
+            {/* Card Body Grid */}
+            <div className="pt-6 grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+              {/* Photo & Medical Data */}
+              <div className="flex flex-col items-center sm:items-start md:items-center text-center space-y-3">
+                <div className="relative group">
+                  <div className="w-28 h-32 rounded-2xl overflow-hidden border-2 border-emerald-400/60 shadow-lg bg-emerald-900/60 relative flex items-center justify-center">
+                    {profile.avatarUrl ? (
+                      <img
+                        src={profile.avatarUrl}
+                        alt={profile.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center p-2 text-center">
+                        <span className="text-3xl font-extrabold text-white/80">{nameInitials}</span>
+                        <span className="text-[10px] text-emerald-300 mt-1">Passport Photo</span>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => avatarInputRef.current?.click()}
+                      className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[11px] font-semibold"
+                    >
+                      <Camera className="w-5 h-5 mb-1" />
+                      <span>Update Photo</span>
+                    </button>
+                  </div>
+                  <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border border-slate-900 flex items-center justify-center text-slate-950 font-bold text-xs">
+                    ✓
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-lg bg-emerald-950/80 border border-emerald-500/30 text-[10px] font-mono text-emerald-300 font-bold">
+                    Blood: {profile.bloodGroup || 'O+'}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-lg bg-emerald-950/80 border border-emerald-500/30 text-[10px] font-mono text-emerald-300 font-bold">
+                    Genotype: {profile.genotype || 'AA'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Identity Particulars */}
+              <div className="md:col-span-2 space-y-4">
+                <div>
+                  <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Member Name</span>
+                  <h4 className="text-xl sm:text-2xl font-black text-white tracking-wide uppercase">
+                    {profile.name}
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold block">Service No.</span>
+                    <span className="text-base font-extrabold font-mono text-emerald-400">{profile.nmsNo}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold block">Company / Squad</span>
+                    <span className="text-sm font-bold text-white">{profile.company} ({profile.squad})</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold block">Boy Soldier Rank</span>
+                    <span className="text-xs font-semibold text-slate-200">{profile.rankAppointment}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold block">Home Cell Chapter</span>
+                    <span className="text-xs font-semibold text-emerald-300">{userChapter.shortName}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Barcode & Security Hologram */}
+              <div className="flex flex-col items-center md:items-end justify-between space-y-4 border-t md:border-t-0 md:border-l border-emerald-500/20 pt-4 md:pt-0 md:pl-6 text-center md:text-right">
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold block">Card Status</span>
+                  <Badge variant="emerald" className="text-[11px] font-bold">
+                    ACTIVE 2026 / 2027
+                  </Badge>
+                </div>
+
+                {/* Simulated Barcode */}
+                <div className="p-2 rounded-xl bg-white/90 text-slate-950 font-mono text-center shadow-inner">
+                  <div className="text-[14px] tracking-[6px] font-bold select-none leading-none scale-y-125 mb-1">
+                    ||||| | |||| ||| |||| |
+                  </div>
+                  <div className="text-[9px] font-mono tracking-wider font-semibold text-slate-700">
+                    {profile.nmsNo.replace(/[^A-Za-z0-9]/g, '')}-2026-NMS08
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-slate-400 font-mono">
+                  Sec-Token: {profile.nmsNo.slice(-4) || '0800'}-SEC-VERIFIED
+                </div>
+              </div>
             </div>
           </div>
 
@@ -879,28 +1514,45 @@ export function MemberDashboard() {
                     <CardDescription>Regional Governance Network</CardDescription>
                   </div>
                 </div>
-                <Badge variant="subtle">Abuja Chapter</Badge>
+                <Badge variant="subtle">{userChapter.shortName}</Badge>
               </CardHeader>
               <CardContent className="space-y-4 text-xs">
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-medium">Chapter Location</span>
-                    <span className="font-bold text-slate-900">Abuja, FCT</span>
+                    <span className="font-bold text-slate-900">{userChapter.location}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-medium">Chapter Chairman</span>
-                    <span className="font-bold text-slate-900">Ex-Boy Barr. Obinna Eze</span>
+                    <span className="font-bold text-slate-900">{userChapter.chairman}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-medium">Monthly Meetings</span>
-                    <span className="font-semibold text-emerald-700">3rd Sunday of Every Month</span>
+                    <span className="font-semibold text-emerald-700">{userChapter.meetingSchedule}</span>
+                  </div>
+                  <div className="flex justify-between pt-1 border-t border-slate-100">
+                    <span className="text-slate-500 font-medium">Secretariat</span>
+                    <span className="text-right text-slate-700 font-medium max-w-[170px] truncate" title={userChapter.secretariat}>
+                      {userChapter.secretariat}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-xs text-slate-600 pt-2">
                   <span>Active Regional Members</span>
-                  <span className="font-bold text-slate-900">114 Ex-Boys in FCT</span>
+                  <span className="font-bold text-slate-900">{userChapter.activeMembers} Ex-Boys</span>
                 </div>
               </CardContent>
+              <CardFooter>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-center text-xs text-emerald-800"
+                  onClick={() => setShowChapterModal(true)}
+                  icon={<Globe className="w-3.5 h-3.5" />}
+                >
+                  Change Home Cell Chapter
+                </Button>
+              </CardFooter>
             </Card>
           </div>
         </div>
@@ -1013,29 +1665,46 @@ export function MemberDashboard() {
                   <CardDescription>Regional Governance Network</CardDescription>
                 </div>
               </div>
-              <Badge variant="subtle">Abuja Chapter</Badge>
+              <Badge variant="subtle">{userChapter.shortName}</Badge>
             </CardHeader>
             <CardContent className="space-y-4 text-xs">
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-slate-500 font-medium">Chapter Location</span>
-                  <span className="font-bold text-slate-900">Abuja, FCT</span>
+                  <span className="font-bold text-slate-900">{userChapter.location}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500 font-medium">Chapter Chairman</span>
-                  <span className="font-bold text-slate-900">Ex-Boy Barr. Obinna Eze</span>
+                  <span className="font-bold text-slate-900">{userChapter.chairman}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500 font-medium">Monthly Meetings</span>
-                  <span className="font-semibold text-emerald-700">3rd Sunday of Every Month</span>
+                  <span className="font-semibold text-emerald-700">{userChapter.meetingSchedule}</span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-slate-100">
+                  <span className="text-slate-500 font-medium">Secretariat</span>
+                  <span className="text-right text-slate-700 font-medium max-w-[170px] truncate" title={userChapter.secretariat}>
+                    {userChapter.secretariat}
+                  </span>
                 </div>
               </div>
 
               <div className="flex items-center justify-between text-xs text-slate-600 pt-2">
                 <span>Active Regional Members</span>
-                <span className="font-bold text-slate-900">114 Ex-Boys in FCT</span>
+                <span className="font-bold text-slate-900">{userChapter.activeMembers} Ex-Boys</span>
               </div>
             </CardContent>
+            <CardFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-center text-xs text-emerald-800"
+                onClick={() => setShowChapterModal(true)}
+                icon={<Globe className="w-3.5 h-3.5" />}
+              >
+                Change Home Cell Chapter
+              </Button>
+            </CardFooter>
           </Card>
         </div>
       )}
@@ -1482,6 +2151,468 @@ export function MemberDashboard() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* HOME CELL CHAPTER SELECTION MODAL */}
+      {showChapterModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl max-h-[90vh] flex flex-col glass-panel rounded-3xl p-6 sm:p-8 space-y-5 shadow-2xl border border-white">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800">
+                  <Globe className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Select Your Home Cell Chapter</h3>
+                  <p className="text-xs text-slate-500">Connect with fellow Ex-Boys in your regional jurisdiction</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowChapterModal(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 shrink-0">
+              Your Home Cell chapter determines your monthly fellowship, welfare coordination, and regional delegation votes.
+            </p>
+
+            <div className="overflow-y-auto space-y-3 pr-1 max-h-[50vh]">
+              {CHAPTERS_LIST.map((chap) => {
+                const isSelected = userChapter.id === chap.id || profile.homeCell === chap.name;
+                return (
+                  <div
+                    key={chap.id}
+                    onClick={() => handleUpdateChapter(chap.name)}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                      isSelected
+                        ? 'bg-emerald-50/90 border-emerald-500 shadow-apple-sm ring-1 ring-emerald-500'
+                        : 'bg-white border-slate-200/90 hover:border-emerald-300 hover:bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-slate-900">{chap.name}</span>
+                        {isSelected && (
+                          <Badge variant="emerald" size="sm">
+                            CURRENT
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        <strong className="text-slate-700">{chap.location}</strong> • Chairman: {chap.chairman}
+                      </p>
+                      <p className="text-[11px] text-emerald-700 font-medium">
+                        Meeting: {chap.meetingSchedule}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+                      <span className="text-xs font-semibold text-slate-500">{chap.activeMembers} Ex-Boys</span>
+                      <Button
+                        variant={isSelected ? 'emerald' : 'outline'}
+                        size="sm"
+                        className="text-xs"
+                      >
+                        {isSelected ? 'Active Chapter' : 'Select'}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-3 border-t border-slate-200 flex justify-end shrink-0">
+              <Button variant="ghost" onClick={() => setShowChapterModal(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PROFILE PARTICULARS MODAL */}
+      {showEditProfileModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl max-h-[90vh] flex flex-col glass-panel rounded-3xl p-6 sm:p-8 space-y-5 shadow-2xl border border-white">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800">
+                  <Edit2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Edit Member Particulars</h3>
+                  <p className="text-xs text-slate-500">Update your contact details, career profile, and emergency contacts</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowEditProfileModal(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="overflow-y-auto space-y-4 pr-1 max-h-[60vh]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Phone / WhatsApp Number</label>
+                  <input
+                    type="text"
+                    value={profileEditForm.phone}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, phone: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="+234 800 000 0000"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">State of Residence</label>
+                  <input
+                    type="text"
+                    value={profileEditForm.stateOfResidence}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, stateOfResidence: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="e.g. Abuja, Lagos, Rivers, UK"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Residential Address</label>
+                  <input
+                    type="text"
+                    value={profileEditForm.address}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, address: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="Residential address"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Marital Status</label>
+                  <select
+                    value={profileEditForm.maritalStatus}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, maritalStatus: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                  >
+                    <option value="Single">Single</option>
+                    <option value="Married">Married</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Occupation</label>
+                  <input
+                    type="text"
+                    value={profileEditForm.occupation}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, occupation: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="e.g. Software Engineer, Pilot, Legal Counsel"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Industry Sector</label>
+                  <input
+                    type="text"
+                    value={profileEditForm.industry}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, industry: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="e.g. Information Technology, Energy, Defense"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Business / Employer</label>
+                  <input
+                    type="text"
+                    value={profileEditForm.business}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, business: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="e.g. Company Name or Self-Employed"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Professional Qualifications</label>
+                  <input
+                    type="text"
+                    value={profileEditForm.professionalQualifications}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, professionalQualifications: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="e.g. B.Sc, MBA, PMP, BL, COREN"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Key Skills & Competencies</label>
+                  <input
+                    type="text"
+                    value={profileEditForm.skills}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, skills: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="e.g. Strategy, Project Management, Leadership"
+                  />
+                </div>
+
+                <div className="sm:col-span-2 border-t border-slate-100 pt-3">
+                  <h4 className="text-xs font-bold text-slate-900 mb-2">Emergency Next of Kin Details</h4>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Next of Kin Full Name</label>
+                  <input
+                    type="text"
+                    value={profileEditForm.nextOfKin}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, nextOfKin: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="Full name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Relationship</label>
+                  <input
+                    type="text"
+                    value={profileEditForm.relationship}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, relationship: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="e.g. Spouse, Brother, Mother"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Next of Kin Phone</label>
+                  <input
+                    type="text"
+                    value={profileEditForm.nextOfKinPhone}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, nextOfKinPhone: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="+234 800 000 0000"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
+                <Button type="button" variant="ghost" onClick={() => setShowEditProfileModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="emerald" disabled={editProfileSaving}>
+                  {editProfileSaving ? 'Saving Changes...' : 'Save Particulars'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* INTERACTIVE DIGITAL EX-BOY IDENTITY CARD MODAL */}
+      {showIdCardModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-xl flex flex-col glass-panel rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl border border-white/50">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-800">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Official Ex-Boy Digital Identity Card</h3>
+                  <p className="text-xs text-slate-500">Nigerian Military School 08 Association</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowIdCardModal(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Flip Controls */}
+            <div className="flex justify-center">
+              <div className="inline-flex rounded-xl bg-slate-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setIdCardSide('front')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    idCardSide === 'front'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Front Side
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIdCardSide('back')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    idCardSide === 'back'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Reverse Side
+                </button>
+              </div>
+            </div>
+
+            {/* The Digital ID Card Component */}
+            {idCardSide === 'front' ? (
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-slate-950 to-emerald-900 border-2 border-emerald-400/50 shadow-2xl p-6 text-white space-y-5">
+                <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                {/* Card Top Strip */}
+                <div className="flex items-center justify-between pb-3 border-b border-emerald-500/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-900/80 border border-emerald-400/40 p-1.5 flex items-center justify-center">
+                      <Image src={mainLogo} alt="NMS Emblem" width={32} height={32} className="w-full h-auto object-contain" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black tracking-widest text-emerald-400 uppercase">
+                        Nigerian Military School
+                      </h4>
+                      <p className="text-[10px] text-slate-300 font-medium">Ex-Boys 08 Association Official Credential</p>
+                    </div>
+                  </div>
+                  <Badge variant="emerald" size="sm" className="font-mono text-[10px]">
+                    2026 VALID
+                  </Badge>
+                </div>
+
+                {/* Card Main Body */}
+                <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
+                  {/* Photo Frame */}
+                  <div className="flex flex-col items-center space-y-2 shrink-0">
+                    <div className="w-24 h-28 rounded-2xl overflow-hidden border-2 border-emerald-400/70 shadow-md bg-emerald-900/60 relative flex items-center justify-center">
+                      {profile.avatarUrl ? (
+                        <img
+                          src={profile.avatarUrl}
+                          alt={profile.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl font-black text-white/80">{nameInitials}</span>
+                      )}
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-900/80 border border-emerald-400/30 text-[9px] font-mono font-bold text-emerald-300">
+                      {profile.bloodGroup || 'O+'} / {profile.genotype || 'AA'}
+                    </span>
+                  </div>
+
+                  {/* Personal details */}
+                  <div className="space-y-2.5 flex-1 w-full text-left">
+                    <div>
+                      <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">Full Name</span>
+                      <h5 className="text-base font-extrabold uppercase tracking-wide text-white">
+                        {profile.name}
+                      </h5>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">Service No</span>
+                        <span className="font-mono font-bold text-emerald-400">{profile.nmsNo}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">Company</span>
+                        <span className="font-bold text-slate-200">{profile.company}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">Rank</span>
+                        <span className="font-medium text-slate-300">{profile.rankAppointment}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">Home Cell</span>
+                        <span className="font-medium text-emerald-300 truncate block">{userChapter.shortName}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Footer Strip with Barcode */}
+                <div className="pt-3 border-t border-emerald-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="bg-white/95 px-3 py-1.5 rounded-lg text-slate-950 font-mono text-center">
+                    <div className="text-[12px] tracking-[5px] font-bold select-none leading-none scale-y-125">
+                      ||||| | |||| ||| |||| |
+                    </div>
+                    <div className="text-[8px] tracking-wider text-slate-700">
+                      NMS08-{profile.nmsNo.replace(/[^A-Za-z0-9]/g, '')}-SEC
+                    </div>
+                  </div>
+
+                  <div className="text-center sm:text-right">
+                    <span className="text-[9px] font-mono text-emerald-300 block">STATUS: FINANCIAL MEMBER</span>
+                    <span className="text-[8px] text-slate-400">Accredited by National Electoral & Set Secretariat</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Reverse Side */
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-emerald-950 to-slate-950 border-2 border-emerald-400/50 shadow-2xl p-6 text-white space-y-4 text-xs">
+                <div className="border-b border-emerald-500/20 pb-3">
+                  <h4 className="font-bold text-emerald-400 text-sm">Official Terms of Association</h4>
+                  <p className="text-[11px] text-slate-400">Nigerian Military School Ex-Boys 08 Set Governance System</p>
+                </div>
+
+                <div className="space-y-2 text-[11px] text-slate-300 leading-relaxed">
+                  <p>
+                    1. This digital credential remains the property of the Nigerian Military School Ex-Boys 08 Set National Secretariat.
+                  </p>
+                  <p>
+                    2. Cardholder is an accredited Ex-Boy soldier of the Nigerian Military School Zaria, admitted into the 2008 Set.
+                  </p>
+                  <p>
+                    3. Entitles the bearer to full democratic voting rights, welfare grants, and national general assembly participation.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-emerald-950/60 border border-emerald-500/20 space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-emerald-400 block">Secretariat Liaison & Inquiries</span>
+                  <p className="text-[11px] text-slate-200">National Headquarters, Suite 402, CBD Abuja, Nigeria</p>
+                  <p className="text-[11px] text-emerald-300 font-mono">Emergency Hotline: +234 800 000 NMS08</p>
+                </div>
+
+                <div className="pt-2 flex justify-between items-center text-[10px] text-slate-400 border-t border-emerald-500/20">
+                  <span>Signatory: Set Chairman & GenSec</span>
+                  <span className="font-mono text-emerald-400">HASH: VERIFIED-NMS08-2026</span>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => avatarInputRef.current?.click()}
+                icon={<Camera className="w-3.5 h-3.5" />}
+              >
+                Change Passport Photo
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="emerald"
+                  size="sm"
+                  onClick={() => window.print()}
+                  icon={<Printer className="w-3.5 h-3.5" />}
+                >
+                  Print ID Card
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowIdCardModal(false)}
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}
