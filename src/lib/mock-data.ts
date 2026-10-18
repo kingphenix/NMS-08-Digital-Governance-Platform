@@ -203,7 +203,7 @@ export const COMPANIES_LIST: CompanyInfo[] = [
     bgClass: "bg-blue-600",
     totalMembers: 72,
     duesComplianceRate: 94,
-    description: "Home of the Dragons. Known for exemplary military discipline and leadership excellence.",
+    description: "",
   },
   {
     id: "bravo",
@@ -215,7 +215,7 @@ export const COMPANIES_LIST: CompanyInfo[] = [
     bgClass: "bg-yellow-500",
     totalMembers: 68,
     duesComplianceRate: 88,
-    description: "The Bulls. Demonstrating tactical intelligence, camaraderie, and unmatched sportsmanship.",
+    description: "",
   },
   {
     id: "charlie",
@@ -227,7 +227,7 @@ export const COMPANIES_LIST: CompanyInfo[] = [
     bgClass: "bg-red-600",
     totalMembers: 65,
     duesComplianceRate: 91,
-    description: "The Chargers. Steadfast in commitment to set welfare and academic prowess.",
+    description: "",
   },
   {
     id: "delta",
@@ -239,7 +239,7 @@ export const COMPANIES_LIST: CompanyInfo[] = [
     bgClass: "bg-green-600",
     totalMembers: 70,
     duesComplianceRate: 85,
-    description: "The Eagles. Pioneering governance reforms and financial sustainability initiatives.",
+    description: "",
   },
   {
     id: "echo",
@@ -251,7 +251,7 @@ export const COMPANIES_LIST: CompanyInfo[] = [
     bgClass: "bg-purple-600",
     totalMembers: 64,
     duesComplianceRate: 89,
-    description: "The Falcons. Celebrated for high camaraderie, diaspora network, and welfare support.",
+    description: "",
   },
   {
     id: "foxtrot",
@@ -263,7 +263,7 @@ export const COMPANIES_LIST: CompanyInfo[] = [
     bgClass: "bg-amber-900",
     totalMembers: 66,
     duesComplianceRate: 92,
-    description: "The Foxes. Demonstrating tactical precision and strong commitment to set development.",
+    description: "",
   },
   {
     id: "golf",
@@ -275,7 +275,7 @@ export const COMPANIES_LIST: CompanyInfo[] = [
     bgClass: "bg-pink-500",
     totalMembers: 60,
     duesComplianceRate: 90,
-    description: "The Giants. Upholding the sacred traditions of the Nigerian Military School.",
+    description: "",
   },
 ];
 
