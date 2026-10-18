@@ -145,7 +145,7 @@ export default function HomePage() {
             The Seven Military Companies
           </h2>
           <p className="text-sm text-slate-600">
-            Alpha, Bravo, Charlie, Delta, Echo, Foxtrot, and Gulf — united in excellence and brotherhood.
+            Alpha, Bravo, Charlie, Delta, Echo, Foxtrot, and Golf — united in excellence and brotherhood.
           </p>
         </div>
 

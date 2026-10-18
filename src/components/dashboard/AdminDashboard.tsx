@@ -612,7 +612,7 @@ export function AdminDashboard() {
                   <option value="Delta">Delta Company</option>
                   <option value="Echo">Echo Company</option>
                   <option value="Foxtrot">Foxtrot Company</option>
-                  <option value="Gulf">Gulf Company</option>
+                  <option value="Golf">Golf Company</option>
                 </select>
               </div>
 

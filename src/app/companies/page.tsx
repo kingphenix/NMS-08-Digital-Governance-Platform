@@ -19,7 +19,7 @@ export default function CompaniesPage() {
           The 7 Companies of NMS 08
         </h1>
         <p className="text-sm text-slate-600">
-          Alpha, Bravo, Charlie, Delta, Echo, Foxtrot, and Gulf Companies. Explore commanders, member strength, and dues performance.
+          Alpha, Bravo, Charlie, Delta, Echo, Foxtrot, and Golf Companies. Explore commanders, member strength, and dues performance.
         </p>
       </div>
 

@@ -252,7 +252,7 @@ export function MemberDashboard() {
     id: '',
     name: 'Ex-Boy Member',
     nmsNo: 'NMS/08/----',
-    squad: 'Alpha',
+    squad: '',
     company: 'Unassigned',
     homeCell: '',
     phone: '',
@@ -317,13 +317,18 @@ export function MemberDashboard() {
       if (!nmsQuery) {
         if (savedData) {
           const defaultChapter = getChapterForMember(savedData.home_cell || savedData.homeCell, savedData.state_of_residence || savedData.stateOfResidence);
-          setProfile((prev) => ({
-            ...prev,
-            ...savedData,
-            homeCell: savedData.home_cell || savedData.homeCell || defaultChapter.name,
-            avatarUrl: cachedAvatar || savedData.avatarUrl || savedData.avatar_url || prev.avatarUrl,
-            isLiveProfile: true,
-          }));
+          setProfile((prev) => {
+            const effectiveCompany = savedData.company || prev.company;
+            return {
+              ...prev,
+              ...savedData,
+              company: effectiveCompany,
+              squad: savedData.squad || (effectiveCompany ? effectiveCompany.replace(/\s*Company\s*/i, '').trim() : prev.squad),
+              homeCell: savedData.home_cell || savedData.homeCell || defaultChapter.name,
+              avatarUrl: cachedAvatar || savedData.avatarUrl || savedData.avatar_url || prev.avatarUrl,
+              isLiveProfile: true,
+            };
+          });
         }
         return;
       }
@@ -341,35 +346,39 @@ export function MemberDashboard() {
               dbP.state_of_residence || savedData?.state_of_residence || savedData?.stateOfResidence
             );
 
-            setProfile((prev) => ({
-              ...prev,
-              name: dbP.full_name || savedData?.full_name || savedData?.name || prev.name,
-              nmsNo: dbP.nms_number || savedData?.nms_number || savedData?.nmsNo || prev.nmsNo,
-              company: dbP.company || savedData?.company || prev.company,
-              homeCell: dbP.home_cell || savedData?.home_cell || savedData?.homeCell || computedChapter.name,
-              rankAppointment: dbP.rank_appointment || savedData?.rank_appointment || savedData?.rankAppointment || prev.rankAppointment,
-              setAppointment: dbP.set_appointment || savedData?.set_appointment || savedData?.setAppointment || prev.setAppointment,
-              dob: dbP.dob || savedData?.dob || prev.dob,
-              stateOfOrigin: dbP.state_of_origin || savedData?.state_of_origin || savedData?.stateOfOrigin || prev.stateOfOrigin,
-              stateOfResidence: dbP.state_of_residence || savedData?.state_of_residence || savedData?.stateOfResidence || prev.stateOfResidence,
-              address: dbP.address || savedData?.address || prev.address,
-              maritalStatus: dbP.marital_status || savedData?.marital_status || savedData?.maritalStatus || prev.maritalStatus,
-              email: dbP.email || savedData?.email || prev.email,
-              phone: dbP.phone || savedData?.phone || prev.phone,
-              occupation: dbP.occupation || savedData?.occupation || prev.occupation,
-              industry: dbP.industry || savedData?.industry || prev.industry,
-              business: dbP.business || savedData?.business || prev.business,
-              skills: dbP.skills || savedData?.skills || prev.skills,
-              professionalQualifications: dbP.professional_qualifications || savedData?.professional_qualifications || savedData?.professionalQualifications || prev.professionalQualifications,
-              bloodGroup: dbP.blood_group || savedData?.blood_group || savedData?.bloodGroup || prev.bloodGroup,
-              genotype: dbP.genotype || savedData?.genotype || prev.genotype,
-              nextOfKin: dbP.next_of_kin || savedData?.next_of_kin || savedData?.nextOfKin || prev.nextOfKin,
-              relationship: dbP.relationship || savedData?.relationship || prev.relationship,
-              nextOfKinPhone: dbP.next_of_kin_phone || savedData?.next_of_kin_phone || savedData?.nextOfKinPhone || prev.nextOfKinPhone,
-              avatarUrl: cachedAvatar || dbP.avatar_url || savedData?.avatar_url || savedData?.avatarUrl || prev.avatarUrl,
-              isLiveProfile: true,
-              registeredAt: dbP.created_at || '',
-            }));
+            setProfile((prev) => {
+              const effectiveCompany = dbP.company || savedData?.company || prev.company;
+              return {
+                ...prev,
+                name: dbP.full_name || savedData?.full_name || savedData?.name || prev.name,
+                nmsNo: dbP.nms_number || savedData?.nms_number || savedData?.nmsNo || prev.nmsNo,
+                company: effectiveCompany,
+                squad: dbP.squad || savedData?.squad || (effectiveCompany ? effectiveCompany.replace(/\s*Company\s*/i, '').trim() : prev.squad),
+                homeCell: dbP.home_cell || savedData?.home_cell || savedData?.homeCell || computedChapter.name,
+                rankAppointment: dbP.rank_appointment || savedData?.rank_appointment || savedData?.rankAppointment || prev.rankAppointment,
+                setAppointment: dbP.set_appointment || savedData?.set_appointment || savedData?.setAppointment || prev.setAppointment,
+                dob: dbP.dob || savedData?.dob || prev.dob,
+                stateOfOrigin: dbP.state_of_origin || savedData?.state_of_origin || savedData?.stateOfOrigin || prev.stateOfOrigin,
+                stateOfResidence: dbP.state_of_residence || savedData?.state_of_residence || savedData?.stateOfResidence || prev.stateOfResidence,
+                address: dbP.address || savedData?.address || prev.address,
+                maritalStatus: dbP.marital_status || savedData?.marital_status || savedData?.maritalStatus || prev.maritalStatus,
+                email: dbP.email || savedData?.email || prev.email,
+                phone: dbP.phone || savedData?.phone || prev.phone,
+                occupation: dbP.occupation || savedData?.occupation || prev.occupation,
+                industry: dbP.industry || savedData?.industry || prev.industry,
+                business: dbP.business || savedData?.business || prev.business,
+                skills: dbP.skills || savedData?.skills || prev.skills,
+                professionalQualifications: dbP.professional_qualifications || savedData?.professional_qualifications || savedData?.professionalQualifications || prev.professionalQualifications,
+                bloodGroup: dbP.blood_group || savedData?.blood_group || savedData?.bloodGroup || prev.bloodGroup,
+                genotype: dbP.genotype || savedData?.genotype || prev.genotype,
+                nextOfKin: dbP.next_of_kin || savedData?.next_of_kin || savedData?.nextOfKin || prev.nextOfKin,
+                relationship: dbP.relationship || savedData?.relationship || prev.relationship,
+                nextOfKinPhone: dbP.next_of_kin_phone || savedData?.next_of_kin_phone || savedData?.nextOfKinPhone || prev.nextOfKinPhone,
+                avatarUrl: cachedAvatar || dbP.avatar_url || savedData?.avatar_url || savedData?.avatarUrl || prev.avatarUrl,
+                isLiveProfile: true,
+                registeredAt: dbP.created_at || '',
+              };
+            });
             return;
           }
         }
@@ -384,34 +393,38 @@ export function MemberDashboard() {
           savedData.home_cell || savedData.homeCell,
           savedData.state_of_residence || savedData.stateOfResidence
         );
-        setProfile((prev) => ({
-          ...prev,
-          name: savedData.full_name || savedData.name || prev.name,
-          nmsNo: savedData.nms_number || savedData.nmsNo || prev.nmsNo,
-          company: savedData.company || prev.company,
-          homeCell: savedData.home_cell || savedData.homeCell || computedChapter.name,
-          rankAppointment: savedData.rank_appointment || savedData.rankAppointment || prev.rankAppointment,
-          setAppointment: savedData.set_appointment || savedData.setAppointment || prev.setAppointment,
-          dob: savedData.dob || prev.dob,
-          stateOfOrigin: savedData.state_of_origin || savedData.stateOfOrigin || prev.stateOfOrigin,
-          stateOfResidence: savedData.state_of_residence || savedData.stateOfResidence || prev.stateOfResidence,
-          address: savedData.address || prev.address,
-          maritalStatus: savedData.marital_status || savedData.maritalStatus || prev.maritalStatus,
-          email: savedData.email || prev.email,
-          phone: savedData.phone || prev.phone,
-          occupation: savedData.occupation || prev.occupation,
-          industry: savedData.industry || prev.industry,
-          business: savedData.business || prev.business,
-          skills: savedData.skills || prev.skills,
-          professionalQualifications: savedData.professional_qualifications || savedData.professionalQualifications || prev.professionalQualifications,
-          bloodGroup: savedData.blood_group || savedData.bloodGroup || prev.bloodGroup,
-          genotype: savedData.genotype || prev.genotype,
-          nextOfKin: savedData.next_of_kin || savedData.nextOfKin || prev.nextOfKin,
-          relationship: savedData.relationship || prev.relationship,
-          nextOfKinPhone: savedData.next_of_kin_phone || savedData.nextOfKinPhone || prev.nextOfKinPhone,
-          avatarUrl: cachedAvatar || savedData.avatar_url || savedData.avatarUrl || prev.avatarUrl,
-          isLiveProfile: true,
-        }));
+        setProfile((prev) => {
+          const effectiveCompany = savedData.company || prev.company;
+          return {
+            ...prev,
+            name: savedData.full_name || savedData.name || prev.name,
+            nmsNo: savedData.nms_number || savedData.nmsNo || prev.nmsNo,
+            company: effectiveCompany,
+            squad: savedData.squad || (effectiveCompany ? effectiveCompany.replace(/\s*Company\s*/i, '').trim() : prev.squad),
+            homeCell: savedData.home_cell || savedData.homeCell || computedChapter.name,
+            rankAppointment: savedData.rank_appointment || savedData.rankAppointment || prev.rankAppointment,
+            setAppointment: savedData.set_appointment || savedData.setAppointment || prev.setAppointment,
+            dob: savedData.dob || prev.dob,
+            stateOfOrigin: savedData.state_of_origin || savedData.stateOfOrigin || prev.stateOfOrigin,
+            stateOfResidence: savedData.state_of_residence || savedData.stateOfResidence || prev.stateOfResidence,
+            address: savedData.address || prev.address,
+            maritalStatus: savedData.marital_status || savedData.maritalStatus || prev.maritalStatus,
+            email: savedData.email || prev.email,
+            phone: savedData.phone || prev.phone,
+            occupation: savedData.occupation || prev.occupation,
+            industry: savedData.industry || prev.industry,
+            business: savedData.business || prev.business,
+            skills: savedData.skills || prev.skills,
+            professionalQualifications: savedData.professional_qualifications || savedData.professionalQualifications || prev.professionalQualifications,
+            bloodGroup: savedData.blood_group || savedData.bloodGroup || prev.bloodGroup,
+            genotype: savedData.genotype || prev.genotype,
+            nextOfKin: savedData.next_of_kin || savedData.nextOfKin || prev.nextOfKin,
+            relationship: savedData.relationship || prev.relationship,
+            nextOfKinPhone: savedData.next_of_kin_phone || savedData.nextOfKinPhone || prev.nextOfKinPhone,
+            avatarUrl: cachedAvatar || savedData.avatar_url || savedData.avatarUrl || prev.avatarUrl,
+            isLiveProfile: true,
+          };
+        });
       }
     }
 
@@ -559,11 +572,13 @@ export function MemberDashboard() {
   };
 
   const handleUpdateCompany = (companyName: string) => {
-    setProfile((prev) => ({ ...prev, company: companyName }));
+    const derivedSquad = companyName ? companyName.replace(/\s*Company\s*/i, '').trim() : '';
+    setProfile((prev) => ({ ...prev, company: companyName, squad: derivedSquad || prev.squad }));
     try {
       const currentStored = sessionStorage.getItem('nms08_current_profile');
       const parsed = currentStored ? JSON.parse(currentStored) : {};
       parsed.company = companyName;
+      parsed.squad = derivedSquad;
       sessionStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
     } catch {}
 
@@ -571,6 +586,7 @@ export function MemberDashboard() {
       const currentStored = localStorage.getItem('nms08_current_profile');
       const parsed = currentStored ? JSON.parse(currentStored) : {};
       parsed.company = companyName;
+      parsed.squad = derivedSquad;
       localStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
     } catch {}
 
@@ -614,9 +630,13 @@ export function MemberDashboard() {
     e.preventDefault();
     setEditProfileSaving(true);
     try {
+      const derivedSquad = profileEditForm.company
+        ? profileEditForm.company.replace(/\s*Company\s*/i, '').trim()
+        : profile.squad;
       const updated = {
         ...profile,
         ...profileEditForm,
+        squad: derivedSquad || profile.squad,
       };
       setProfile(updated);
 
@@ -625,6 +645,7 @@ export function MemberDashboard() {
         const parsed = stored ? JSON.parse(stored) : {};
         Object.assign(parsed, profileEditForm);
         parsed.home_cell = profileEditForm.homeCell;
+        parsed.squad = derivedSquad;
         sessionStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
       } catch {}
 
@@ -633,6 +654,7 @@ export function MemberDashboard() {
         const parsed = stored ? JSON.parse(stored) : {};
         Object.assign(parsed, profileEditForm);
         parsed.home_cell = profileEditForm.homeCell;
+        parsed.squad = derivedSquad;
         localStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
       } catch {}
 
@@ -686,6 +708,10 @@ export function MemberDashboard() {
   const userCompany = COMPANIES_LIST.find(c => 
     profile.company && c.name.toLowerCase().includes(profile.company.toLowerCase().split(' ')[0])
   ) || COMPANIES_LIST[0];
+
+  const effectiveSquad = profile.squad && profile.squad.toLowerCase() !== 'alpha' || (profile.company && profile.company.toLowerCase().includes('alpha'))
+    ? profile.squad || (profile.company ? profile.company.replace(/\s*Company\s*/i, '').trim() : userCompany.name.replace(/\s*Company\s*/i, '').trim())
+    : (profile.company ? profile.company.replace(/\s*Company\s*/i, '').trim() : userCompany.name.replace(/\s*Company\s*/i, '').trim());
 
   const userChapter = getChapterForMember(profile.homeCell, profile.stateOfResidence);
 
@@ -905,7 +931,7 @@ export function MemberDashboard() {
                 Welcome, {profile.name}
               </h1>
               <p className="text-xs sm:text-sm text-emerald-100 font-medium">
-                {profile.squad} Platoon • {profile.company} • {userChapter.name}
+                {effectiveSquad} Platoon • {profile.company} • {userChapter.name}
               </p>
             </div>
           </div>
@@ -1499,7 +1525,7 @@ export function MemberDashboard() {
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Squad / Platoon</span>
-                <span className="font-semibold text-slate-800">{profile.squad}</span>
+                <span className="font-semibold text-slate-800">{effectiveSquad}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Military Rank (NMS)</span>

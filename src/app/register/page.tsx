@@ -332,7 +332,7 @@ export default function RegisterPage() {
                       disabled={loading}
                       className={inputClasses}
                     >
-                      {['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Gulf'].map((c) => (
+                      {['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf'].map((c) => (
                         <option key={c} value={`${c} Company`}>
                           {c} Company
                         </option>
