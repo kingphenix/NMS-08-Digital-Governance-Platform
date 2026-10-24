@@ -431,7 +431,9 @@ export function MemberDashboard() {
     loadProfile();
   }, []);
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -440,76 +442,105 @@ export function MemberDashboard() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new (window as any).Image();
-      img.onload = () => {
-        // Compress and scale down to 400x400 max to keep storage nimble and crisp
-        const canvas = document.createElement('canvas');
-        const maxDim = 400;
-        let width = img.width;
-        let height = img.height;
+    // 5MB maximum file size check
+    const MAX_SIZE_BYTES = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE_BYTES) {
+      alert(`Selected image exceeds the 5MB maximum file size limit (${(file.size / (1024 * 1024)).toFixed(2)}MB). Please choose a photo under 5MB.`);
+      e.target.value = '';
+      return;
+    }
 
-        if (width > height) {
-          if (width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
+    setIsUploadingPhoto(true);
+
+    try {
+      // 1. Upload to Supabase Storage via our API endpoint
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('nms', profile.nmsNo);
+
+      const res = await fetch('/api/profile/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const resData = await res.json();
+
+      if (res.ok && resData.ok && resData.avatar_url) {
+        const finalUrl = resData.avatar_url;
+
+        // Update local state
+        setProfile((prev) => ({ ...prev, avatarUrl: finalUrl }));
+
+        // Update session storage and local storage
+        try {
+          const currentStored = sessionStorage.getItem('nms08_current_profile') || localStorage.getItem('nms08_current_profile');
+          const parsed = currentStored ? JSON.parse(currentStored) : {};
+          parsed.avatarUrl = finalUrl;
+          parsed.avatar_url = finalUrl;
+          sessionStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
+          localStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
+        } catch {}
+
+        // Update localStorage dedicated avatar keys
+        try {
+          if (profile.nmsNo) {
+            localStorage.setItem(`nms08_avatar_${profile.nmsNo}`, finalUrl);
           }
-        } else {
-          if (height > maxDim) {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
+          localStorage.setItem('nms08_active_avatar', finalUrl);
+        } catch {}
+
+        // Also ensure profile in DB has the avatar_url in sync
+        if (profile.nmsNo) {
+          fetch('/api/profile', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nms: profile.nmsNo,
+              avatar_url: finalUrl,
+            }),
+          }).catch((err) => console.warn('Profile PATCH sync notice:', err));
         }
 
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-
-          // Update local state
-          setProfile((prev) => ({ ...prev, avatarUrl: dataUrl }));
-
-          // Update session storage
-          try {
-            const currentStored = sessionStorage.getItem('nms08_current_profile');
-            const parsed = currentStored ? JSON.parse(currentStored) : {};
-            parsed.avatarUrl = dataUrl;
-            parsed.avatar_url = dataUrl;
-            sessionStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
-          } catch {}
-
-          // Update localStorage
-          try {
-            if (profile.nmsNo) {
-              localStorage.setItem(`nms08_avatar_${profile.nmsNo}`, dataUrl);
-            }
-            localStorage.setItem('nms08_active_avatar', dataUrl);
-          } catch {}
-
-          // Persist to API
-          if (profile.nmsNo) {
-            fetch('/api/profile', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                nms: profile.nmsNo,
-                avatar_url: dataUrl,
-              }),
-            }).catch((err) => console.warn('Profile picture sync error:', err));
+        setPhotoToastMessage('Passport photo stored and saved successfully!');
+        setShowPhotoToast(true);
+        setTimeout(() => setShowPhotoToast(false), 4000);
+      } else {
+        // Fallback to client-side data URL if offline/error
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const dataUrl = event.target?.result as string;
+          if (dataUrl) {
+            setProfile((prev) => ({ ...prev, avatarUrl: dataUrl }));
+            try {
+              if (profile.nmsNo) localStorage.setItem(`nms08_avatar_${profile.nmsNo}`, dataUrl);
+              localStorage.setItem('nms08_active_avatar', dataUrl);
+            } catch {}
           }
+        };
+        reader.readAsDataURL(file);
 
-          setPhotoToastMessage('Passport photo updated successfully!');
-          setShowPhotoToast(true);
-          setTimeout(() => setShowPhotoToast(false), 4000);
+        setPhotoToastMessage(resData?.message || 'Photo updated locally.');
+        setShowPhotoToast(true);
+        setTimeout(() => setShowPhotoToast(false), 4000);
+      }
+    } catch (err: any) {
+      console.warn('Avatar upload exception:', err);
+      // Fallback preview
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        if (dataUrl) {
+          setProfile((prev) => ({ ...prev, avatarUrl: dataUrl }));
         }
       };
-      img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+      reader.readAsDataURL(file);
+      setPhotoToastMessage('Photo uploaded.');
+      setShowPhotoToast(true);
+      setTimeout(() => setShowPhotoToast(false), 4000);
+    } finally {
+      setIsUploadingPhoto(false);
+      e.target.value = '';
+    }
   };
 
   const handleRemovePhoto = (e: React.MouseEvent) => {
@@ -877,7 +908,12 @@ export function MemberDashboard() {
                 className="w-20 h-20 rounded-3xl bg-emerald-950/40 ring-4 ring-white/30 shadow-2xl overflow-hidden flex items-center justify-center cursor-pointer relative"
                 title="Click to upload or update Ex-Boy passport photo"
               >
-                {profile.avatarUrl ? (
+                {isUploadingPhoto ? (
+                  <div className="flex flex-col items-center justify-center p-2 text-center text-emerald-200">
+                    <div className="w-6 h-6 border-2 border-emerald-300/30 border-t-emerald-300 rounded-full animate-spin mb-1" />
+                    <span className="text-[10px] font-semibold">Uploading...</span>
+                  </div>
+                ) : profile.avatarUrl ? (
                   <img
                     src={profile.avatarUrl}
                     alt={profile.name}
@@ -886,16 +922,19 @@ export function MemberDashboard() {
                 ) : (
                   <span className="text-white font-extrabold text-2xl tracking-wide">{nameInitials}</span>
                 )}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Camera className="w-5 h-5 text-white drop-shadow" />
-                </div>
+                {!isUploadingPhoto && (
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera className="w-5 h-5 text-white drop-shadow" />
+                  </div>
+                )}
               </div>
 
               <button
                 type="button"
                 onClick={() => avatarInputRef.current?.click()}
-                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-400 hover:bg-emerald-300 border-2 border-white flex items-center justify-center text-emerald-950 shadow-md transition-transform hover:scale-110"
-                title="Upload / Change Photo"
+                disabled={isUploadingPhoto}
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-400 hover:bg-emerald-300 border-2 border-white flex items-center justify-center text-emerald-950 shadow-md transition-transform hover:scale-110 disabled:opacity-50"
+                title="Upload / Change Photo (Max 5MB)"
               >
                 <Camera className="w-3 h-3 text-emerald-950" />
               </button>
@@ -931,7 +970,7 @@ export function MemberDashboard() {
                 Welcome, {profile.name}
               </h1>
               <p className="text-xs sm:text-sm text-emerald-100 font-medium">
-                {effectiveSquad} Platoon • {profile.company} • {userChapter.name}
+                {profile.company} • {userChapter.name}
               </p>
             </div>
           </div>
@@ -1524,8 +1563,8 @@ export function MemberDashboard() {
                 <span className="font-mono font-bold text-slate-900">{profile.nmsNo}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
-                <span className="text-slate-500 font-medium">Squad / Platoon</span>
-                <span className="font-semibold text-slate-800">{effectiveSquad}</span>
+                <span className="text-slate-500 font-medium">Military Company</span>
+                <span className="font-semibold text-slate-800">{profile.company}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Military Rank (NMS)</span>

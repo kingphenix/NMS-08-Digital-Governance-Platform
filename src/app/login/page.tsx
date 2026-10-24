@@ -52,8 +52,17 @@ export default function LoginPage() {
 
       if (data.profile) {
         sessionStorage.setItem('nms08_current_profile', JSON.stringify(data.profile));
+        localStorage.setItem('nms08_current_profile', JSON.stringify(data.profile));
+        if (data.profile.avatar_url || data.profile.avatarUrl) {
+          const avUrl = data.profile.avatar_url || data.profile.avatarUrl;
+          localStorage.setItem('nms08_active_avatar', avUrl);
+          if (data.profile.nms_number || data.profile.nmsNo) {
+            localStorage.setItem(`nms08_avatar_${data.profile.nms_number || data.profile.nmsNo}`, avUrl);
+          }
+        }
       }
       sessionStorage.setItem('nms08_member_authed', 'true');
+      localStorage.setItem('nms08_member_authed', 'true');
       router.push('/dashboard');
     } catch (err: any) {
       setError(err?.message || 'Network error occurred. Please try again.');

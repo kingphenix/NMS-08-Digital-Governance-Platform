@@ -172,17 +172,17 @@ export default function RegisterPage() {
         setErrorMessage(null);
 
         try {
-          sessionStorage.setItem(
-            'nms08_current_profile',
-            JSON.stringify({
-              ...payload,
-              name: nameInput,
-              nmsNo: nmsInput,
-              company: form.company,
-              homeCell: form.homeCell,
-              home_cell: form.homeCell,
-            })
-          );
+          const profileSnapshot = {
+            ...payload,
+            name: nameInput,
+            nmsNo: nmsInput,
+            company: form.company,
+            homeCell: form.homeCell,
+            home_cell: form.homeCell,
+          };
+          sessionStorage.setItem('nms08_current_profile', JSON.stringify(profileSnapshot));
+          localStorage.setItem('nms08_current_profile', JSON.stringify(profileSnapshot));
+          localStorage.setItem('nms08_member_authed', 'true');
         } catch {}
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
