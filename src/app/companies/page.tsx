@@ -19,7 +19,7 @@ export default function CompaniesPage() {
           The 7 Companies of NMS 08
         </h1>
         <p className="text-sm text-slate-600">
-          Alpha, Bravo, Charlie, Delta, Echo, Foxtrot, and Golf Companies. Explore commanders, member strength, and dues performance.
+          Alpha, Bravo, Charlie, Delta, Echo, Foxtrot, and Golf Companies. Explore company representatives, 2IC leadership, member strength, and dues performance.
         </p>
       </div>
 
@@ -44,11 +44,17 @@ export default function CompaniesPage() {
               {company.description}
             </p>
 
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-1.5 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Company Commander</span>
-                <span className="font-bold text-slate-900">{company.commander}</span>
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Company Representative</span>
+                <span className="font-bold text-slate-900">{company.representative || company.commander}</span>
               </div>
+              {company.secondInCommand && (
+                <div className="flex justify-between items-center pt-1 border-t border-slate-200/60">
+                  <span className="text-slate-500 font-medium">Second-in-Command (2IC)</span>
+                  <span className="font-semibold text-slate-700">{company.secondInCommand}</span>
+                </div>
+              )}
             </div>
 
             <ProgressBar

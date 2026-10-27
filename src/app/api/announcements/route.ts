@@ -35,7 +35,7 @@ let serverAnnouncements: Announcement[] = [
     severity: 'info',
     target: 'all',
     showOnTicker: true,
-    postedBy: 'Ex-Boy Barr. Obinna Eze (Secretary General)',
+    postedBy: 'Exboy Ikenna Ukonna (General Secretary)',
     createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
     active: true,
   },

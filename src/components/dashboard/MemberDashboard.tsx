@@ -1455,10 +1455,16 @@ export function MemberDashboard() {
                 </p>
                 <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100 space-y-2">
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-600">Company Commander</span>
-                    <span className="font-bold text-slate-900">{userCompany.commander}</span>
+                    <span className="text-slate-600">Company Representative</span>
+                    <span className="font-bold text-slate-900">{userCompany.representative || userCompany.commander}</span>
                   </div>
-                  <div className="flex justify-between text-xs">
+                  {userCompany.secondInCommand && (
+                    <div className="flex justify-between text-xs pt-1 border-t border-emerald-200/60">
+                      <span className="text-slate-600">Second-in-Command (2IC)</span>
+                      <span className="font-semibold text-slate-800">{userCompany.secondInCommand}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-xs pt-1 border-t border-emerald-200/60">
                     <span className="text-slate-600">Active Ex-Boys</span>
                     <span className="font-bold text-emerald-800">{userCompany.totalMembers} Members</span>
                   </div>
@@ -1616,10 +1622,16 @@ export function MemberDashboard() {
               
               <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100 space-y-2">
                 <div className="flex justify-between text-xs">
-                  <span className="text-slate-600">Company Commander</span>
-                  <span className="font-bold text-slate-900">{userCompany.commander}</span>
+                  <span className="text-slate-600">Company Representative</span>
+                  <span className="font-bold text-slate-900">{userCompany.representative || userCompany.commander}</span>
                 </div>
-                <div className="flex justify-between text-xs">
+                {userCompany.secondInCommand && (
+                  <div className="flex justify-between text-xs pt-1 border-t border-emerald-200/60">
+                    <span className="text-slate-600">Second-in-Command (2IC)</span>
+                    <span className="font-semibold text-slate-800">{userCompany.secondInCommand}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-xs pt-1 border-t border-emerald-200/60">
                   <span className="text-slate-600">Active Ex-Boys</span>
                   <span className="font-bold text-emerald-800">{userCompany.totalMembers} Members</span>
                 </div>
@@ -2282,7 +2294,7 @@ export function MemberDashboard() {
                         "{comp.motto}"
                       </p>
                       <p className="text-[11px] text-slate-700 font-medium">
-                        Commander: <strong>{comp.commander}</strong> • {comp.description}
+                        Rep: <strong>{comp.representative || comp.commander}</strong>{comp.secondInCommand ? ` • 2IC: ${comp.secondInCommand}` : ''}
                       </p>
                     </div>
 
