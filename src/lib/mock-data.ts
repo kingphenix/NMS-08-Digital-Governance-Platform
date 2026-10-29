@@ -1,5 +1,10 @@
 import type { StaticImageData } from 'next/image';
 import setChairmanImage from '@/assets/set chairman.jpeg';
+import isahMuhammadImage from '@/assets/Ex-boy Isah Muhammad .jpeg';
+import ikennaUkonnaImage from '@/assets/Exboy Ikenna Ukonna.jpeg';
+import isaacDanmusaImage from '@/assets/Exboy Isaac Danmusa.jpeg';
+import ibrahimLasisiImage from '@/assets/Exboy Lt Ibrahim Lasisi.jpeg';
+import masdBawaImage from '@/assets/Exboy Mas\'d Bawa.jpeg';
 
 export interface MemberProfile {
   id: string;
@@ -291,8 +296,8 @@ export const LEADERSHIP_LIST: LeaderProfile[] = [
     nmsNo: "NMS/08/xxx",
     company: "Executive Council",
     bio: "Chairman of the NMS 08 Alumni Executive Council steering set administration, strategic direction, and fraternal cohesion.",
-    email: "chairman@nms08alumni.org",
-    phone: "+234 802 000 1122",
+    email: "Philex409@gmail.com",
+    phone: "09035570695",
     imageUrl: setChairmanImage,
   },
   {
@@ -302,9 +307,9 @@ export const LEADERSHIP_LIST: LeaderProfile[] = [
     nmsNo: "NMS/08/xxx",
     company: "Executive Council",
     bio: "Vice Chairman and Coordinator of Company Representatives, harmonizing company activities and grassroots member mobilization.",
-    email: "vicechairman@nms08alumni.org",
-    phone: "+234 803 111 2233",
-    imageUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=400",
+    email: "mnupeko@gmail.com",
+    phone: "07031862211",
+    imageUrl: isahMuhammadImage,
   },
   {
     id: "lead-3",
@@ -313,9 +318,9 @@ export const LEADERSHIP_LIST: LeaderProfile[] = [
     nmsNo: "NMS/08/xxx",
     company: "Executive Council",
     bio: "General Secretary managing secretariat operations, records, official correspondence, and administrative documentation.",
-    email: "gensec@nms08alumni.org",
-    phone: "+234 805 222 3344",
-    imageUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=400",
+    email: "Ukonnaikenna@gmail.com",
+    phone: "08137685454",
+    imageUrl: ikennaUkonnaImage,
   },
   {
     id: "lead-4",
@@ -324,9 +329,9 @@ export const LEADERSHIP_LIST: LeaderProfile[] = [
     nmsNo: "NMS/08/xxx",
     company: "Executive Council",
     bio: "Public Relations Officer driving strategic communications, publicity, media relations, and brand identity across all platforms.",
-    email: "pro@nms08alumni.org",
-    phone: "+234 807 555 6677",
-    imageUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=400",
+    email: "mbawa920@gmail.com",
+    phone: "09037768506",
+    imageUrl: masdBawaImage,
   },
   {
     id: "lead-5",
@@ -335,9 +340,9 @@ export const LEADERSHIP_LIST: LeaderProfile[] = [
     nmsNo: "NMS/08/xxx",
     company: "Executive Council",
     bio: "Financial Secretary managing financial compliance, dues accounting, treasury governance, and audit transparency.",
-    email: "finsec@nms08alumni.org",
-    phone: "+234 809 333 4455",
-    imageUrl: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=400",
+    email: "isaacdanmusa@gmail.com",
+    phone: "09037843563",
+    imageUrl: isaacDanmusaImage,
   },
   {
     id: "lead-6",
@@ -370,7 +375,7 @@ export const LEADERSHIP_LIST: LeaderProfile[] = [
     bio: "Provost maintaining order, constitutional decorum, discipline, and protocol during meetings and alumni engagements.",
     email: "provost@nms08alumni.org",
     phone: "+234 806 888 9900",
-    imageUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400",
+    imageUrl: ibrahimLasisiImage,
   },
 ];
 
