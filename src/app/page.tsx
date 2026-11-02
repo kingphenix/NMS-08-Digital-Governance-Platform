@@ -22,7 +22,8 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { COMPANIES_LIST, NEWS_LIST, EVENTS_LIST, LEADERSHIP_LIST } from '@/lib/mock-data';
+import { NEWS_LIST, EVENTS_LIST, LEADERSHIP_LIST } from '@/lib/mock-data';
+import { CompanyShowcasePreview } from '@/components/companies/CompanyShowcasePreview';
 
 export default function HomePage() {
   const president = LEADERSHIP_LIST[0];
@@ -69,8 +70,8 @@ export default function HomePage() {
             {/* Micro Highlights */}
             <div className="pt-6 grid grid-cols-3 gap-4 border-t border-slate-200/60 text-xs">
               <div>
-                <span className="font-extrabold text-lg text-slate-900 block">485+</span>
-                <span className="text-slate-500 font-medium">Verified Ex-Boys</span>
+                <span className="font-extrabold text-lg text-slate-900 block">246</span>
+                <span className="text-slate-500 font-medium">Official Roster Ex-Boys</span>
               </div>
               <div>
                 <span className="font-extrabold text-lg text-emerald-700 block">₦24.8M</span>
@@ -149,22 +150,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {COMPANIES_LIST.slice(0, 4).map((company) => (
-            <Card key={company.id} hoverEffect variant="glass" className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className={`w-7 h-7 rounded-full ${company.bgClass} shadow-md border-2 border-white`} />
-                <span className="text-xs font-bold text-slate-400">{company.totalMembers} Members</span>
-              </div>
-              <h3 className="text-lg font-bold text-slate-900">{company.name}</h3>
-              <p className="text-xs text-slate-500 italic">"{company.motto}"</p>
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span className="text-slate-500">Dues Compliance</span>
-                <span className="font-bold text-emerald-700">{company.duesComplianceRate}%</span>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <CompanyShowcasePreview />
 
         <div className="text-center pt-2">
           <Link href="/companies">

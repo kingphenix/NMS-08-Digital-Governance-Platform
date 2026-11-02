@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Button } from '@/components/ui/Button';
 import { ElectionVotesChart } from './Charts';
+import { normalizeCompanyId, getRegisteredCountsFromStorage } from '@/lib/companies';
 import {
   ShieldCheck,
   Award,
@@ -246,6 +247,10 @@ export function MemberDashboard() {
     complianceRate: 0,
     targetDues: 0,
   });
+  const [companyCounts, setCompanyCounts] = useState<Record<string, number>>(() =>
+    getRegisteredCountsFromStorage()
+  );
+  const [companyCompliance, setCompanyCompliance] = useState<Record<string, number>>({});
 
   // Dynamic user profile state (hydrated from session, localStorage and Supabase)
   const [profile, setProfile] = useState({
@@ -621,6 +626,35 @@ export function MemberDashboard() {
       localStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
     } catch {}
 
+    const oldCid = normalizeCompanyId(profile.company);
+    const newCid = normalizeCompanyId(companyName);
+    if (oldCid && newCid && oldCid !== newCid) {
+      setCompanyCounts((prev) => ({
+        ...prev,
+        [oldCid]: Math.max(0, (prev[oldCid] || 1) - 1),
+        [newCid]: (prev[newCid] || 0) + 1,
+      }));
+    }
+
+    try {
+      const regSaved = localStorage.getItem('nms08_registered_members');
+      if (regSaved) {
+        const arr = JSON.parse(regSaved);
+        if (Array.isArray(arr)) {
+          const updated = arr.map((item: any) =>
+            (item.nms_number || item.nmsNo) === profile.nmsNo
+              ? { ...item, company: companyName }
+              : item
+          );
+          localStorage.setItem('nms08_registered_members', JSON.stringify(updated));
+        }
+      }
+    } catch {}
+
+    window.dispatchEvent(new Event('nms08-company-updated'));
+    window.dispatchEvent(new Event('nms08-members-updated'));
+    window.dispatchEvent(new Event('storage'));
+
     if (profile.nmsNo) {
       fetch('/api/profile', {
         method: 'PATCH',
@@ -701,6 +735,37 @@ export function MemberDashboard() {
         });
       }
 
+      if (profileEditForm.company && profileEditForm.company !== profile.company) {
+        const prevId = normalizeCompanyId(profile.company);
+        const nextId = normalizeCompanyId(profileEditForm.company);
+        if (prevId && nextId && prevId !== nextId) {
+          setCompanyCounts((prev) => ({
+            ...prev,
+            [prevId]: Math.max(0, (prev[prevId] || 1) - 1),
+            [nextId]: (prev[nextId] || 0) + 1,
+          }));
+        }
+
+        try {
+          const regSaved = localStorage.getItem('nms08_registered_members');
+          if (regSaved) {
+            const arr = JSON.parse(regSaved);
+            if (Array.isArray(arr)) {
+              const updatedMembers = arr.map((item: any) =>
+                (item.nms_number || item.nmsNo) === profile.nmsNo
+                  ? { ...item, company: profileEditForm.company }
+                  : item
+              );
+              localStorage.setItem('nms08_registered_members', JSON.stringify(updatedMembers));
+            }
+          }
+        } catch {}
+
+        window.dispatchEvent(new Event('nms08-company-updated'));
+        window.dispatchEvent(new Event('nms08-members-updated'));
+        window.dispatchEvent(new Event('storage'));
+      }
+
       setShowEditProfileModal(false);
       setPhotoToastMessage('Personal particulars saved successfully!');
       setShowPhotoToast(true);
@@ -740,13 +805,17 @@ export function MemberDashboard() {
     profile.company && c.name.toLowerCase().includes(profile.company.toLowerCase().split(' ')[0])
   ) || COMPANIES_LIST[0];
 
+  const userCompanyId = normalizeCompanyId(profile.company) || userCompany.id;
+  const userCompanyMemberCount = companyCounts[userCompanyId] ?? 0;
+  const userCompanyComplianceRate = companyCompliance[userCompanyId] ?? 0;
+
   const effectiveSquad = profile.squad && profile.squad.toLowerCase() !== 'alpha' || (profile.company && profile.company.toLowerCase().includes('alpha'))
     ? profile.squad || (profile.company ? profile.company.replace(/\s*Company\s*/i, '').trim() : userCompany.name.replace(/\s*Company\s*/i, '').trim())
     : (profile.company ? profile.company.replace(/\s*Company\s*/i, '').trim() : userCompany.name.replace(/\s*Company\s*/i, '').trim());
 
   const userChapter = getChapterForMember(profile.homeCell, profile.stateOfResidence);
 
-  // Fetch admin broadcast announcements that appear on every registered page
+  // Fetch admin broadcast announcements and live company data
   useEffect(() => {
     const loadAnnouncements = async () => {
       try {
@@ -768,6 +837,32 @@ export function MemberDashboard() {
     };
 
     loadAnnouncements();
+
+    const loadCompanies = async () => {
+      try {
+        const res = await fetch('/api/companies');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && data.counts) {
+            const merged = getRegisteredCountsFromStorage(data.counts);
+            setCompanyCounts(merged);
+            if (Array.isArray(data.companies)) {
+              const compMap: Record<string, number> = {};
+              data.companies.forEach((c: any) => {
+                compMap[c.id] = c.duesComplianceRate || 0;
+              });
+              setCompanyCompliance(compMap);
+            }
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load companies:', err);
+      }
+      setCompanyCounts(getRegisteredCountsFromStorage());
+    };
+
+    loadCompanies();
 
     const loadTreasury = async () => {
       try {
@@ -796,12 +891,20 @@ export function MemberDashboard() {
     }
 
     const handleUpdate = () => loadAnnouncements();
+    const handleCompanyUpdate = () => loadCompanies();
+
     window.addEventListener('nms08-announcements-updated', handleUpdate);
+    window.addEventListener('nms08-company-updated', handleCompanyUpdate);
+    window.addEventListener('nms08-members-updated', handleCompanyUpdate);
     window.addEventListener('storage', handleUpdate);
+    window.addEventListener('storage', handleCompanyUpdate);
 
     return () => {
       window.removeEventListener('nms08-announcements-updated', handleUpdate);
+      window.removeEventListener('nms08-company-updated', handleCompanyUpdate);
+      window.removeEventListener('nms08-members-updated', handleCompanyUpdate);
       window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('storage', handleCompanyUpdate);
     };
   }, []);
 
@@ -1466,13 +1569,15 @@ export function MemberDashboard() {
                   )}
                   <div className="flex justify-between text-xs pt-1 border-t border-emerald-200/60">
                     <span className="text-slate-600">Active Ex-Boys</span>
-                    <span className="font-bold text-emerald-800">{userCompany.totalMembers} Members</span>
+                    <span className="font-bold text-emerald-800">
+                      {userCompanyMemberCount} {userCompanyMemberCount === 1 ? 'Member' : 'Members'}
+                    </span>
                   </div>
                 </div>
                 <ProgressBar
-                  value={userCompany.duesComplianceRate}
+                  value={userCompanyComplianceRate}
                   label="Company Dues Compliance Rate"
-                  sublabel="Top performing company in 2026 dues"
+                  sublabel="Based on verified dues payments"
                   color="emerald"
                 />
               </CardContent>
@@ -1633,14 +1738,16 @@ export function MemberDashboard() {
                 )}
                 <div className="flex justify-between text-xs pt-1 border-t border-emerald-200/60">
                   <span className="text-slate-600">Active Ex-Boys</span>
-                  <span className="font-bold text-emerald-800">{userCompany.totalMembers} Members</span>
+                  <span className="font-bold text-emerald-800">
+                    {userCompanyMemberCount} {userCompanyMemberCount === 1 ? 'Member' : 'Members'}
+                  </span>
                 </div>
               </div>
 
               <ProgressBar
-                value={userCompany.duesComplianceRate}
+                value={userCompanyComplianceRate}
                 label="Company Dues Compliance Rate"
-                sublabel="Top performing company in 2026 dues"
+                sublabel="Based on verified dues payments"
                 color="emerald"
               />
             </CardContent>
@@ -2299,7 +2406,9 @@ export function MemberDashboard() {
                     </div>
 
                     <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
-                      <span className="text-xs font-semibold text-slate-500">{comp.totalMembers} Ex-Boys</span>
+                      <span className="text-xs font-semibold text-slate-500">
+                        {companyCounts[comp.id] ?? 0} {(companyCounts[comp.id] ?? 0) === 1 ? 'Ex-Boy' : 'Ex-Boys'}
+                      </span>
                       <Button
                         variant={isSelected ? 'emerald' : 'outline'}
                         size="sm"

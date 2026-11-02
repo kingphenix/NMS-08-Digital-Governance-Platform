@@ -54,6 +54,7 @@ import {
   Bell,
   Check,
 } from 'lucide-react';
+import { normalizeCompanyId } from '@/lib/companies';
 
 export interface MemberProfileData {
   id: string;
@@ -210,9 +211,26 @@ export function AdminDashboard() {
           }
 
           setMembers(list);
-          setStats(data.stats || { totalRegistered: list.length, totalRoster: 485 });
+          setStats(data.stats || { totalRegistered: list.length, totalRoster: 246 });
           if (data.metrics) {
-            setMetrics((prev) => ({ ...prev, ...data.metrics }));
+            // Synchronize company breakdown with real registered counts from list
+            const serverBreakdown = Array.isArray(data.metrics.companyBreakdown) ? data.metrics.companyBreakdown : [];
+            const companyNames = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf'];
+            const syncBreakdown = companyNames.map((name) => {
+              const count = list.filter((m) => (m.company || '').toLowerCase().includes(name.toLowerCase())).length;
+              const match = serverBreakdown.find((b: any) => b.company.toLowerCase() === name.toLowerCase());
+              return {
+                company: name,
+                count,
+                compliance: match ? match.compliance : 0,
+              };
+            }).sort((a, b) => b.compliance - a.compliance || b.count - a.count);
+
+            setMetrics((prev) => ({
+              ...prev,
+              ...data.metrics,
+              companyBreakdown: syncBreakdown,
+            }));
           }
         }
       }
@@ -248,7 +266,42 @@ export function AdminDashboard() {
   useEffect(() => {
     fetchMembers();
     fetchAnnouncements();
+
+    const handleUpdate = () => {
+      fetchMembers();
+      fetchAnnouncements();
+    };
+
+    window.addEventListener('nms08-members-updated', handleUpdate);
+    window.addEventListener('nms08-company-updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('nms08-members-updated', handleUpdate);
+      window.removeEventListener('nms08-company-updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
   }, []);
+
+  // Compute live registered member counts per company for filters and summaries
+  const companyCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      alpha: 0,
+      bravo: 0,
+      charlie: 0,
+      delta: 0,
+      echo: 0,
+      foxtrot: 0,
+      golf: 0,
+    };
+    members.forEach((m) => {
+      const cid = normalizeCompanyId(m.company);
+      if (cid && counts[cid] !== undefined) {
+        counts[cid]++;
+      }
+    });
+    return counts;
+  }, [members]);
 
   // Filtered and Sorted members computation
   const filteredAndSortedMembers = useMemo(() => {
@@ -605,14 +658,14 @@ export function AdminDashboard() {
                   onChange={(e) => setSelectedCompany(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
                 >
-                  <option value="ALL">All Companies</option>
-                  <option value="Alpha">Alpha Company</option>
-                  <option value="Bravo">Bravo Company</option>
-                  <option value="Charlie">Charlie Company</option>
-                  <option value="Delta">Delta Company</option>
-                  <option value="Echo">Echo Company</option>
-                  <option value="Foxtrot">Foxtrot Company</option>
-                  <option value="Golf">Golf Company</option>
+                  <option value="ALL">All Companies ({members.length})</option>
+                  <option value="Alpha">Alpha Company ({companyCounts.alpha})</option>
+                  <option value="Bravo">Bravo Company ({companyCounts.bravo})</option>
+                  <option value="Charlie">Charlie Company ({companyCounts.charlie})</option>
+                  <option value="Delta">Delta Company ({companyCounts.delta})</option>
+                  <option value="Echo">Echo Company ({companyCounts.echo})</option>
+                  <option value="Foxtrot">Foxtrot Company ({companyCounts.foxtrot})</option>
+                  <option value="Golf">Golf Company ({companyCounts.golf})</option>
                 </select>
               </div>
 

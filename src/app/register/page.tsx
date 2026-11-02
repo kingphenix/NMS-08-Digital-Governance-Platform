@@ -183,6 +183,19 @@ export default function RegisterPage() {
           sessionStorage.setItem('nms08_current_profile', JSON.stringify(profileSnapshot));
           localStorage.setItem('nms08_current_profile', JSON.stringify(profileSnapshot));
           localStorage.setItem('nms08_member_authed', 'true');
+
+          // Append to local registered members list so company counts update immediately site-wide
+          const localSaved = localStorage.getItem('nms08_registered_members');
+          const arr = localSaved ? JSON.parse(localSaved) : [];
+          if (Array.isArray(arr)) {
+            const filtered = arr.filter((x: any) => (x.nms_number || x.nmsNo) !== nmsInput);
+            filtered.unshift(profileSnapshot);
+            localStorage.setItem('nms08_registered_members', JSON.stringify(filtered));
+          }
+
+          window.dispatchEvent(new Event('nms08-members-updated'));
+          window.dispatchEvent(new Event('nms08-company-updated'));
+          window.dispatchEvent(new Event('storage'));
         } catch {}
 
         window.scrollTo({ top: 0, behavior: 'smooth' });

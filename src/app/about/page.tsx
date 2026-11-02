@@ -75,7 +75,7 @@ export default function AboutPage() {
             </div>
             <div>
               <h4 className="font-bold text-slate-900 text-sm">Entry into Nigerian Military School Zaria</h4>
-              <p className="text-slate-600 mt-1">485 young boys entered the gates of NMS Zaria, undergoing rigorous academic and military indoctrination across 7 companies.</p>
+              <p className="text-slate-600 mt-1">246 young boys entered the gates of NMS Zaria, undergoing rigorous academic and military indoctrination across 7 companies.</p>
             </div>
           </div>
 

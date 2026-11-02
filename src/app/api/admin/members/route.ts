@@ -11,7 +11,7 @@ export async function GET() {
       members: [],
       stats: {
         totalRegistered: 0,
-        totalRoster: 485,
+        totalRoster: 246,
       },
       metrics: {
         totalDuesCollected: 0,
@@ -110,21 +110,62 @@ export async function GET() {
       });
     }
 
-    // Company compliance aggregation
-    const companyBreakdown: Array<{ company: string; count: number; compliance: number }> = [];
-    const payerCounts = Array.from(companyComplianceMap.entries()).map(([company, v]) => ({
-      company,
-      count: v.payers.size,
-    }));
-    const maxPayers = payerCounts.reduce((m, x) => (x.count > m ? x.count : m), 0);
-    for (const { company, count } of payerCounts) {
-      companyBreakdown.push({
-        company,
-        count,
-        compliance: maxPayers > 0 ? Math.round((count / maxPayers) * 100) : 0,
-      });
+    const normalizeId = (raw?: string | null): string | null => {
+      if (!raw) return null;
+      const c = raw.trim().toLowerCase();
+      if (c.includes('alpha') || c === 'al') return 'alpha';
+      if (c.includes('bravo') || c === 'br') return 'bravo';
+      if (c.includes('charlie') || c === 'ch') return 'charlie';
+      if (c.includes('delta') || c === 'de') return 'delta';
+      if (c.includes('echo') || c === 'ec') return 'echo';
+      if (c.includes('foxtrot') || c === 'fx') return 'foxtrot';
+      if (c.includes('golf') || c === 'go') return 'golf';
+      return null;
+    };
+
+    const companyCounts: Record<string, number> = {
+      alpha: 0,
+      bravo: 0,
+      charlie: 0,
+      delta: 0,
+      echo: 0,
+      foxtrot: 0,
+      golf: 0,
+    };
+    for (const m of memberList) {
+      const cid = normalizeId(m.company);
+      if (cid && companyCounts[cid] !== undefined) {
+        companyCounts[cid]++;
+      }
     }
-    companyBreakdown.sort((a, b) => b.compliance - a.compliance);
+
+    const companyNames: Record<string, string> = {
+      alpha: 'Alpha',
+      bravo: 'Bravo',
+      charlie: 'Charlie',
+      delta: 'Delta',
+      echo: 'Echo',
+      foxtrot: 'Foxtrot',
+      golf: 'Golf',
+    };
+
+    // Real company breakdown based on actual registered members
+    const companyBreakdown: Array<{ company: string; count: number; compliance: number }> = Object.keys(companyCounts).map((cid) => {
+      const regCount = companyCounts[cid];
+      let payerCount = 0;
+      for (const [compKey, v] of companyComplianceMap.entries()) {
+        if (normalizeId(compKey) === cid) {
+          payerCount += v.payers.size;
+        }
+      }
+      const compliance = regCount > 0 ? Math.min(100, Math.round((payerCount / regCount) * 100)) : 0;
+      return {
+        company: companyNames[cid],
+        count: regCount,
+        compliance,
+      };
+    });
+    companyBreakdown.sort((a, b) => b.compliance - a.compliance || b.count - a.count);
 
     // 4) Real welfare fund ledger from Supabase
     const { data: ledgerRows, error: ledgerError } = await supabase
@@ -196,7 +237,7 @@ export async function GET() {
         if (row.nms_number) uniquePayerSet.add(row.nms_number);
       }
     }
-    const finalTotalRoster = totalRoster || 485;
+    const finalTotalRoster = totalRoster || 246;
     const complianceRate =
       finalTotalRoster > 0
         ? Math.min(100, Number(((uniquePayerSet.size / finalTotalRoster) * 100).toFixed(1)))
@@ -205,6 +246,7 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       members: memberList,
+      companyCounts,
       stats: {
         totalRegistered: totalRegistered ?? memberList.length,
         totalRoster: finalTotalRoster,
@@ -226,7 +268,7 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       members: [],
-      stats: { totalRegistered: 0, totalRoster: 485 },
+      stats: { totalRegistered: 0, totalRoster: 246 },
       metrics: {
         totalDuesCollected: 0,
         complianceRate: 0,
