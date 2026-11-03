@@ -191,6 +191,7 @@ export default function RegisterPage() {
             const filtered = arr.filter((x: any) => (x.nms_number || x.nmsNo) !== nmsInput);
             filtered.unshift(profileSnapshot);
             localStorage.setItem('nms08_registered_members', JSON.stringify(filtered));
+            sessionStorage.setItem('nms08_registered_members', JSON.stringify(filtered));
           }
 
           window.dispatchEvent(new Event('nms08-members-updated'));

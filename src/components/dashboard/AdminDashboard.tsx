@@ -51,6 +51,7 @@ import {
   Layers,
   Bell,
   Check,
+  Cake,
 } from 'lucide-react';
 import { normalizeCompanyId } from '@/lib/companies';
 
@@ -97,7 +98,8 @@ export type SortField =
   | 'professional_qualifications'
   | 'full_name'
   | 'created_at'
-  | 'dob';
+  | 'dob'
+  | 'birth_month';
 
 interface BroadcastAnnouncement {
   id: string;
@@ -124,6 +126,7 @@ const SORT_OPTIONS: Array<{ field: SortField; label: string; icon: React.ReactNo
   { field: 'full_name', label: 'Member Name', icon: <User className="w-3.5 h-3.5" /> },
   { field: 'created_at', label: 'Registration Date', icon: <Calendar className="w-3.5 h-3.5" /> },
   { field: 'dob', label: 'Date of Birth', icon: <Calendar className="w-3.5 h-3.5" /> },
+  { field: 'birth_month', label: 'Birth Month', icon: <Cake className="w-3.5 h-3.5" /> },
 ];
 
 export function AdminDashboard() {
@@ -302,6 +305,39 @@ export function AdminDashboard() {
     return counts;
   }, [members]);
 
+  // Helper: extract numeric month from "YYYY-MM-DD" date string
+  const extractMonth = (d: string): number => {
+    if (!d) return 0;
+    const parts = d.split('-');
+    return parts.length >= 2 ? parseInt(parts[1], 10) : 0;
+  };
+
+  // Helper: month number to readable name
+  const MONTH_NAMES = [
+    '', 'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+  const getMonthName = (d: string): string => {
+    const m = extractMonth(d);
+    return MONTH_NAMES[m] || 'Unknown Month';
+  };
+
+  // Helper: format date of birth cleanly (e.g. "14 May 1992")
+  const formatDob = (d: string): string => {
+    if (!d) return 'Not Specified';
+    const parts = d.split('-');
+    if (parts.length === 3) {
+      const year = parts[0];
+      const month = parseInt(parts[1], 10);
+      const day = parseInt(parts[2], 10);
+      const monthName = MONTH_NAMES[month] || '';
+      if (monthName && !isNaN(day)) {
+        return `${day} ${monthName} ${year}`;
+      }
+    }
+    return d;
+  };
+
   // Filtered and Sorted members computation
   const filteredAndSortedMembers = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -338,19 +374,23 @@ export function AdminDashboard() {
       }
 
       if (sortBy === 'dob') {
-        // Extract month from date string (format: YYYY-MM-DD)
-        const getMonth = (d: string) => {
-          if (!d) return 0;
-          const parts = d.split('-');
-          return parts.length >= 2 ? parseInt(parts[1], 10) : 0;
-        };
-        const mA = getMonth(a.dob || '');
-        const mB = getMonth(b.dob || '');
-        return sortOrder === 'asc' ? mA - mB : mB - mA;
+        const tA = new Date(a.dob || 0).getTime();
+        const tB = new Date(b.dob || 0).getTime();
+        return sortOrder === 'asc' ? tA - tB : tB - tA;
       }
 
-      const valA = (a[sortBy] || '').toString().toLowerCase().trim();
-      const valB = (b[sortBy] || '').toString().toLowerCase().trim();
+      if (sortBy === 'birth_month') {
+        const mA = extractMonth(a.dob || '');
+        const mB = extractMonth(b.dob || '');
+        if (mA !== mB) return sortOrder === 'asc' ? mA - mB : mB - mA;
+        // Secondary sort by day within the same month
+        const dA = a.dob ? parseInt(a.dob.split('-')[2] || '0', 10) : 0;
+        const dB = b.dob ? parseInt(b.dob.split('-')[2] || '0', 10) : 0;
+        return sortOrder === 'asc' ? dA - dB : dB - dA;
+      }
+
+      const valA = ((a as any)[sortBy] || '').toString().toLowerCase().trim();
+      const valB = ((b as any)[sortBy] || '').toString().toLowerCase().trim();
       const cmp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
       return sortOrder === 'asc' ? cmp : -cmp;
     });
@@ -742,6 +782,7 @@ export function AdminDashboard() {
                 { field: 'business' as SortField, label: 'Business', icon: <Image src={buildingSvg} alt="Business" width={12} height={12} className="w-3 h-3 object-contain" /> },
                 { field: 'skills' as SortField, label: 'Skills', icon: <Sparkles className="w-3 h-3" /> },
                 { field: 'professional_qualifications' as SortField, label: 'Qualifications', icon: <GraduationCap className="w-3 h-3" /> },
+                { field: 'birth_month' as SortField, label: 'Birth Month', icon: <Cake className="w-3 h-3" /> },
               ].map((pill) => {
                 const isActive = sortBy === pill.field;
                 return (
@@ -777,7 +818,7 @@ export function AdminDashboard() {
             </div>
           </div>
 
-          {/* Members Table */}
+          {/* Members Table — Context-Aware Clean Sort View */}
           {loading ? (
             <div className="p-12 text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-3">
               <RefreshCw className="w-6 h-6 animate-spin text-emerald-600" />
@@ -789,174 +830,344 @@ export function AdminDashboard() {
                 ? 'No registered member profiles recorded yet. When visitors register, their full profiles will appear here.'
                 : 'No registered members match your search or filter criteria.'}
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
-                    <th
-                      className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
-                      onClick={() => handleSortChange('full_name')}
-                    >
-                      <div className="flex items-center gap-1">
-                        <span>Ex-Boy Name</span>
-                        {sortBy === 'full_name' && (
-                          <span className="text-emerald-700">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th className="pb-3 px-3">Service No</th>
-                    <th
-                      className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
-                      onClick={() => handleSortChange('company')}
-                    >
-                      <div className="flex items-center gap-1">
-                        <span>Company</span>
-                        {sortBy === 'company' && (
-                          <span className="text-emerald-700">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th
-                      className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
-                      onClick={() => handleSortChange('blood_group')}
-                    >
-                      <div className="flex items-center gap-1">
-                        <span>Blood Group</span>
-                        {sortBy === 'blood_group' && (
-                          <span className="text-emerald-700">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th
-                      className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
-                      onClick={() => handleSortChange('state_of_origin')}
-                    >
-                      <div className="flex items-center gap-1">
-                        <span>Origin & Residence</span>
-                        {(sortBy === 'state_of_origin' || sortBy === 'state_of_residence') && (
-                          <span className="text-emerald-700">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th
-                      className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
-                      onClick={() => handleSortChange('industry')}
-                    >
-                      <div className="flex items-center gap-1">
-                        <span>Industry & Business</span>
-                        {(sortBy === 'industry' || sortBy === 'business') && (
-                          <span className="text-emerald-700">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th
-                      className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
-                      onClick={() => handleSortChange('skills')}
-                    >
-                      <div className="flex items-center gap-1">
-                        <span>Skills & Qualifications</span>
-                        {(sortBy === 'skills' || sortBy === 'professional_qualifications') && (
-                          <span className="text-emerald-700">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th className="pb-3 px-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredAndSortedMembers.map((mem) => {
-                    const isSortedByBlood = sortBy === 'blood_group';
-                    const isSortedByIndustry = sortBy === 'industry';
-                    const isSortedByBusiness = sortBy === 'business';
-                    const isSortedByCompany = sortBy === 'company';
-                    const isSortedByOrigin = sortBy === 'state_of_origin';
-                    const isSortedByResidence = sortBy === 'state_of_residence';
-                    const isSortedBySkills = sortBy === 'skills';
-                    const isSortedByQual = sortBy === 'professional_qualifications';
+          ) : (() => {
+            // Determine if a focused sort is active (not the default "all columns" view)
+            const isDefaultView = sortBy === 'created_at' || sortBy === 'full_name';
 
-                    return (
-                      <tr key={mem.id} className="hover:bg-slate-50/80 transition-colors">
-                        {/* Name */}
-                        <td className="py-3.5 px-3">
-                          <div className="font-bold text-slate-900">{mem.full_name}</div>
-                          <div className="text-[11px] text-slate-400">
-                            {mem.rank_appointment || 'Boy Soldier'}
+            // Build group headers for grouped sort views (birth_month, blood_group, company, etc.)
+            const shouldGroup = !isDefaultView;
+
+            // Grouping key function
+            const getGroupKey = (mem: MemberProfileData): string => {
+              switch (sortBy) {
+                case 'blood_group': return mem.blood_group || 'Not Specified';
+                case 'company': return mem.company || 'Unassigned';
+                case 'state_of_origin': return mem.state_of_origin || 'Not Specified';
+                case 'state_of_residence': return mem.state_of_residence || 'Not Specified';
+                case 'industry': return mem.industry || mem.occupation || 'Not Specified';
+                case 'business': return mem.business || 'Not Specified';
+                case 'skills': return mem.skills || 'Not Specified';
+                case 'professional_qualifications': return mem.professional_qualifications || 'Not Specified';
+                case 'birth_month': return getMonthName(mem.dob || '');
+                case 'dob': return mem.dob || 'Not Specified';
+                default: return '';
+              }
+            };
+
+            // Get group icon and color
+            const getGroupStyle = (): { bg: string; text: string; border: string; icon: React.ReactNode } => {
+              switch (sortBy) {
+                case 'blood_group': return { bg: 'bg-rose-50', text: 'text-rose-800', border: 'border-rose-200', icon: <Droplet className="w-4 h-4 text-rose-600" /> };
+                case 'company': return { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200', icon: <Shield className="w-4 h-4 text-emerald-600" /> };
+                case 'state_of_origin': return { bg: 'bg-indigo-50', text: 'text-indigo-800', border: 'border-indigo-200', icon: <MapPin className="w-4 h-4 text-indigo-600" /> };
+                case 'state_of_residence': return { bg: 'bg-violet-50', text: 'text-violet-800', border: 'border-violet-200', icon: <Home className="w-4 h-4 text-violet-600" /> };
+                case 'industry': return { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', icon: <Briefcase className="w-4 h-4 text-amber-600" /> };
+                case 'business': return { bg: 'bg-orange-50', text: 'text-orange-800', border: 'border-orange-200', icon: <Image src={buildingSvg} alt="Business" width={16} height={16} className="w-4 h-4 object-contain" /> };
+                case 'skills': return { bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-200', icon: <Sparkles className="w-4 h-4 text-blue-600" /> };
+                case 'professional_qualifications': return { bg: 'bg-purple-50', text: 'text-purple-800', border: 'border-purple-200', icon: <GraduationCap className="w-4 h-4 text-purple-600" /> };
+                case 'birth_month': return { bg: 'bg-pink-50', text: 'text-pink-800', border: 'border-pink-200', icon: <Cake className="w-4 h-4 text-pink-600" /> };
+                case 'dob': return { bg: 'bg-teal-50', text: 'text-teal-800', border: 'border-teal-200', icon: <Calendar className="w-4 h-4 text-teal-600" /> };
+                default: return { bg: 'bg-slate-50', text: 'text-slate-800', border: 'border-slate-200', icon: <Layers className="w-4 h-4 text-slate-600" /> };
+              }
+            };
+
+            // Get the contextual value for the sort field
+            const getSortValue = (mem: MemberProfileData): string => {
+              switch (sortBy) {
+                case 'blood_group': return `${mem.blood_group || 'N/A'} (${mem.genotype || 'AA'})`;
+                case 'company': return mem.company || 'N/A';
+                case 'state_of_origin': return mem.state_of_origin || 'N/A';
+                case 'state_of_residence': return mem.state_of_residence || 'N/A';
+                case 'industry': return mem.industry || mem.occupation || 'N/A';
+                case 'business': return mem.business || 'N/A';
+                case 'skills': return mem.skills || 'N/A';
+                case 'professional_qualifications': return mem.professional_qualifications || 'N/A';
+                case 'birth_month': return formatDob(mem.dob || '');
+                case 'dob': return formatDob(mem.dob || '');
+                default: return '';
+              }
+            };
+
+            // Get secondary detail for additional context
+            const getSecondaryDetail = (mem: MemberProfileData): string => {
+              switch (sortBy) {
+                case 'birth_month':
+                  return [mem.phone ? `Tel: ${mem.phone}` : '', mem.state_of_residence ? `Resides: ${mem.state_of_residence}` : '', mem.email].filter(Boolean).join(' • ') || '—';
+                case 'dob':
+                  return [mem.phone ? `Tel: ${mem.phone}` : '', mem.state_of_residence ? `Resides: ${mem.state_of_residence}` : ''].filter(Boolean).join(' • ') || '—';
+                case 'blood_group': {
+                  const parts: string[] = [];
+                  if (mem.next_of_kin) parts.push(`Next of Kin: ${mem.next_of_kin}`);
+                  if (mem.next_of_kin_phone) parts.push(`NOK Tel: ${mem.next_of_kin_phone}`);
+                  return parts.join(' • ') || 'No emergency contact on file';
+                }
+                case 'company':
+                  return [mem.rank_appointment, mem.state_of_residence ? `Resides: ${mem.state_of_residence}` : '', mem.phone].filter(Boolean).join(' • ') || '—';
+                case 'state_of_origin':
+                  return [mem.state_of_residence ? `Current Residence: ${mem.state_of_residence}` : '', mem.phone ? `Tel: ${mem.phone}` : ''].filter(Boolean).join(' • ') || '—';
+                case 'state_of_residence':
+                  return [mem.state_of_origin ? `Origin: ${mem.state_of_origin}` : '', mem.address ? `Address: ${mem.address}` : ''].filter(Boolean).join(' • ') || '—';
+                case 'industry':
+                  return [mem.business ? `Employer: ${mem.business}` : '', mem.occupation ? `Role: ${mem.occupation}` : ''].filter(Boolean).join(' • ') || '—';
+                case 'business':
+                  return [mem.industry ? `Industry: ${mem.industry}` : '', mem.occupation ? `Role: ${mem.occupation}` : ''].filter(Boolean).join(' • ') || '—';
+                case 'skills':
+                  return mem.professional_qualifications ? `Qualifications: ${mem.professional_qualifications}` : '—';
+                case 'professional_qualifications':
+                  return mem.skills ? `Skills: ${mem.skills}` : '—';
+                default:
+                  return '—';
+              }
+            };
+
+            if (isDefaultView) {
+              // DEFAULT VIEW: Show all columns in classic table
+              return (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
+                        <th
+                          className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
+                          onClick={() => handleSortChange('full_name')}
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Ex-Boy Name</span>
+                            {sortBy === 'full_name' && (
+                              <span className="text-emerald-700">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                            )}
                           </div>
-                        </td>
-
-                        {/* Service No */}
-                        <td className="py-3.5 px-3">
-                          <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
-                            {mem.nms_number}
-                          </span>
-                        </td>
-
-                        {/* Company */}
-                        <td className={`py-3.5 px-3 ${isSortedByCompany ? 'bg-emerald-50/50 rounded-lg' : ''}`}>
-                          <div className="font-semibold text-slate-800">{mem.company}</div>
-                          <div className="text-[11px] text-slate-400">{mem.set_appointment || 'Member'}</div>
-                        </td>
-
-                        {/* Blood Group & Genotype */}
-                        <td className={`py-3.5 px-3 ${isSortedByBlood ? 'bg-rose-50/60 rounded-lg' : ''}`}>
-                          <div className="flex items-center gap-1.5">
-                            <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 font-extrabold text-[11px]">
-                              {mem.blood_group || 'O+'}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              {mem.genotype || 'AA'}
-                            </span>
+                        </th>
+                        <th className="pb-3 px-3">Service No</th>
+                        <th
+                          className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
+                          onClick={() => handleSortChange('company')}
+                          title="Click to sort and focus by Company"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Company</span>
+                            <ArrowUpDown className="w-3 h-3 text-slate-300" />
                           </div>
-                        </td>
-
-                        {/* State of Origin & Residence */}
-                        <td className={`py-3.5 px-3 ${isSortedByOrigin || isSortedByResidence ? 'bg-emerald-50/50 rounded-lg' : ''}`}>
-                          <div className="font-medium text-slate-800 flex items-center gap-1">
-                            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span>{mem.state_of_origin || 'N/A'}</span>
+                        </th>
+                        <th
+                          className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
+                          onClick={() => handleSortChange('blood_group')}
+                          title="Click to sort and focus by Blood Group"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Blood Group</span>
+                            <ArrowUpDown className="w-3 h-3 text-slate-300" />
                           </div>
-                          <div className="text-[11px] text-slate-500">
-                            Resides: {mem.state_of_residence || 'N/A'}
+                        </th>
+                        <th
+                          className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
+                          onClick={() => handleSortChange('state_of_origin')}
+                          title="Click to sort and focus by State of Origin"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Origin & Residence</span>
+                            <ArrowUpDown className="w-3 h-3 text-slate-300" />
                           </div>
-                        </td>
-
-                        {/* Industry & Business */}
-                        <td className={`py-3.5 px-3 ${isSortedByIndustry || isSortedByBusiness ? 'bg-amber-50/50 rounded-lg' : ''}`}>
-                          <div className="font-semibold text-slate-800">{mem.industry || mem.occupation || 'N/A'}</div>
-                          <div className="text-[11px] text-slate-500 truncate max-w-[160px]" title={mem.business}>
-                            {mem.business || mem.occupation || 'Self-employed'}
+                        </th>
+                        <th
+                          className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
+                          onClick={() => handleSortChange('industry')}
+                          title="Click to sort and focus by Industry"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Industry & Business</span>
+                            <ArrowUpDown className="w-3 h-3 text-slate-300" />
                           </div>
-                        </td>
-
-                        {/* Skills & Qualifications */}
-                        <td className={`py-3.5 px-3 ${isSortedBySkills || isSortedByQual ? 'bg-blue-50/50 rounded-lg' : ''}`}>
-                          <div className="font-medium text-slate-700 truncate max-w-[170px]" title={mem.professional_qualifications}>
-                            {mem.professional_qualifications || 'N/A'}
+                        </th>
+                        <th
+                          className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
+                          onClick={() => handleSortChange('skills')}
+                          title="Click to sort and focus by Skills & Qualifications"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Skills & Qualifications</span>
+                            <ArrowUpDown className="w-3 h-3 text-slate-300" />
                           </div>
-                          <div className="text-[10px] text-slate-400 truncate max-w-[170px]" title={mem.skills}>
-                            {mem.skills || 'General Management'}
-                          </div>
-                        </td>
-
-                        {/* Action */}
-                        <td className="py-3.5 px-3 text-right">
-                          <Button
-                            variant="emerald"
-                            size="sm"
-                            onClick={() => setSelectedMember(mem)}
-                            icon={<Eye className="w-3.5 h-3.5" />}
-                          >
-                            Dossier
-                          </Button>
-                        </td>
+                        </th>
+                        <th className="pb-3 px-3 text-right">Action</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredAndSortedMembers.map((mem) => (
+                        <tr key={mem.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3.5 px-3">
+                            <div className="font-bold text-slate-900">{mem.full_name}</div>
+                            <div className="text-[11px] text-slate-400">{mem.rank_appointment || 'Boy Soldier'}</div>
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
+                              {mem.nms_number}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="font-semibold text-slate-800">{mem.company}</div>
+                            <div className="text-[11px] text-slate-400">{mem.set_appointment || 'Member'}</div>
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 font-extrabold text-[11px]">
+                                {mem.blood_group || 'O+'}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-mono">{mem.genotype || 'AA'}</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="font-medium text-slate-800 flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span>{mem.state_of_origin || 'N/A'}</span>
+                            </div>
+                            <div className="text-[11px] text-slate-500">Resides: {mem.state_of_residence || 'N/A'}</div>
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="font-semibold text-slate-800">{mem.industry || mem.occupation || 'N/A'}</div>
+                            <div className="text-[11px] text-slate-500 truncate max-w-[160px]" title={mem.business}>
+                              {mem.business || mem.occupation || 'Self-employed'}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-3">
+                            <div className="font-medium text-slate-700 truncate max-w-[170px]" title={mem.professional_qualifications}>
+                              {mem.professional_qualifications || 'N/A'}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate max-w-[170px]" title={mem.skills}>
+                              {mem.skills || 'General Management'}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-3 text-right">
+                            <Button
+                              variant="emerald"
+                              size="sm"
+                              onClick={() => setSelectedMember(mem)}
+                              icon={<Eye className="w-3.5 h-3.5" />}
+                            >
+                              Dossier
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            }
+
+            // FOCUSED SORT VIEW: Grouped, clean data with only relevant columns
+            const groupStyle = getGroupStyle();
+            const groups: Array<{ key: string; members: MemberProfileData[] }> = [];
+            const groupMap = new Map<string, MemberProfileData[]>();
+
+            filteredAndSortedMembers.forEach((mem) => {
+              const key = getGroupKey(mem);
+              if (!groupMap.has(key)) {
+                groupMap.set(key, []);
+                groups.push({ key, members: groupMap.get(key)! });
+              }
+              groupMap.get(key)!.push(mem);
+            });
+
+            return (
+              <div className="space-y-4">
+                {/* Active Sort Summary Banner */}
+                <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl ${groupStyle.bg} ${groupStyle.border} border`}>
+                  {groupStyle.icon}
+                  <div className="flex-1">
+                    <p className={`font-bold text-sm ${groupStyle.text}`}>
+                      Sorted by {activeSortLabel}
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      {filteredAndSortedMembers.length} members across {groups.length} group{groups.length !== 1 ? 's' : ''} • {sortOrder === 'asc' ? 'Ascending' : 'Descending'} order
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { setSortBy('created_at'); setSortOrder('desc'); }}
+                    className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 underline transition-colors"
+                  >
+                    Show All Columns
+                  </button>
+                </div>
+
+                {/* Grouped Data Sections */}
+                {groups.map((group) => (
+                  <div key={group.key} className="rounded-2xl border border-slate-200/80 overflow-hidden">
+                    {/* Group Header */}
+                    <div className={`flex items-center justify-between px-4 py-2.5 ${groupStyle.bg} ${groupStyle.border} border-b`}>
+                      <div className="flex items-center gap-2">
+                        {groupStyle.icon}
+                        <h4 className={`font-bold text-sm ${groupStyle.text}`}>{group.key}</h4>
+                      </div>
+                      <Badge variant="emerald" size="sm">
+                        {group.members.length} member{group.members.length !== 1 ? 's' : ''}
+                      </Badge>
+                    </div>
+
+                    {/* Clean Focused Table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase text-[10px] tracking-wider bg-slate-50/50">
+                            <th className="pb-2.5 pt-2.5 px-4">#</th>
+                            <th className="pb-2.5 pt-2.5 px-3">Ex-Boy Name</th>
+                            <th className="pb-2.5 pt-2.5 px-3">Service No</th>
+                            <th className="pb-2.5 pt-2.5 px-3">
+                              {sortBy === 'company' ? 'Role / Appointment' : 'Company'}
+                            </th>
+                            <th className={`pb-2.5 pt-2.5 px-3 ${groupStyle.text} font-bold`}>
+                              {sortBy === 'birth_month' ? 'Date of Birth' : activeSortLabel}
+                            </th>
+                            <th className="pb-2.5 pt-2.5 px-3">Additional Detail</th>
+                            <th className="pb-2.5 pt-2.5 px-3 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {group.members.map((mem, idx) => (
+                            <tr key={mem.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="py-3 px-4 text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                              <td className="py-3 px-3">
+                                <div className="font-bold text-slate-900">{mem.full_name}</div>
+                                <div className="text-[11px] text-slate-400">{mem.rank_appointment || 'Boy Soldier'}</div>
+                              </td>
+                              <td className="py-3 px-3">
+                                <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 text-[11px]">
+                                  {mem.nms_number}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3">
+                                <div className="font-semibold text-slate-700 text-[11px]">
+                                  {sortBy === 'company' ? (mem.set_appointment || 'Member') : mem.company}
+                                </div>
+                              </td>
+                              <td className={`py-3 px-3 ${groupStyle.bg} rounded-lg`}>
+                                <div className={`font-bold ${groupStyle.text}`}>{getSortValue(mem)}</div>
+                              </td>
+                              <td className="py-3 px-3">
+                                <div className="text-[11px] text-slate-500 max-w-[200px] truncate" title={getSecondaryDetail(mem)}>
+                                  {getSecondaryDetail(mem) || '—'}
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 text-right">
+                                <Button
+                                  variant="emerald"
+                                  size="sm"
+                                  onClick={() => setSelectedMember(mem)}
+                                  icon={<Eye className="w-3.5 h-3.5" />}
+                                >
+                                  Dossier
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
 

@@ -61,6 +61,21 @@ export default function LoginPage() {
           }
         }
       }
+      try {
+        const localSaved = localStorage.getItem('nms08_registered_members') || sessionStorage.getItem('nms08_registered_members');
+        const arr = localSaved ? JSON.parse(localSaved) : [];
+        if (Array.isArray(arr) && data.profile) {
+          const nmsId = data.profile.nms_number || data.profile.nmsNo;
+          const filtered = arr.filter((x) => (x.nms_number || x.nmsNo) !== nmsId);
+          filtered.unshift(data.profile);
+          localStorage.setItem('nms08_registered_members', JSON.stringify(filtered));
+          sessionStorage.setItem('nms08_registered_members', JSON.stringify(filtered));
+        }
+        window.dispatchEvent(new Event('nms08-members-updated'));
+        window.dispatchEvent(new Event('nms08-company-updated'));
+        window.dispatchEvent(new Event('storage'));
+      } catch {}
+
       sessionStorage.setItem('nms08_member_authed', 'true');
       localStorage.setItem('nms08_member_authed', 'true');
       router.push('/dashboard');

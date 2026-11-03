@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { calculateChapterCounts } from '@/lib/chapters';
 
 export async function GET() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -238,6 +239,7 @@ export async function GET() {
       }
     }
     const finalTotalRoster = totalRoster || 246;
+    const chapterCounts = calculateChapterCounts(memberList);
     const complianceRate =
       finalTotalRoster > 0
         ? Math.min(100, Number(((uniquePayerSet.size / finalTotalRoster) * 100).toFixed(1)))
@@ -247,6 +249,7 @@ export async function GET() {
       ok: true,
       members: memberList,
       companyCounts,
+      chapterCounts,
       stats: {
         totalRegistered: totalRegistered ?? memberList.length,
         totalRoster: finalTotalRoster,

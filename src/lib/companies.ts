@@ -10,13 +10,13 @@ export const COMPANY_IDS: CompanyId[] = ['alpha', 'bravo', 'charlie', 'delta', '
 export function normalizeCompanyId(raw?: string | null): CompanyId | null {
   if (!raw) return null;
   const c = raw.trim().toLowerCase();
-  if (c.includes('alpha') || c === 'al') return 'alpha';
-  if (c.includes('bravo') || c === 'br') return 'bravo';
-  if (c.includes('charlie') || c === 'ch') return 'charlie';
-  if (c.includes('delta') || c === 'de') return 'delta';
-  if (c.includes('echo') || c === 'ec') return 'echo';
-  if (c.includes('foxtrot') || c === 'fx') return 'foxtrot';
-  if (c.includes('golf') || c === 'go') return 'golf';
+  if (c.includes('alpha') || c === 'al' || c === 'a' || c.startsWith('a ') || c.startsWith('a-')) return 'alpha';
+  if (c.includes('bravo') || c === 'br' || c === 'b' || c.startsWith('b ') || c.startsWith('b-')) return 'bravo';
+  if (c.includes('charlie') || c === 'ch' || c === 'c' || c.startsWith('c ') || c.startsWith('c-')) return 'charlie';
+  if (c.includes('delta') || c === 'de' || c === 'd' || c.startsWith('d ') || c.startsWith('d-')) return 'delta';
+  if (c.includes('echo') || c === 'ec' || c === 'e' || c.startsWith('e ') || c.startsWith('e-')) return 'echo';
+  if (c.includes('foxtrot') || c === 'fx' || c === 'f' || c.startsWith('f ') || c.startsWith('f-')) return 'foxtrot';
+  if (c.includes('golf') || c === 'go' || c === 'g' || c.startsWith('g ') || c.startsWith('g-')) return 'golf';
   return null;
 }
 
@@ -54,43 +54,58 @@ export function getRegisteredCountsFromStorage(
     const countedNms = new Set<string>();
     if (Array.isArray(knownMembers)) {
       for (const m of knownMembers) {
-        const nms = (m.nms_number || m.nmsNo || '').trim();
+        const nms = (m.nms_number || m.nmsNo || '').toString().trim().toUpperCase();
         if (nms) countedNms.add(nms);
       }
     }
 
-    // Merge any locally registered members that may not yet be in baseCounts
+    const processMember = (m: any) => {
+      if (!m) return;
+      const nms = (m.nms_number || m.nmsNo || m.nms || '').toString().trim().toUpperCase();
+      if (nms && countedNms.has(nms)) return;
+      if (nms) countedNms.add(nms);
+
+      const compStr = m.company;
+      const cid = normalizeCompanyId(compStr);
+      if (cid && counts[cid] !== undefined) {
+        counts[cid]++;
+      }
+    };
+
+    // 1. Process localStorage registered members
     const localSaved = localStorage.getItem('nms08_registered_members');
     if (localSaved) {
       const parsed = JSON.parse(localSaved);
       if (Array.isArray(parsed)) {
-        for (const m of parsed) {
-          const nms = (m.nms_number || m.nmsNo || '').trim();
-          if (nms && !countedNms.has(nms)) {
-            countedNms.add(nms);
-            const cid = normalizeCompanyId(m.company);
-            if (cid && counts[cid] !== undefined) {
-              counts[cid]++;
-            }
-          }
-        }
+        parsed.forEach(processMember);
       }
     }
 
-    // Also check current active profile
-    const currentProfile = localStorage.getItem('nms08_current_profile');
-    if (currentProfile) {
-      const p = JSON.parse(currentProfile);
-      const nms = (p.nms_number || p.nmsNo || '').trim();
-      if (nms && !countedNms.has(nms)) {
-        countedNms.add(nms);
-        const cid = normalizeCompanyId(p.company);
-        if (cid && counts[cid] !== undefined) {
-          counts[cid]++;
-        }
+    // 2. Process sessionStorage registered members
+    const sessionSaved = sessionStorage.getItem('nms08_registered_members');
+    if (sessionSaved) {
+      const parsed = JSON.parse(sessionSaved);
+      if (Array.isArray(parsed)) {
+        parsed.forEach(processMember);
       }
     }
-  } catch {}
+
+    // 3. Process current active profile from localStorage and sessionStorage
+    const currentLocal = localStorage.getItem('nms08_current_profile');
+    if (currentLocal) {
+      try {
+        processMember(JSON.parse(currentLocal));
+      } catch {}
+    }
+    const currentSession = sessionStorage.getItem('nms08_current_profile');
+    if (currentSession) {
+      try {
+        processMember(JSON.parse(currentSession));
+      } catch {}
+    }
+  } catch (err) {
+    console.warn('Error reading storage for company counts:', err);
+  }
 
   return counts;
 }
@@ -98,9 +113,13 @@ export function getRegisteredCountsFromStorage(
 /**
  * Hook providing live company registered member counts,
  * keeping the entire UI in real-time sync with database registrations and local events.
+ *
+ * Starts with all-zero counts (SSR-safe) and hydrates from localStorage + API
+ * only after mount to avoid React hydration mismatches.
  */
 export function useLiveCompanies() {
-  const [counts, setCounts] = useState<Record<string, number>>(() => ({
+  // Always start with zeros — safe for SSR. localStorage is read in useEffect only.
+  const [counts, setCounts] = useState<Record<string, number>>({
     alpha: 0,
     bravo: 0,
     charlie: 0,
@@ -108,7 +127,7 @@ export function useLiveCompanies() {
     echo: 0,
     foxtrot: 0,
     golf: 0,
-  }));
+  });
   const [complianceRates, setComplianceRates] = useState<Record<string, number>>({
     alpha: 0,
     bravo: 0,
@@ -123,14 +142,24 @@ export function useLiveCompanies() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch('/api/companies');
+      // Fetch live data from API (Supabase) with cache busting
+      const res = await fetch(`/api/companies?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+        },
+      });
+
       if (res.ok) {
         const data = await res.json();
         if (data.ok && data.counts) {
-          const merged = getRegisteredCountsFromStorage(data.counts);
+          // API counts are the source of truth from Supabase.
+          // Merge with any locally stored members not yet in DB (e.g. just registered).
+          const apiCounts: Record<string, number> = data.counts;
+          const merged = getRegisteredCountsFromStorage(apiCounts, data.members);
           setCounts(merged);
-          const total = Object.values(merged).reduce((a, b) => a + b, 0);
-          setTotalRegistered(Math.max(data.totalRegistered || 0, total));
+          setTotalRegistered(Math.max(data.totalRegistered || 0, Object.values(merged).reduce((a, b) => a + b, 0)));
 
           if (Array.isArray(data.companies)) {
             const compMap: Record<string, number> = {};
@@ -139,37 +168,43 @@ export function useLiveCompanies() {
             });
             setComplianceRates(compMap);
           }
+          return;
         }
-      } else {
-        // Fallback to storage
-        const localCounts = getRegisteredCountsFromStorage();
-        setCounts(localCounts);
-        setTotalRegistered(Object.values(localCounts).reduce((a, b) => a + b, 0));
       }
     } catch {
-      const localCounts = getRegisteredCountsFromStorage();
-      setCounts(localCounts);
-      setTotalRegistered(Object.values(localCounts).reduce((a, b) => a + b, 0));
-    } finally {
-      setLoading(false);
+      // API unavailable — fall through to localStorage only
     }
+
+    // Fallback: use localStorage only
+    const fallback = getRegisteredCountsFromStorage();
+    setCounts(fallback);
+    setTotalRegistered(Object.values(fallback).reduce((a, b) => a + b, 0));
   }, []);
 
   useEffect(() => {
+    // On mount: hydrate from localStorage immediately for instant display,
+    // then kick off an API refresh.
+    const local = getRegisteredCountsFromStorage();
+    setCounts(local);
+    setTotalRegistered(Object.values(local).reduce((a, b) => a + b, 0));
+    setLoading(false);
+
     refresh();
 
-    const handleUpdate = () => {
-      refresh();
-    };
+    const handleUpdate = () => { refresh(); };
 
     window.addEventListener('nms08-members-updated', handleUpdate);
     window.addEventListener('nms08-company-updated', handleUpdate);
     window.addEventListener('storage', handleUpdate);
 
+    // Periodically re-sync with server every 10 seconds
+    const interval = setInterval(refresh, 10000);
+
     return () => {
       window.removeEventListener('nms08-members-updated', handleUpdate);
       window.removeEventListener('nms08-company-updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
+      clearInterval(interval);
     };
   }, [refresh]);
 
