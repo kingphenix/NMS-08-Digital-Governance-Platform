@@ -97,28 +97,6 @@ export interface WelfareClaim {
   description: string;
 }
 
-export interface ElectionCandidate {
-  id: string;
-  name: string;
-  position: string;
-  nmsNo: string;
-  company: string;
-  manifesto: string;
-  votesCount: number;
-  avatarUrl: string;
-}
-
-export interface Election {
-  id: string;
-  title: string;
-  status: "Active" | "Upcoming" | "Closed";
-  endDate: string;
-  totalEligibleVoters: number;
-  totalVotesCast: number;
-  userHasVoted: boolean;
-  candidates: ElectionCandidate[];
-}
-
 export interface DocumentItem {
   id: string;
   title: string;
@@ -133,7 +111,7 @@ export interface NotificationItem {
   title: string;
   message: string;
   timestamp: string;
-  type: "dues" | "election" | "welfare" | "event" | "general";
+  type: "dues" | "welfare" | "event" | "general";
   isRead: boolean;
 }
 
@@ -165,12 +143,12 @@ export const CURRENT_USER: MemberProfile = {
   nextOfKinPhone: "+234 802 999 8877",
   membershipStatus: "Active",
   duesStatus: {
-    year2026: "Paid",
-    welfareLevy: "Paid",
-    reunionLevy: "Paid",
-    amountPaid: 150000,
+    year2026: "Pending",
+    welfareLevy: "Pending",
+    reunionLevy: "Pending",
+    amountPaid: 0,
     totalDue: 150000,
-    lastPaymentDate: "Jan 14, 2026",
+    lastPaymentDate: "-",
   },
   avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400",
   bio: "Ex-Boy NMS 08 set. Dedicated to fostering brotherhood, technological innovation, and digital transformation for our set governance.",
@@ -326,7 +304,7 @@ export const LEADERSHIP_LIST: LeaderProfile[] = [
   },
   {
     id: "lead-4",
-    name: "Exboy Mas'd Bawa",
+    name: "Exboy Masud Bawa",
     role: "Public Relations Officer",
     nmsNo: "NMS/08/6603",
     company: "Executive Council",
@@ -388,8 +366,8 @@ export const NEWS_LIST: NewsItem[] = [
     category: "Governance",
     date: "October 5, 2026",
     author: "National Secretariat",
-    summary: "The Executive Council is proud to announce the inauguration of our state-of-the-art digital alumni portal for member verification, dues collection, and voting.",
-    content: "The NMS Class of 2008 Alumni Association has taken a giant leap into modern digital governance. Built with modern web frameworks, glassmorphic UI, and Supabase security infrastructure, the portal allows Ex-Boys to manage profiles, pay dues, vote in set elections, and access welfare support seamlessly.",
+    summary: "The Executive Council is proud to announce the inauguration of our state-of-the-art digital alumni portal for member verification, dues collection, and welfare management.",
+    content: "The NMS Class of 2008 Alumni Association has taken a giant leap into modern digital governance. Built with modern web frameworks, glassmorphic UI, and Supabase security infrastructure, the portal allows Ex-Boys to manage profiles, pay dues, and access welfare support seamlessly.",
     imageUrl: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=800",
     isImportant: true,
   },
@@ -416,12 +394,12 @@ export const NEWS_LIST: NewsItem[] = [
   },
   {
     id: "news-4",
-    title: "Notice of 2026 Executive Council Elections & Nomination Guidelines",
+    title: "Strategic Partnership with Military Veterans Association Announced",
     category: "Governance",
     date: "August 30, 2026",
-    author: "Electoral Committee (ELCOM)",
-    summary: "Nominations are now open for the positions of President, Secretary General, and Financial Secretary.",
-    content: "ELCOM announces that electronic voting will open on October 25, 2026 via the Digital Portal. All financial members in good standing are eligible to submit candidate manifestos.",
+    author: "National Executive Council",
+    summary: "The NMS 08 Alumni Association has formalized a strategic partnership with the Military Veterans Association of Nigeria.",
+    content: "This historic partnership will enable NMS 08 Ex-Boys to access veteran support programs, pension advisory services, and joint community development projects. The collaboration underscores our commitment to lifelong service and national development.",
     imageUrl: "https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?auto=format&fit=crop&q=80&w=800",
   },
 ];
@@ -446,7 +424,7 @@ export const EVENTS_LIST: EventItem[] = [
     time: "06:00 PM (WAT)",
     location: "Online (Zoom & Portal Live Stream)",
     category: "AGM",
-    description: "Annual General Meeting to review 2026 financial audits, approve constitutional amendments, and conduct ELCOM voting.",
+    description: "Annual General Meeting to review 2026 financial audits, approve constitutional amendments, and discuss set governance priorities.",
     attendeesCount: 340,
     isRegistered: false,
     bannerUrl: "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&q=80&w=800",
@@ -465,37 +443,7 @@ export const EVENTS_LIST: EventItem[] = [
   },
 ];
 
-export const ELECTION_DATA: Election = {
-  id: "elc-2026",
-  title: "2026 NMS 08 Executive Committee Elections",
-  status: "Active",
-  endDate: "October 30, 2026",
-  totalEligibleVoters: 246,
-  totalVotesCast: 0,
-  userHasVoted: false,
-  candidates: [
-    {
-      id: "cand-1",
-      name: "Ex-Boy Col. Victor Danjuma (Rtd)",
-      position: "National President",
-      nmsNo: "NMS/08/4801",
-      company: "Alpha Company",
-      manifesto: "Strengthening set unity, expanding welfare fund investments to ₦50M, and creating an Ex-Boy venture incubator.",
-      votesCount: 0,
-      avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400",
-    },
-    {
-      id: "cand-2",
-      name: "Ex-Boy Dr. Segun Adeleke",
-      position: "National President",
-      nmsNo: "NMS/08/4812",
-      company: "Bravo Company",
-      manifesto: "Enhancing health insurance schemes for all Ex-Boys, digital transparency, and international chapter expansion.",
-      votesCount: 0,
-      avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=400",
-    }
-  ]
-};
+
 
 export const WELFARE_CLAIMS: WelfareClaim[] = [
   {
@@ -567,28 +515,12 @@ export const DOCUMENTS_LIST: DocumentItem[] = [
 
 export const NOTIFICATIONS_LIST: NotificationItem[] = [
   {
-    id: "notif-1",
-    title: "2026 Dues Payment Confirmed",
-    message: "Your annual dues payment of ₦150,000 for 2026 was received. Official receipt #NMS08-8921 is available.",
-    timestamp: "2 hours ago",
-    type: "dues",
-    isRead: false,
-  },
-  {
     id: "notif-2",
-    title: "Elections Voting Open",
-    message: "You have successfully cast your ballot for the 2026 NMS 08 Executive Committee Elections.",
+    title: "Profile Update Reminder",
+    message: "Please ensure your profile information is up to date for the upcoming reunion gala.",
     timestamp: "1 day ago",
-    type: "election",
+    type: "general",
     isRead: false,
-  },
-  {
-    id: "notif-3",
-    title: "Welfare Grant Disbursed",
-    message: "Welfare disbursement #WEL-101 has been credited to your verified bank account.",
-    timestamp: "3 days ago",
-    type: "welfare",
-    isRead: true,
   },
   {
     id: "notif-4",
@@ -752,8 +684,7 @@ export const MEMBERS_ROSTER: MemberRosterEntry[] = [
 export const TICKER_MESSAGES: string[] = [
   "A friendly reminder to all Ex-Boys: kindly ensure your 2026 annual dues and welfare levies are settled to support set governance and brotherhood initiatives.",
   "📢 The 2026 Virtual National AGM will hold on October 28, 2026 at 6:00 PM WAT. All Ex-Boys are enjoined to attend via the Digital Portal.",
-  "🗳️ Voting is now OPEN for the 2026 NMS 08 Executive Committee Elections. Cast your ballot via the Member Dashboard before October 30.",
-  "📅 Mark your calendars: The 18th Anniversary Reunion Gala holds November 20–22, 2026 at Transcorp Hilton, Abuja. Register today!",
+  " Mark your calendars: The 18th Anniversary Reunion Gala holds November 20–22, 2026 at Transcorp Hilton, Abuja. Register today!",
   "⚖️ The Secretariat has published proposed amendments to the NMS 08 Constitution (2025 Revised). Members may review and submit comments via the Documents Library.",
   "🎖️ Discipline, Knowledge & Patriotism — the timeless motto of NMS Ex-Boys. Wear it with pride in all set engagements.",
   "💼 Welfare Committee reminds all Ex-Boys to update their medical emergency information (blood group, genotype, next of kin) on the Member Portal.",
@@ -781,7 +712,7 @@ export const GLOBAL_NOTIFICATIONS: GlobalNotification[] = [
   {
     id: "glob-3",
     title: "URGENT: Welfare Levy Defaulters List Update",
-    message: "Members who are yet to settle their 2026 welfare levy are reminded that the deadline is October 31, 2026. Failure to comply may affect voting eligibility in the ongoing elections.",
+    message: "Members who are yet to settle their 2026 welfare levy are reminded that the deadline is October 31, 2026. Timely payment ensures uninterrupted access to welfare benefits.",
     postedAt: "October 8, 2026",
     postedBy: "Exboy Isaac Danmusa (Financial Secretary)",
     severity: "urgent",

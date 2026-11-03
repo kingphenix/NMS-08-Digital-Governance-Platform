@@ -71,7 +71,7 @@ export default function AboutPage() {
         <div className="space-y-6 text-xs">
           <div className="flex gap-4 items-start">
             <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0">
-              2003
+              2008
             </div>
             <div>
               <h4 className="font-bold text-slate-900 text-sm">Entry into Nigerian Military School Zaria</h4>
@@ -81,7 +81,7 @@ export default function AboutPage() {
 
           <div className="flex gap-4 items-start">
             <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0">
-              2008
+              2014
             </div>
             <div>
               <h4 className="font-bold text-slate-900 text-sm">Passing Out Parade (POP)</h4>

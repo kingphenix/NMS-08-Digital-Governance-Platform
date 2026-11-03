@@ -92,29 +92,4 @@ export function CompanyComplianceChart({ data }: ChartProps) {
   );
 }
 
-export function ElectionVotesChart({ candidates }: { candidates: Array<{ name: string; votesCount: number; company: string }> }) {
-  const formattedData = candidates.map(c => ({
-    name: c.name.split(' ').slice(1, 3).join(' '),
-    votes: c.votesCount,
-  }));
 
-  return (
-    <div className="w-full h-48">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={formattedData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#475569', fontSize: 11 }} />
-          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#475569', fontSize: 11 }} />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
-              borderRadius: '12px',
-              border: '1px solid #a7f3d0',
-            }}
-            formatter={(val: any) => [`${val} Votes`, 'Current Count']}
-          />
-          <Bar dataKey="votes" fill="#059669" radius={[8, 8, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}

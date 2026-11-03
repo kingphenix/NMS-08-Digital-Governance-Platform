@@ -5,7 +5,6 @@ import Image from 'next/image';
 import mainLogo from '@/assets/nms-new-logo.webp';
 import militaryManSvg from '@/assets/military-man.svg';
 import cardSvg from '@/assets/card.svg';
-import voteSvg from '@/assets/vote.svg';
 import dogTagsSvg from '@/assets/Dog-tags.svg';
 import rankSvg from '@/assets/rank.svg';
 import speakerSvg from '@/assets/speaker.svg';
@@ -15,16 +14,14 @@ import {
   COMPANIES_LIST,
   NEWS_LIST,
   EVENTS_LIST,
-  ELECTION_DATA,
-  WELFARE_CLAIMS,
   DOCUMENTS_LIST,
   NOTIFICATIONS_LIST,
 } from '@/lib/mock-data';
+import type { WelfareClaim } from '@/lib/mock-data';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Button } from '@/components/ui/Button';
-import { ElectionVotesChart } from './Charts';
 import { normalizeCompanyId, getRegisteredCountsFromStorage } from '@/lib/companies';
 import {
   ShieldCheck,
@@ -34,7 +31,6 @@ import {
   Calendar,
   Bell,
   FileText,
-  Vote,
   Heart,
   CheckCircle2,
   Download,
@@ -43,7 +39,6 @@ import {
   ChevronRight,
   Sparkles,
   Search,
-  Check,
   AlertCircle,
   User,
   MapPin,
@@ -210,9 +205,9 @@ export function getChapterForMember(homeCell?: string, stateOfResidence?: string
 }
 
 export function MemberDashboard() {
-  const [activeTab, setActiveTab] = useState<'all' | 'profile' | 'dues' | 'welfare' | 'elections' | 'docs'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'profile' | 'dues' | 'welfare' | 'docs'>('all');
   const [notifications, setNotifications] = useState(NOTIFICATIONS_LIST);
-  const [welfareClaims, setWelfareClaims] = useState(WELFARE_CLAIMS);
+  const [welfareClaims, setWelfareClaims] = useState<WelfareClaim[]>([]);
   const [showWelfareModal, setShowWelfareModal] = useState(false);
   const [showReceiptToast, setShowReceiptToast] = useState(false);
   const [showPhotoToast, setShowPhotoToast] = useState(false);
@@ -240,7 +235,6 @@ export function MemberDashboard() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [adminBroadcasts, setAdminBroadcasts] = useState<any[]>([]);
   const [dismissedBroadcasts, setDismissedBroadcasts] = useState<string[]>([]);
-  const [votedCandidate, setVotedCandidate] = useState<string | null>(null);
   const [welfareForm, setWelfareForm] = useState({ type: 'Medical', amount: '', description: '' });
   const [treasuryMetrics, setTreasuryMetrics] = useState({
     totalDuesCollected: 0,
@@ -251,6 +245,79 @@ export function MemberDashboard() {
     getRegisteredCountsFromStorage()
   );
   const [companyCompliance, setCompanyCompliance] = useState<Record<string, number>>({});
+  const [chapterCounts, setChapterCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const calculateCounts = () => {
+      if (typeof window === 'undefined') return {};
+      try {
+        const stored = localStorage.getItem('nms08_registered_members');
+        const counts: Record<string, number> = {};
+        CHAPTERS_LIST.forEach((chap) => {
+          counts[chap.id] = 0;
+        });
+
+        if (stored) {
+          const members = JSON.parse(stored);
+          if (Array.isArray(members)) {
+            members.forEach((m: any) => {
+              const homeCell = (m.home_cell || m.homeCell || '').toLowerCase();
+              const matched = CHAPTERS_LIST.find((chap) => {
+                if (chap.id === 'lagos') return homeCell.includes('lagos');
+                if (chap.id === 'rivers') return homeCell.includes('river') || homeCell.includes('port harcourt') || homeCell.includes('ph');
+                if (chap.id === 'kaduna') return homeCell.includes('kaduna');
+                if (chap.id === 'plateau') return homeCell.includes('plateau') || homeCell.includes('jos');
+                if (chap.id === 'enugu') return homeCell.includes('enugu') || homeCell.includes('anambra') || homeCell.includes('imo') || homeCell.includes('abia') || homeCell.includes('ebonyi');
+                if (chap.id === 'ibadan') return homeCell.includes('ibadan') || homeCell.includes('oyo') || homeCell.includes('osun') || homeCell.includes('ogun') || homeCell.includes('ondo') || homeCell.includes('ekiti');
+                if (chap.id === 'kano') return homeCell.includes('kano') || homeCell.includes('katsina') || homeCell.includes('jigawa') || homeCell.includes('sokoto');
+                if (chap.id === 'diaspora') return homeCell.includes('diaspora') || homeCell.includes('uk') || homeCell.includes('usa') || homeCell.includes('london') || homeCell.includes('canada') || homeCell.includes('abroad');
+                if (chap.id === 'abuja') return homeCell.includes('abuja') || homeCell.includes('fct') || homeCell.includes('nasarawa') || homeCell.includes('niger');
+                if (chap.id === 'national') return false;
+                return homeCell.includes(chap.id);
+              });
+              if (matched) counts[matched.id] = (counts[matched.id] || 0) + 1;
+            });
+          }
+        }
+
+        const currentProfile = localStorage.getItem('nms08_current_profile');
+        if (currentProfile) {
+          const p = JSON.parse(currentProfile);
+          const homeCell = (p.home_cell || p.homeCell || '').toLowerCase();
+          const matched = CHAPTERS_LIST.find((chap) => {
+            if (chap.id === 'lagos') return homeCell.includes('lagos');
+            if (chap.id === 'rivers') return homeCell.includes('river') || homeCell.includes('port harcourt') || homeCell.includes('ph');
+            if (chap.id === 'kaduna') return homeCell.includes('kaduna');
+            if (chap.id === 'plateau') return homeCell.includes('plateau') || homeCell.includes('jos');
+            if (chap.id === 'enugu') return homeCell.includes('enugu') || homeCell.includes('anambra') || homeCell.includes('imo') || homeCell.includes('abia') || homeCell.includes('ebonyi');
+            if (chap.id === 'ibadan') return homeCell.includes('ibadan') || homeCell.includes('oyo') || homeCell.includes('osun') || homeCell.includes('ogun') || homeCell.includes('ondo') || homeCell.includes('ekiti');
+            if (chap.id === 'kano') return homeCell.includes('kano') || homeCell.includes('katsina') || homeCell.includes('jigawa') || homeCell.includes('sokoto');
+            if (chap.id === 'diaspora') return homeCell.includes('diaspora') || homeCell.includes('uk') || homeCell.includes('usa') || homeCell.includes('london') || homeCell.includes('canada') || homeCell.includes('abroad');
+            if (chap.id === 'abuja') return homeCell.includes('abuja') || homeCell.includes('fct') || homeCell.includes('nasarawa') || homeCell.includes('niger');
+            if (chap.id === 'national') return false;
+            return homeCell.includes(chap.id);
+          });
+          if (matched) counts[matched.id] = (counts[matched.id] || 0) + 1;
+        }
+
+        return counts;
+      } catch {
+        return {};
+      }
+    };
+
+    setChapterCounts(calculateCounts());
+
+    const handleUpdate = () => setChapterCounts(calculateCounts());
+    window.addEventListener('nms08-members-updated', handleUpdate);
+    window.addEventListener('nms08-company-updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('nms08-members-updated', handleUpdate);
+      window.removeEventListener('nms08-company-updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
 
   // Dynamic user profile state (hydrated from session, localStorage and Supabase)
   const [profile, setProfile] = useState({
@@ -942,7 +1009,7 @@ export function MemberDashboard() {
           <div className="space-y-2">
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Ex-Boy Portal Authentication Required</h2>
             <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-              Please sign in with your NMS Service Number and Password to access your official membership records, dues receipts, welfare claims, and election ballot.
+              Please sign in with your NMS Service Number and Password to access your official membership records, dues receipts, welfare claims, and official documents.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
@@ -1080,19 +1147,6 @@ export function MemberDashboard() {
 
           <div className="flex flex-wrap items-center gap-3">
             <Button
-              variant="glass"
-              size="sm"
-              onClick={() => {
-                setShowReceiptToast(true);
-                setTimeout(() => setShowReceiptToast(false), 4000);
-              }}
-              icon={<Download className="w-4 h-4 text-emerald-700" />}
-              className="text-slate-900 font-semibold"
-            >
-              2026 Dues Receipt
-            </Button>
-            
-            <Button
               variant="secondary"
               size="sm"
               onClick={() => setShowWelfareModal(true)}
@@ -1208,7 +1262,6 @@ export function MemberDashboard() {
           { key: 'profile', label: 'Full Member Profile', icon: militaryManSvg, isSvg: true },
           { key: 'dues', label: 'Dues & Financials', icon: cardSvg, isSvg: true },
           { key: 'welfare', label: 'Welfare Fund', icon: Heart, isSvg: false },
-          { key: 'elections', label: 'Voting & Elections', icon: voteSvg, isSvg: true },
           { key: 'docs', label: 'Documents', icon: FileText, isSvg: false },
         ].map((tab) => {
           const isActive = activeTab === tab.key;
@@ -1311,18 +1364,7 @@ export function MemberDashboard() {
                 </div>
                 <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
                   <span className="text-slate-500 font-medium">School Company</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-900">{profile.company}</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowCompanyModal(true)}
-                      className="text-xs text-emerald-700 hover:text-emerald-800 hover:underline font-semibold flex items-center gap-0.5 ml-1"
-                      title="Edit Company Affiliation"
-                    >
-                      <Edit2 className="w-3 h-3 inline" />
-                      Edit
-                    </button>
-                  </div>
+                  <span className="font-semibold text-slate-900">{profile.company}</span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500 font-medium flex items-center gap-1.5">
@@ -1419,15 +1461,6 @@ export function MemberDashboard() {
                     <span className="text-slate-500 font-medium block text-[11px]">Home Cell Association</span>
                     <span className="font-semibold text-slate-800">{profile.homeCell}</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowChapterModal(true)}
-                    className="text-xs text-emerald-700 hover:text-emerald-800 hover:underline font-semibold flex items-center gap-0.5"
-                    title="Change Home Cell Chapter"
-                  >
-                    <Edit2 className="w-3 h-3 inline" />
-                    Edit
-                  </button>
                 </div>
               </CardContent>
             </Card>
@@ -1581,17 +1614,6 @@ export function MemberDashboard() {
                   color="emerald"
                 />
               </CardContent>
-              <CardFooter>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-center text-xs text-emerald-800"
-                  onClick={() => setShowCompanyModal(true)}
-                  icon={<Shield className="w-3.5 h-3.5" />}
-                >
-                  Change Company Affiliation
-                </Button>
-              </CardFooter>
             </Card>
 
             {/* HOME CELL CARD */}
@@ -1631,20 +1653,9 @@ export function MemberDashboard() {
                 </div>
                 <div className="flex items-center justify-between text-xs text-slate-600 pt-2">
                   <span>Active Regional Members</span>
-                  <span className="font-bold text-slate-900">{userChapter.activeMembers} Ex-Boys</span>
+                  <span className="font-bold text-slate-900">{chapterCounts[userChapter.id] ?? 0} Ex-Boys</span>
                 </div>
               </CardContent>
-              <CardFooter>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-center text-xs text-emerald-800"
-                  onClick={() => setShowChapterModal(true)}
-                  icon={<Globe className="w-3.5 h-3.5" />}
-                >
-                  Change Home Cell Chapter
-                </Button>
-              </CardFooter>
             </Card>
           </div>
         </div>
@@ -1751,17 +1762,6 @@ export function MemberDashboard() {
                 color="emerald"
               />
             </CardContent>
-            <CardFooter>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-center text-xs text-emerald-800"
-                onClick={() => setShowCompanyModal(true)}
-                icon={<Shield className="w-3.5 h-3.5" />}
-              >
-                Change Company Affiliation
-              </Button>
-            </CardFooter>
           </Card>
 
           {/* HOME CELL CARD */}
@@ -1802,20 +1802,9 @@ export function MemberDashboard() {
 
               <div className="flex items-center justify-between text-xs text-slate-600 pt-2">
                 <span>Active Regional Members</span>
-                <span className="font-bold text-slate-900">{userChapter.activeMembers} Ex-Boys</span>
+                <span className="font-bold text-slate-900">{chapterCounts[userChapter.id] ?? 0} Ex-Boys</span>
               </div>
             </CardContent>
-            <CardFooter>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-center text-xs text-emerald-800"
-                onClick={() => setShowChapterModal(true)}
-                icon={<Globe className="w-3.5 h-3.5" />}
-              >
-                Change Home Cell Chapter
-              </Button>
-            </CardFooter>
           </Card>
         </div>
       )}
@@ -1836,7 +1825,7 @@ export function MemberDashboard() {
                   <CardDescription>Financial Record & Levies Breakdown</CardDescription>
                 </div>
               </div>
-              <Badge variant="emerald" dot>Up To Date</Badge>
+              <Badge variant="amber" dot>No Payments Yet</Badge>
             </CardHeader>
 
             <CardContent className="space-y-6">
@@ -1844,57 +1833,42 @@ export function MemberDashboard() {
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-1">
                   <span className="text-[11px] font-semibold text-slate-500 uppercase">2026 Annual Dues</span>
                   <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold text-slate-900">₦150,000</span>
-                    <Badge variant="emerald" size="sm">PAID</Badge>
+                    <span className="text-lg font-bold text-slate-900">₦0</span>
+                    <Badge variant="amber" size="sm">UNPAID</Badge>
                   </div>
-                  <p className="text-[11px] text-slate-400">Received Jan 14, 2026</p>
+                  <p className="text-[11px] text-slate-400">No payment recorded yet</p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-1">
                   <span className="text-[11px] font-semibold text-slate-500 uppercase">Welfare Fund Levy</span>
                   <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold text-slate-900">₦50,000</span>
-                    <Badge variant="emerald" size="sm">PAID</Badge>
+                    <span className="text-lg font-bold text-slate-900">₦0</span>
+                    <Badge variant="amber" size="sm">UNPAID</Badge>
                   </div>
-                  <p className="text-[11px] text-slate-400">Received Jan 14, 2026</p>
+                  <p className="text-[11px] text-slate-400">No payment recorded yet</p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-1">
                   <span className="text-[11px] font-semibold text-slate-500 uppercase">Reunion Gala Levy</span>
                   <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold text-slate-900">₦30,000</span>
-                    <Badge variant="emerald" size="sm">PAID</Badge>
+                    <span className="text-lg font-bold text-slate-900">₦0</span>
+                    <Badge variant="amber" size="sm">UNPAID</Badge>
                   </div>
-                  <p className="text-[11px] text-slate-400">Received Feb 02, 2026</p>
+                  <p className="text-[11px] text-slate-400">No payment recorded yet</p>
                 </div>
               </div>
 
               {/* Progress Indicator */}
               <div className="p-5 rounded-3xl bg-emerald-50/60 border border-emerald-200/60 space-y-3">
                 <ProgressBar
-                  value={100}
+                  value={0}
                   label="2026 Personal Financial Compliance"
-                  sublabel="Your account is 100% compliant. You are eligible to vote and run for set elections."
+                  sublabel="No dues payments have been recorded for 2026 yet. Your compliance updates automatically once the treasury confirms your payment."
                   color="emerald"
                   height="lg"
                 />
               </div>
             </CardContent>
-
-            <CardFooter>
-              <span className="text-xs text-slate-500">Transaction Ref: <strong className="text-slate-800">TXN-NMS08-2026-08112</strong></span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowReceiptToast(true);
-                  setTimeout(() => setShowReceiptToast(false), 4000);
-                }}
-                icon={<Download className="w-4 h-4 text-emerald-600" />}
-              >
-                Download Receipt PDF
-              </Button>
-            </CardFooter>
           </Card>
 
           {/* NATIONAL SET DUES METRICS VISUALIZATION */}
@@ -1936,9 +1910,9 @@ export function MemberDashboard() {
         </div>
       )}
 
-      {/* WELFARE & VOTING / ELECTIONS MODULE */}
-      {(activeTab === 'all' || activeTab === 'welfare' || activeTab === 'elections') && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* WELFARE MODULE */}
+      {(activeTab === 'all' || activeTab === 'welfare') && (
+        <div className="grid grid-cols-1 gap-6">
           
           {/* WELFARE SCHEME CARD & DISBURSEMENT HISTORY */}
           <Card hoverEffect variant="glass">
@@ -1961,15 +1935,20 @@ export function MemberDashboard() {
               <div className="p-4 rounded-2xl bg-emerald-900 text-white flex items-center justify-between shadow-apple-glow">
                 <div>
                   <span className="text-xs text-emerald-200 font-medium">Welfare Fund Reserve</span>
-                  <h4 className="text-2xl font-bold">₦24.8 Million</h4>
+                  <h4 className="text-2xl font-bold">₦0</h4>
                 </div>
                 <Badge variant="outline" className="bg-white/20 text-white border-white/30">
-                  Instant Support
+                  Fund Opens Soon
                 </Badge>
               </div>
 
               <div className="space-y-2">
                 <h5 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Your Recent Claims</h5>
+                {welfareClaims.length === 0 && (
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center">
+                    <p className="text-xs text-slate-400">No welfare claims filed yet. Claims you file will appear here once the scheme commences.</p>
+                  </div>
+                )}
                 {welfareClaims.map((claim) => (
                   <div key={claim.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/70 flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -1990,80 +1969,6 @@ export function MemberDashboard() {
                     </div>
                   </div>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* VOTING & ELECTIONS CARD */}
-          <Card hoverEffect variant="glass">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                  <Image src={voteSvg} alt="Voting & Elections" width={20} height={20} className="w-5 h-5 object-contain" />
-                </div>
-                <div>
-                  <CardTitle>Democratic Elections</CardTitle>
-                  <CardDescription>{ELECTION_DATA.title}</CardDescription>
-                </div>
-              </div>
-              <Badge variant="emerald" dot>Voting Open</Badge>
-            </CardHeader>
-
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between text-xs text-slate-600 p-3 rounded-2xl bg-slate-100/70">
-                <span>Voter Turnout ({ELECTION_DATA.totalVotesCast} / {ELECTION_DATA.totalEligibleVoters})</span>
-                <span className="font-bold text-emerald-800">
-                  {ELECTION_DATA.totalEligibleVoters > 0
-                    ? `${((ELECTION_DATA.totalVotesCast / ELECTION_DATA.totalEligibleVoters) * 100).toFixed(0)}% Votes Cast`
-                    : 'No votes cast yet'}
-                </span>
-              </div>
-
-              {/* Live Candidate Poll Chart */}
-              <div className="p-2 rounded-2xl bg-white border border-slate-200/80 shadow-apple-sm">
-                <p className="text-[11px] font-semibold text-slate-500 px-3 pt-2">Live Vote Distribution (Presidential Office)</p>
-                <ElectionVotesChart candidates={ELECTION_DATA.candidates} />
-              </div>
-
-              {/* Candidates Selection */}
-              <div className="space-y-2">
-                {ELECTION_DATA.candidates.map((cand) => {
-                  const isSelected = votedCandidate === cand.id;
-                  return (
-                    <div
-                      key={cand.id}
-                      onClick={() => setVotedCandidate(cand.id)}
-                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                        isSelected
-                          ? 'bg-emerald-50/90 border-emerald-500 shadow-apple-sm'
-                          : 'bg-white border-slate-200 hover:border-emerald-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Image
-                          src={cand.avatarUrl}
-                          alt={cand.name}
-                          width={40}
-                          height={40}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">{cand.name}</p>
-                          <p className="text-[11px] text-slate-500">{cand.company} • {cand.position}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {isSelected && <Badge variant="emerald" size="sm">VOTED</Badge>}
-                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                          isSelected ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300'
-                        }`}>
-                          {isSelected && <Check className="w-3 h-3" />}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
             </CardContent>
           </Card>
@@ -2148,52 +2053,6 @@ export function MemberDashboard() {
             </CardContent>
           </Card>
         </div>
-      )}
-
-      {/* DOCUMENTS LIBRARY */}
-      {(activeTab === 'all' || activeTab === 'docs') && (
-        <Card hoverEffect variant="glass">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700">
-                <FileText className="w-5 h-5" />
-              </div>
-              <div>
-                <CardTitle>Constitutional & Official Documents</CardTitle>
-                <CardDescription>Verified Governance Vault</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {DOCUMENTS_LIST.map((doc) => (
-                <div key={doc.id} className="p-4 rounded-3xl bg-white border border-slate-200/80 shadow-apple-sm flex flex-col justify-between space-y-3">
-                  <div className="space-y-2">
-                    <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs">
-                      PDF
-                    </div>
-                    <h5 className="text-xs font-bold text-slate-900 leading-snug">{doc.title}</h5>
-                    <p className="text-[11px] text-slate-400">{doc.category} • {doc.fileSize}</p>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-center text-xs"
-                    icon={<Download className="w-3.5 h-3.5" />}
-                    onClick={() => {
-                      setShowReceiptToast(true);
-                      setTimeout(() => setShowReceiptToast(false), 4000);
-                    }}
-                  >
-                    Download PDF
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       )}
 
       {/* WELFARE REQUEST MODAL */}
@@ -2323,7 +2182,7 @@ export function MemberDashboard() {
                     </div>
 
                     <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
-                      <span className="text-xs font-semibold text-slate-500">{chap.activeMembers} Ex-Boys</span>
+                      <span className="text-xs font-semibold text-slate-500">{chapterCounts[chap.id] ?? 0} Ex-Boys</span>
                       <Button
                         variant={isSelected ? 'emerald' : 'outline'}
                         size="sm"

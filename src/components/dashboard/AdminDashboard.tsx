@@ -6,7 +6,6 @@ import mainLogo from '@/assets/nms-new-logo.webp';
 import shieldSvg from '@/assets/shield.svg';
 import militaryManSvg from '@/assets/military-man.svg';
 import cardSvg from '@/assets/card.svg';
-import voteSvg from '@/assets/vote.svg';
 import dogTagsSvg from '@/assets/Dog-tags.svg';
 import rankSvg from '@/assets/rank.svg';
 import speakerSvg from '@/assets/speaker.svg';
@@ -20,7 +19,6 @@ import {
   ShieldAlert,
   Users,
   CreditCard,
-  Vote,
   CheckCircle2,
   AlertTriangle,
   UserCheck,
@@ -98,13 +96,14 @@ export type SortField =
   | 'skills'
   | 'professional_qualifications'
   | 'full_name'
-  | 'created_at';
+  | 'created_at'
+  | 'dob';
 
 interface BroadcastAnnouncement {
   id: string;
   title: string;
   message: string;
-  type: 'dues' | 'general' | 'welfare' | 'election' | 'event' | 'urgent';
+  type: 'dues' | 'general' | 'welfare' | 'event' | 'urgent';
   severity: 'info' | 'warning' | 'urgent';
   target: 'all' | 'registered' | 'members';
   showOnTicker: boolean;
@@ -124,6 +123,7 @@ const SORT_OPTIONS: Array<{ field: SortField; label: string; icon: React.ReactNo
   { field: 'professional_qualifications', label: 'Professional Qualifications', icon: <GraduationCap className="w-3.5 h-3.5" /> },
   { field: 'full_name', label: 'Member Name', icon: <User className="w-3.5 h-3.5" /> },
   { field: 'created_at', label: 'Registration Date', icon: <Calendar className="w-3.5 h-3.5" /> },
+  { field: 'dob', label: 'Date of Birth', icon: <Calendar className="w-3.5 h-3.5" /> },
 ];
 
 export function AdminDashboard() {
@@ -135,8 +135,6 @@ export function AdminDashboard() {
     targetDues: 0,
     welfareFundBalance: 0,
     activeClaimsUnderReview: 0,
-    totalVotesCast: 0,
-    totalEligibleVoters: 0,
     monthlyDuesTrend: [] as Array<{ month: string; amount: number }>,
     companyBreakdown: [] as Array<{ company: string; count: number; compliance: number }>,
   });
@@ -154,7 +152,7 @@ export function AdminDashboard() {
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
-  const [broadcastCategory, setBroadcastCategory] = useState<'dues' | 'general' | 'welfare' | 'election' | 'event' | 'urgent'>('dues');
+  const [broadcastCategory, setBroadcastCategory] = useState<'dues' | 'general' | 'welfare' | 'event' | 'urgent'>('dues');
   const [broadcastSeverity, setBroadcastSeverity] = useState<'info' | 'warning' | 'urgent'>('info');
   const [broadcastPinTicker, setBroadcastPinTicker] = useState(true);
   const [broadcastSender, setBroadcastSender] = useState('National Executive Secretariat');
@@ -165,6 +163,7 @@ export function AdminDashboard() {
   // Admin portal password gate
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -224,7 +223,7 @@ export function AdminDashboard() {
                 count,
                 compliance: match ? match.compliance : 0,
               };
-            }).sort((a, b) => b.compliance - a.compliance || b.count - a.count);
+            }).sort((a, b) => a.company.localeCompare(b.company));
 
             setMetrics((prev) => ({
               ...prev,
@@ -338,6 +337,18 @@ export function AdminDashboard() {
         return sortOrder === 'asc' ? tA - tB : tB - tA;
       }
 
+      if (sortBy === 'dob') {
+        // Extract month from date string (format: YYYY-MM-DD)
+        const getMonth = (d: string) => {
+          if (!d) return 0;
+          const parts = d.split('-');
+          return parts.length >= 2 ? parseInt(parts[1], 10) : 0;
+        };
+        const mA = getMonth(a.dob || '');
+        const mB = getMonth(b.dob || '');
+        return sortOrder === 'asc' ? mA - mB : mB - mA;
+      }
+
       const valA = (a[sortBy] || '').toString().toLowerCase().trim();
       const valB = (b[sortBy] || '').toString().toLowerCase().trim();
       const cmp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
@@ -449,14 +460,23 @@ export function AdminDashboard() {
             <form onSubmit={handleAdminLogin} className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Admin Password</label>
-                <input
-                  type="password"
-                  required
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-4 py-2.5 pr-10 rounded-2xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               <Button
@@ -574,35 +594,6 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card hoverEffect variant="glass">
-          <CardContent className="p-6 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase">Electoral Participation</span>
-              <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                <Image src={voteSvg} alt="Electoral Participation" width={20} height={20} className="w-5 h-5 object-contain" />
-              </div>
-            </div>
-            <h3 className="text-2xl font-extrabold text-slate-900">
-              {metrics.totalVotesCast}{' '}
-              <span className="text-xs font-normal text-slate-500">/ {metrics.totalEligibleVoters}</span>
-            </h3>
-            <ProgressBar
-              value={
-                metrics.totalEligibleVoters > 0
-                  ? (metrics.totalVotesCast / metrics.totalEligibleVoters) * 100
-                  : 0
-              }
-              showPercentage={false}
-              height="sm"
-              color="emerald"
-            />
-            <p className="text-[11px] text-slate-500">
-              {metrics.totalEligibleVoters > 0
-                ? `${((metrics.totalVotesCast / metrics.totalEligibleVoters) * 100).toFixed(1)}% voter turnout`
-                : 'No active election recorded yet'}
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* REGISTERED EX-BOYS DIRECTORY & DOSSIER ACCESS TABLE */}
@@ -1357,7 +1348,6 @@ export function AdminDashboard() {
                     <option value="dues">Dues & Levies</option>
                     <option value="general">General Notice</option>
                     <option value="welfare">Welfare Support</option>
-                    <option value="election">Elections & Voting</option>
                     <option value="event">Event / AGM</option>
                     <option value="urgent">Urgent Alert</option>
                   </select>
