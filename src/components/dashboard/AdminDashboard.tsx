@@ -53,7 +53,7 @@ import {
   Check,
   Cake,
 } from 'lucide-react';
-import { normalizeCompanyId } from '@/lib/companies';
+import { normalizeCompanyId } from '@/lib/company-utils';
 
 export interface MemberProfileData {
   id: string;

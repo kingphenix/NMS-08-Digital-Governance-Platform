@@ -22,7 +22,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Button } from '@/components/ui/Button';
-import { normalizeCompanyId, getRegisteredCountsFromStorage } from '@/lib/companies';
+import { normalizeCompanyId, getRegisteredCountsFromStorage } from '@/lib/company-utils';
 import { calculateChapterCounts, normalizeChapterId } from '@/lib/chapters';
 import {
   ShieldCheck,
