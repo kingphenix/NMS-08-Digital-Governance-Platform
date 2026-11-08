@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import {
   Lock,
   Mail,
@@ -11,33 +10,17 @@ import {
   ShieldCheck,
   ArrowRight,
   Phone,
-  Calendar,
-  Briefcase,
-  MapPin,
-  Heart,
-  Users,
-  Droplets,
-  Medal,
+  Building,
   AlertCircle,
   Award,
-  Sparkles,
   Eye,
   EyeOff,
-  Building,
+  Info,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import secondaryLogo from '@/assets/slogo@2x.png';
 import dogTagsSvg from '@/assets/Dog-tags.svg';
-
-const NIGERIAN_STATES = [
-  'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno',
-  'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'FCT - Abuja', 'Gombe',
-  'Imo', 'Jigawa', 'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara', 'Lagos',
-  'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau', 'Rivers', 'Sokoto',
-  'Taraba', 'Yobe', 'Zamfara'
-];
 
 export const HOME_CELL_CHAPTERS = [
   'Abuja Executive Chapter',
@@ -53,44 +36,13 @@ export const HOME_CELL_CHAPTERS = [
 ];
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [form, setForm] = useState({
-    // Military Background / Accreditation
     nmsNo: '',
     company: 'Alpha Company',
-    rankAppointment: '',
-    setAppointment: '',
-
-    // Personal Details
     name: '',
-    dob: '',
-    stateOfOrigin: 'Plateau',
-    stateOfResidence: '',
     homeCell: 'Abuja Executive Chapter',
-    address: '',
-    maritalStatus: 'Single',
-
-    // Contact Info
     email: '',
     phone: '',
-
-    // Professional Details
-    occupation: '',
-    industry: '',
-    business: '',
-    skills: '',
-    professionalQualifications: '',
-
-    // Medical Info
-    bloodGroup: 'O+',
-    genotype: 'AA',
-
-    // Next of Kin
-    nextOfKin: '',
-    relationship: 'Brother',
-    nextOfKinPhone: '',
-
-    // Password
     password: '',
     confirmPassword: '',
   });
@@ -130,26 +82,9 @@ export default function RegisterPage() {
       nms_number: nmsInput,
       full_name: nameInput,
       company: form.company,
-      rank_appointment: form.rankAppointment,
-      set_appointment: form.setAppointment,
-      dob: form.dob,
-      state_of_origin: form.stateOfOrigin,
-      state_of_residence: form.stateOfResidence,
       home_cell: form.homeCell,
-      address: form.address,
-      marital_status: form.maritalStatus,
-      email: form.email,
-      phone: form.phone,
-      occupation: form.occupation,
-      industry: form.industry,
-      business: form.business,
-      skills: form.skills,
-      professional_qualifications: form.professionalQualifications,
-      blood_group: form.bloodGroup,
-      genotype: form.genotype,
-      next_of_kin: form.nextOfKin,
-      relationship: form.relationship,
-      next_of_kin_phone: form.nextOfKinPhone,
+      email: form.email.trim(),
+      phone: form.phone.trim(),
       password: form.password.trim(),
     };
 
@@ -274,12 +209,16 @@ export default function RegisterPage() {
                 <div><span className="text-slate-400 block">Service Number:</span> <strong className="font-mono">{form.nmsNo}</strong></div>
                 <div><span className="text-slate-400 block">Military Company:</span> <strong>{form.company}</strong></div>
                 <div><span className="text-slate-400 block">Home Cell:</span> <strong className="text-emerald-700">{form.homeCell}</strong></div>
-                <div><span className="text-slate-400 block">Blood Group:</span> <strong>{form.bloodGroup} ({form.genotype})</strong></div>
                 <div><span className="text-slate-400 block">Email Address:</span> <span>{form.email || 'N/A'}</span></div>
                 <div><span className="text-slate-400 block">Phone:</span> <span>{form.phone || 'N/A'}</span></div>
-                <div><span className="text-slate-400 block">State of Origin:</span> <span>{form.stateOfOrigin}</span></div>
-                <div><span className="text-slate-400 block">State of Residence:</span> <span>{form.stateOfResidence || 'N/A'}</span></div>
               </div>
+            </div>
+
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-xs text-emerald-900 flex items-start gap-3">
+              <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <p className="leading-relaxed">
+                Next step: sign in to your member dashboard to complete the rest of your profile details (career, medical, emergency contacts and more).
+              </p>
             </div>
 
             {/* Single Action */}
@@ -294,7 +233,7 @@ export default function RegisterPage() {
             </div>
           </Card>
         ) : (
-          /* Full Registration Form */
+          /* Compact Registration Form */
           <Card variant="glass" className="p-8 md:p-12 shadow-apple-lg border-white/60 bg-white/90">
             <form onSubmit={handleRegister} className="space-y-8 text-xs">
               {/* Error Alert */}
@@ -311,10 +250,19 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* Section 1: Military Background & Accreditation */}
+              {/* Intro notice */}
+              <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 text-emerald-900 flex items-start gap-3">
+                <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <p className="leading-relaxed">
+                  Only the essential details are required here. Once your account is verified you can complete the rest of
+                  your profile (career, medical, next of kin and more) from your member dashboard.
+                </p>
+              </div>
+
+              {/* Section 1: Accreditation */}
               <section>
                 <h2 className={sectionHeaderClasses}>
-                  <Image src={dogTagsSvg} alt="Military Dog Tags" width={18} height={18} className="w-4.5 h-4.5 object-contain" /> 1. Military Background & Accreditation
+                  <Image src={dogTagsSvg} alt="Military Dog Tags" width={18} height={18} className="w-4.5 h-4.5 object-contain" /> 1. Accreditation Details
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -354,43 +302,9 @@ export default function RegisterPage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label htmlFor="rankAppointment" className={labelClasses}>Rank/Appointment as Boy Soldier</label>
-                    <input
-                      id="rankAppointment"
-                      type="text"
-                      placeholder="e.g. B/Sgt, Company Senior, Boy Soldier"
-                      value={form.rankAppointment}
-                      onChange={(e) => setForm({ ...form, rankAppointment: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="setAppointment" className={labelClasses}>Set Appointment (if any)</label>
-                    <input
-                      id="setAppointment"
-                      type="text"
-                      placeholder="e.g. Assistant Set PRO, Welfare Officer"
-                      value={form.setAppointment}
-                      onChange={(e) => setForm({ ...form, setAppointment: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              {/* Section 2: Personal Details */}
-              <section>
-                <h2 className={sectionHeaderClasses}>
-                  <User className="w-4 h-4 text-emerald-600" /> 2. Personal Details
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2">
                     <label htmlFor="full_name" className={labelClasses}>
-                      Full Name (as on NMS Roster) <span className="text-red-500">*</span>
+                      <User className="w-3.5 h-3.5 text-slate-400" /> Full Name (as on NMS Roster) <span className="text-red-500">*</span>
                     </label>
                     <input
                       id="full_name"
@@ -406,83 +320,6 @@ export default function RegisterPage() {
                     <p className="text-[11px] text-slate-500 mt-1">
                       Must match your name tokens on the official class roster (order and middle name are flexible).
                     </p>
-                  </div>
-
-                  <div>
-                    <label htmlFor="dob" className={labelClasses}>
-                      <Calendar className="w-3.5 h-3.5 text-slate-400" /> Date of Birth
-                    </label>
-                    <input
-                      id="dob"
-                      type="date"
-                      value={form.dob}
-                      onChange={(e) => setForm({ ...form, dob: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="maritalStatus" className={labelClasses}>
-                      <Heart className="w-3.5 h-3.5 text-slate-400" /> Marital Status
-                    </label>
-                    <select
-                      id="maritalStatus"
-                      value={form.maritalStatus}
-                      onChange={(e) => setForm({ ...form, maritalStatus: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    >
-                      {['Single', 'Married', 'Divorced', 'Widowed'].map((m) => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="stateOfOrigin" className={labelClasses}>
-                      <MapPin className="w-3.5 h-3.5 text-slate-400" /> State of Origin
-                    </label>
-                    <select
-                      id="stateOfOrigin"
-                      value={form.stateOfOrigin}
-                      onChange={(e) => setForm({ ...form, stateOfOrigin: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    >
-                      {NIGERIAN_STATES.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="stateOfResidence" className={labelClasses}>
-                      <MapPin className="w-3.5 h-3.5 text-slate-400" /> State / City of Residence
-                    </label>
-                    <input
-                      id="stateOfResidence"
-                      type="text"
-                      placeholder="e.g. Abuja, Lagos, Port Harcourt, UK"
-                      value={form.stateOfResidence}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        let autoCell = form.homeCell;
-                        const vLower = val.toLowerCase();
-                        if (vLower.includes('abuja') || vLower.includes('fct')) autoCell = 'Abuja Executive Chapter';
-                        else if (vLower.includes('lagos')) autoCell = 'Lagos Metropolitan Chapter';
-                        else if (vLower.includes('river') || vLower.includes('port harcourt') || vLower.includes('ph')) autoCell = 'Rivers & Niger Delta Chapter';
-                        else if (vLower.includes('kaduna')) autoCell = 'Kaduna Regional Chapter';
-                        else if (vLower.includes('jos') || vLower.includes('plateau')) autoCell = 'Plateau / Jos Chapter';
-                        else if (vLower.includes('enugu')) autoCell = 'Enugu & Eastern Chapter';
-                        else if (vLower.includes('ibadan') || vLower.includes('oyo')) autoCell = 'Ibadan & Western Chapter';
-                        else if (vLower.includes('kano')) autoCell = 'Kano & Northern Chapter';
-                        else if (vLower.includes('uk') || vLower.includes('usa') || vLower.includes('london') || vLower.includes('canada')) autoCell = 'Diaspora Chapter (International)';
-                        setForm({ ...form, stateOfResidence: val, homeCell: autoCell });
-                      }}
-                      disabled={loading}
-                      className={inputClasses}
-                    />
                   </div>
 
                   <div>
@@ -502,34 +339,14 @@ export default function RegisterPage() {
                     </select>
                   </div>
 
-                  <div className="md:col-span-2">
-                    <label htmlFor="address" className={labelClasses}>Residential / Contact Address</label>
-                    <input
-                      id="address"
-                      type="text"
-                      placeholder="e.g. 14 Victoria Island Road, Lagos"
-                      value={form.address}
-                      onChange={(e) => setForm({ ...form, address: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              {/* Section 3: Contact Information */}
-              <section>
-                <h2 className={sectionHeaderClasses}>
-                  <Mail className="w-4 h-4 text-emerald-600" /> 3. Contact Information
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label htmlFor="email" className={labelClasses}>
-                      <Mail className="w-3.5 h-3.5 text-slate-400" /> Email Address
+                      <Mail className="w-3.5 h-3.5 text-slate-400" /> Email Address <span className="text-red-500">*</span>
                     </label>
                     <input
                       id="email"
                       type="email"
+                      required
                       placeholder="e.g. name@example.com"
                       value={form.email}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -541,11 +358,12 @@ export default function RegisterPage() {
 
                   <div>
                     <label htmlFor="phone" className={labelClasses}>
-                      <Phone className="w-3.5 h-3.5 text-slate-400" /> Phone / WhatsApp Number
+                      <Phone className="w-3.5 h-3.5 text-slate-400" /> Phone / WhatsApp Number <span className="text-red-500">*</span>
                     </label>
                     <input
                       id="phone"
                       type="tel"
+                      required
                       placeholder="e.g. +234 803 123 4567"
                       value={form.phone}
                       onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -557,171 +375,11 @@ export default function RegisterPage() {
                 </div>
               </section>
 
-              {/* Section 4: Professional Details */}
-              <section>
-                <h2 className={sectionHeaderClasses}>
-                  <Briefcase className="w-4 h-4 text-emerald-600" /> 4. Professional & Career Details
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="occupation" className={labelClasses}>Current Occupation / Title</label>
-                    <input
-                      id="occupation"
-                      type="text"
-                      placeholder="e.g. Software Engineer, Military Officer, Lawyer"
-                      value={form.occupation}
-                      onChange={(e) => setForm({ ...form, occupation: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="industry" className={labelClasses}>Industry / Sector</label>
-                    <input
-                      id="industry"
-                      type="text"
-                      placeholder="e.g. Defense, Technology, Finance, Energy"
-                      value={form.industry}
-                      onChange={(e) => setForm({ ...form, industry: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="business" className={labelClasses}>Employer / Business Name</label>
-                    <input
-                      id="business"
-                      type="text"
-                      placeholder="e.g. Nigerian Army, Shell, Self-Employed"
-                      value={form.business}
-                      onChange={(e) => setForm({ ...form, business: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="professionalQualifications" className={labelClasses}>Professional Qualifications</label>
-                    <input
-                      id="professionalQualifications"
-                      type="text"
-                      placeholder="e.g. B.Sc, M.Sc, COREN, PMP, BL"
-                      value={form.professionalQualifications}
-                      onChange={(e) => setForm({ ...form, professionalQualifications: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label htmlFor="skills" className={labelClasses}>Key Skills & Expertise</label>
-                    <input
-                      id="skills"
-                      type="text"
-                      placeholder="e.g. Tactical Leadership, Financial Analysis, Cloud Architecture"
-                      value={form.skills}
-                      onChange={(e) => setForm({ ...form, skills: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              {/* Section 5: Medical Information */}
-              <section>
-                <h2 className={sectionHeaderClasses}>
-                  <Droplets className="w-4 h-4 text-emerald-600" /> 5. Medical Information
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="bloodGroup" className={labelClasses}>Blood Group</label>
-                    <select
-                      id="bloodGroup"
-                      value={form.bloodGroup}
-                      onChange={(e) => setForm({ ...form, bloodGroup: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    >
-                      {['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'Unknown'].map((bg) => (
-                        <option key={bg} value={bg}>{bg}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="genotype" className={labelClasses}>Genotype</label>
-                    <select
-                      id="genotype"
-                      value={form.genotype}
-                      onChange={(e) => setForm({ ...form, genotype: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    >
-                      {['AA', 'AS', 'SS', 'AC', 'Unknown'].map((gt) => (
-                        <option key={gt} value={gt}>{gt}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </section>
-
-              {/* Section 6: Next of Kin */}
-              <section>
-                <h2 className={sectionHeaderClasses}>
-                  <Users className="w-4 h-4 text-emerald-600" /> 6. Next of Kin Information
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <label htmlFor="nextOfKin" className={labelClasses}>Next of Kin Name</label>
-                    <input
-                      id="nextOfKin"
-                      type="text"
-                      placeholder="e.g. Grace Stephen"
-                      value={form.nextOfKin}
-                      onChange={(e) => setForm({ ...form, nextOfKin: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="relationship" className={labelClasses}>Relationship</label>
-                    <select
-                      id="relationship"
-                      value={form.relationship}
-                      onChange={(e) => setForm({ ...form, relationship: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    >
-                      {['Spouse', 'Brother', 'Sister', 'Parent', 'Son', 'Daughter', 'Friend', 'Other'].map((rel) => (
-                        <option key={rel} value={rel}>{rel}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="nextOfKinPhone" className={labelClasses}>Next of Kin Phone</label>
-                    <input
-                      id="nextOfKinPhone"
-                      type="tel"
-                      placeholder="e.g. +234 802 987 6543"
-                      value={form.nextOfKinPhone}
-                      onChange={(e) => setForm({ ...form, nextOfKinPhone: e.target.value })}
-                      disabled={loading}
-                      className={inputClasses}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              {/* Section 7: Password */}
+              {/* Section 2: Password */}
               <section>
                 <div className="flex items-center justify-between mb-4 pb-2 border-b-2 border-emerald-100 mt-8">
                   <h2 className="text-sm font-black text-emerald-800 uppercase tracking-widest flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-emerald-600" /> 7. Password
+                    <Lock className="w-4 h-4 text-emerald-600" /> 2. Account Security
                   </h2>
                   <span className="text-[11px] text-emerald-800 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                     Required for Site Access

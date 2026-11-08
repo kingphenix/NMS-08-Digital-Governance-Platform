@@ -216,6 +216,10 @@ export function MemberDashboard() {
     company: '',
     homeCell: '',
     phone: '',
+    rankAppointment: '',
+    setAppointment: '',
+    dob: '',
+    stateOfOrigin: '',
     stateOfResidence: '',
     address: '',
     maritalStatus: 'Single',
@@ -224,6 +228,8 @@ export function MemberDashboard() {
     business: '',
     skills: '',
     professionalQualifications: '',
+    bloodGroup: '',
+    genotype: '',
     nextOfKin: '',
     relationship: '',
     nextOfKinPhone: '',
@@ -231,6 +237,7 @@ export function MemberDashboard() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [adminBroadcasts, setAdminBroadcasts] = useState<any[]>([]);
   const [dismissedBroadcasts, setDismissedBroadcasts] = useState<string[]>([]);
+  const [profileReminderDismissed, setProfileReminderDismissed] = useState(false);
   const [welfareForm, setWelfareForm] = useState({ type: 'Medical', amount: '', description: '' });
   const [treasuryMetrics, setTreasuryMetrics] = useState({
     totalDuesCollected: 0,
@@ -713,6 +720,10 @@ export function MemberDashboard() {
       company: profile.company || 'Alpha Company',
       homeCell: profile.homeCell || 'Abuja Executive Chapter',
       phone: profile.phone || '',
+      rankAppointment: profile.rankAppointment || '',
+      setAppointment: profile.setAppointment || '',
+      dob: profile.dob || '',
+      stateOfOrigin: profile.stateOfOrigin || '',
       stateOfResidence: profile.stateOfResidence || '',
       address: profile.address || '',
       maritalStatus: profile.maritalStatus || 'Single',
@@ -721,6 +732,8 @@ export function MemberDashboard() {
       business: profile.business || '',
       skills: profile.skills || '',
       professionalQualifications: profile.professionalQualifications || '',
+      bloodGroup: profile.bloodGroup || '',
+      genotype: profile.genotype || '',
       nextOfKin: profile.nextOfKin || '',
       relationship: profile.relationship || '',
       nextOfKinPhone: profile.nextOfKinPhone || '',
@@ -766,8 +779,26 @@ export function MemberDashboard() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             nms: profile.nmsNo,
-            ...profileEditForm,
+            company: profileEditForm.company,
             home_cell: profileEditForm.homeCell,
+            phone: profileEditForm.phone,
+            rank_appointment: profileEditForm.rankAppointment,
+            set_appointment: profileEditForm.setAppointment,
+            dob: profileEditForm.dob,
+            state_of_origin: profileEditForm.stateOfOrigin,
+            state_of_residence: profileEditForm.stateOfResidence,
+            address: profileEditForm.address,
+            marital_status: profileEditForm.maritalStatus,
+            occupation: profileEditForm.occupation,
+            industry: profileEditForm.industry,
+            business: profileEditForm.business,
+            skills: profileEditForm.skills,
+            professional_qualifications: profileEditForm.professionalQualifications,
+            blood_group: profileEditForm.bloodGroup,
+            genotype: profileEditForm.genotype,
+            next_of_kin: profileEditForm.nextOfKin,
+            relationship: profileEditForm.relationship,
+            next_of_kin_phone: profileEditForm.nextOfKinPhone,
           }),
         });
       }
@@ -861,6 +892,35 @@ export function MemberDashboard() {
 
   const userChapter = getChapterForMember(profile.homeCell, profile.stateOfResidence);
 
+  // Profile completeness check — details the member can still add from the dashboard
+  const profileDetailChecks: Array<{ label: string; value: string }> = [
+    { label: 'Date of Birth', value: profile.dob },
+    { label: 'State of Origin', value: profile.stateOfOrigin },
+    { label: 'State of Residence', value: profile.stateOfResidence },
+    { label: 'Residential Address', value: profile.address },
+    { label: 'Occupation', value: profile.occupation },
+    { label: 'Industry / Sector', value: profile.industry },
+    { label: 'Employer / Business', value: profile.business },
+    { label: 'Key Skills', value: profile.skills },
+    { label: 'Professional Qualifications', value: profile.professionalQualifications },
+    { label: 'Next of Kin', value: profile.nextOfKin },
+    { label: 'Next of Kin Phone', value: profile.nextOfKinPhone },
+  ];
+  const missingProfileFields = profileDetailChecks
+    .filter((f) => !f.value || !String(f.value).trim())
+    .map((f) => f.label);
+  const showProfileReminder =
+    profile.isLiveProfile && !profileReminderDismissed && missingProfileFields.length > 0;
+
+  const dismissProfileReminder = () => {
+    setProfileReminderDismissed(true);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('nms08_profile_reminder_dismissed', 'true');
+      } catch {}
+    }
+  };
+
   // Fetch admin broadcast announcements and live company data
   useEffect(() => {
     const loadAnnouncements = async () => {
@@ -942,6 +1002,11 @@ export function MemberDashboard() {
       try {
         const dismissed = localStorage.getItem('nms08_dismissed_announcements');
         if (dismissed) setDismissedBroadcasts(JSON.parse(dismissed));
+      } catch {}
+      try {
+        if (localStorage.getItem('nms08_profile_reminder_dismissed') === 'true') {
+          setProfileReminderDismissed(true);
+        }
       } catch {}
     }
 
@@ -1199,6 +1264,48 @@ export function MemberDashboard() {
           </div>
         </div>
       </Card>
+
+      {/* PROFILE COMPLETION REMINDER */}
+      {showProfileReminder && (
+        <div className="p-4 sm:p-5 rounded-3xl border shadow-apple-sm bg-amber-50/90 border-amber-300 text-amber-950 ring-1 ring-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-3 duration-300">
+          <div className="flex items-start gap-3.5 flex-1">
+            <div className="p-2 rounded-2xl shrink-0 mt-0.5 flex items-center justify-center bg-amber-200 text-amber-800">
+              <AlertCircle className="w-4 h-4" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="amber" size="sm">ACTION REQUIRED</Badge>
+                <h3 className="font-bold text-sm text-slate-900">Complete your profile</h3>
+              </div>
+              <p className="text-xs text-slate-700 leading-relaxed font-normal">
+                You have {missingProfileFields.length} detail{missingProfileFields.length === 1 ? '' : 's'} left to add to complete your membership dossier:{' '}
+                <span className="font-semibold">{missingProfileFields.join(', ')}</span>.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+            <Button
+              variant="emerald"
+              size="sm"
+              className="text-xs"
+              onClick={openEditProfile}
+              icon={<Edit2 className="w-3.5 h-3.5" />}
+            >
+              Complete Profile
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={dismissProfileReminder}
+              className="text-xs text-slate-500 hover:text-slate-800 hover:bg-black/5"
+              icon={<X className="w-3.5 h-3.5" />}
+            >
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* OFFICIAL EXECUTIVE ANNOUNCEMENTS & NOTIFICATIONS (Requested by user) */}
       {visibleBroadcasts.length > 0 && (
@@ -2503,6 +2610,49 @@ export function MemberDashboard() {
                 </div>
 
                 <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Rank / Appointment as Boy Soldier</label>
+                  <input
+                    type="text"
+                    value={profileEditForm.rankAppointment}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, rankAppointment: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="e.g. B/Sgt, Company Senior, Boy Soldier"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Set Appointment</label>
+                  <input
+                    type="text"
+                    value={profileEditForm.setAppointment}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, setAppointment: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="e.g. Assistant Set PRO, Welfare Officer"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={profileEditForm.dob}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, dob: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">State of Origin</label>
+                  <input
+                    type="text"
+                    value={profileEditForm.stateOfOrigin}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, stateOfOrigin: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="e.g. Plateau, Lagos, Anambra"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Phone / WhatsApp Number</label>
                   <input
                     type="text"
@@ -2545,6 +2695,34 @@ export function MemberDashboard() {
                     <option value="Single">Single</option>
                     <option value="Married">Married</option>
                     <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Blood Group</label>
+                  <select
+                    value={profileEditForm.bloodGroup}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, bloodGroup: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                  >
+                    <option value="">Select blood group</option>
+                    {['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'Unknown'].map((bg) => (
+                      <option key={bg} value={bg}>{bg}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Genotype</label>
+                  <select
+                    value={profileEditForm.genotype}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, genotype: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                  >
+                    <option value="">Select genotype</option>
+                    {['AA', 'AS', 'SS', 'AC', 'Unknown'].map((gt) => (
+                      <option key={gt} value={gt}>{gt}</option>
+                    ))}
                   </select>
                 </div>
 
