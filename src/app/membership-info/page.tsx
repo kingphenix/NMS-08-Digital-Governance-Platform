@@ -33,7 +33,7 @@ export default function MembershipInfoPage() {
             <span>Standard Member Dues</span>
           </Badge>
           <div className="space-y-1">
-            <h3 className="text-3xl font-extrabold text-slate-900">₦150,000</h3>
+            <h3 className="text-3xl font-extrabold text-slate-900">₦2,000</h3>
             <span className="text-xs text-slate-500">Per Annum (2026)</span>
           </div>
 
@@ -44,7 +44,7 @@ export default function MembershipInfoPage() {
             <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> AGM Participation & Constitutional Voting</li>
           </ul>
 
-          <Link href="/register" className="block pt-2">
+          <Link href="/dashboard" className="block pt-2">
             <Button variant="emerald" className="w-full justify-center">
               Pay Annual Dues
             </Button>

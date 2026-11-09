@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import mainLogo from '@/assets/nms-new-logo.webp';
 import militaryManSvg from '@/assets/military-man.svg';
@@ -60,7 +60,19 @@ import {
   Upload,
   Globe,
   Edit2,
+  CreditCard,
+  Gift,
+  Loader2,
 } from 'lucide-react';
+import {
+  ANNUAL_DUES_NGN,
+  PAYSTACK_PUBLIC_KEY,
+  buildPaymentReference,
+  formatNaira,
+  isPaystackConfigured,
+  loadPaystackScript,
+} from '@/lib/paystack';
+import type { PaymentPurpose } from '@/lib/paystack';
 
 export interface ChapterInfo {
   id: string;
@@ -212,6 +224,22 @@ export function MemberDashboard() {
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [editProfileSaving, setEditProfileSaving] = useState(false);
+  // Dues & Paystack payment state
+  const [showDuesModal, setShowDuesModal] = useState(false);
+  const [showGoodwillModal, setShowGoodwillModal] = useState(false);
+  const [paymentBusy, setPaymentBusy] = useState<PaymentPurpose | null>(null);
+  const [paymentResult, setPaymentResult] = useState<{
+    scope: PaymentPurpose;
+    status: 'success' | 'error';
+    message: string;
+  } | null>(null);
+  const [goodwillAmount, setGoodwillAmount] = useState('');
+  const [duesStatus, setDuesStatus] = useState({
+    duesPaid: false,
+    duesPaidAmount: 0,
+    annualDues: ANNUAL_DUES_NGN,
+    goodwillTotal: 0,
+  });
   const [profileEditForm, setProfileEditForm] = useState({
     company: '',
     homeCell: '',
@@ -1041,6 +1069,139 @@ export function MemberDashboard() {
   const visibleBroadcasts = adminBroadcasts.filter(
     (a) => !dismissedBroadcasts.includes(a.id)
   );
+
+  // ---------- Dues & Goodwill payments (Paystack) ----------
+  const refreshDuesStatus = useCallback(async () => {
+    const nms = profile.nmsNo;
+    if (!nms || !/^NMS/i.test(nms)) return;
+    try {
+      const res = await fetch(`/api/payments?nms=${encodeURIComponent(nms)}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (data?.ok) {
+        setDuesStatus({
+          duesPaid: !!data.duesPaid,
+          duesPaidAmount: Number(data.duesPaidAmount) || 0,
+          annualDues: Number(data.annualDues) || ANNUAL_DUES_NGN,
+          goodwillTotal: Number(data.goodwillTotal) || 0,
+        });
+      }
+    } catch {
+      /* status is best-effort */
+    }
+  }, [profile.nmsNo]);
+
+  useEffect(() => {
+    refreshDuesStatus();
+  }, [refreshDuesStatus]);
+
+  const duesOutstanding = duesStatus.duesPaid
+    ? 0
+    : Math.max(0, duesStatus.annualDues - duesStatus.duesPaidAmount);
+
+  const startPaystackPayment = async (purpose: PaymentPurpose, amountNgn: number) => {
+    setPaymentResult(null);
+
+    if (!profile.email || !profile.email.includes('@')) {
+      setPaymentResult({
+        scope: purpose,
+        status: 'error',
+        message: 'Please add a valid email address to your profile before making a payment.',
+      });
+      return;
+    }
+    if (!Number.isFinite(amountNgn) || amountNgn <= 0) {
+      setPaymentResult({ scope: purpose, status: 'error', message: 'Please enter a valid amount.' });
+      return;
+    }
+    if (!isPaystackConfigured()) {
+      setPaymentResult({
+        scope: purpose,
+        status: 'error',
+        message:
+          'The Paystack gateway is not configured yet. Ask the platform administrator to add the Paystack API keys to the environment.',
+      });
+      return;
+    }
+
+    setPaymentBusy(purpose);
+    const ready = await loadPaystackScript();
+    if (!ready || !window.PaystackPop) {
+      setPaymentBusy(null);
+      setPaymentResult({
+        scope: purpose,
+        status: 'error',
+        message: 'Unable to load the Paystack checkout. Please check your connection and try again.',
+      });
+      return;
+    }
+
+    const reference = buildPaymentReference(purpose);
+    const handler = window.PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: profile.email,
+      amount: Math.round(amountNgn * 100),
+      currency: 'NGN',
+      ref: reference,
+      metadata: {
+        custom_fields: [
+          { display_name: 'NMS Number', variable_name: 'nms_number', value: profile.nmsNo },
+          {
+            display_name: 'Payment Purpose',
+            variable_name: 'purpose',
+            value: purpose === 'dues' ? 'Annual Dues' : 'Goodwill Donation',
+          },
+        ],
+      },
+      callback: async (response) => {
+        try {
+          const res = await fetch('/api/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reference: response.reference,
+              nms_number: profile.nmsNo,
+              full_name: profile.name,
+              company: profile.company,
+              purpose,
+            }),
+          });
+          const data = await res.json();
+          if (data?.ok) {
+            setPaymentResult({
+              scope: purpose,
+              status: 'success',
+              message:
+                purpose === 'dues'
+                  ? `Your 2026 dues of ${formatNaira(amountNgn)} have been received. Reference: ${data.reference}`
+                  : `Thank you, Ex-Boy! Your goodwill donation of ${formatNaira(amountNgn)} has been received. Reference: ${data.reference}`,
+            });
+            await refreshDuesStatus();
+          } else {
+            setPaymentResult({
+              scope: purpose,
+              status: 'error',
+              message:
+                data?.message ||
+                'We could not confirm your payment. Please keep your reference and contact the secretariat.',
+            });
+          }
+        } catch (err: any) {
+          setPaymentResult({
+            scope: purpose,
+            status: 'error',
+            message: err?.message || 'Payment verification failed. Please try again.',
+          });
+        } finally {
+          setPaymentBusy(null);
+        }
+      },
+      onClose: () => {
+        setPaymentBusy(null);
+      },
+    });
+
+    handler.openIframe();
+  };
 
   // Initials-based identity chip (no personal photo on the governance platform)
   const nameInitials =
@@ -2047,8 +2208,61 @@ export function MemberDashboard() {
 
       {/* DUES STATUS & FINANCIAL VISUALIZATIONS SECTION */}
       {(activeTab === 'all' || activeTab === 'dues') && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
+        <div className="space-y-6">
+
+          {/* PAY DUES / GOODWILL DONATION ACTIONS */}
+          <Card hoverEffect variant="glass" className="p-5 sm:p-6">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-700">
+                  <CreditCard className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-slate-900">Pay Your 2026 Dues</h3>
+                  <p className="text-xs text-slate-500">
+                    Outstanding balance:{' '}
+                    <span className="font-bold text-slate-900">{formatNaira(duesOutstanding)}</span>{' '}
+                    of {formatNaira(duesStatus.annualDues)}
+                    {duesStatus.duesPaid && (
+                      <span className="ml-2 font-semibold text-emerald-600">• Fully paid for 2026</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  variant="emerald"
+                  icon={<CreditCard className="w-4 h-4" />}
+                  disabled={duesStatus.duesPaid}
+                  onClick={() => {
+                    setPaymentResult(null);
+                    setShowDuesModal(true);
+                  }}
+                >
+                  {duesStatus.duesPaid ? 'Dues Paid' : 'Pay Dues'}
+                </Button>
+                <Button
+                  variant="outline"
+                  icon={<Gift className="w-4 h-4" />}
+                  onClick={() => {
+                    setPaymentResult(null);
+                    setShowGoodwillModal(true);
+                  }}
+                >
+                  Goodwill Donation
+                </Button>
+              </div>
+            </div>
+            {duesStatus.goodwillTotal > 0 && (
+              <p className="mt-3 text-[11px] text-slate-500">
+                Your total goodwill contributions to date:{' '}
+                <span className="font-semibold text-emerald-700">{formatNaira(duesStatus.goodwillTotal)}</span>. Thank you, Ex-Boy.
+              </p>
+            )}
+          </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
           {/* DUES STATUS CARDS WITH PROGRESS INDICATORS */}
           <Card hoverEffect variant="glass" className="lg:col-span-2">
             <CardHeader>
@@ -2061,7 +2275,9 @@ export function MemberDashboard() {
                   <CardDescription>Financial Record & Levies Breakdown</CardDescription>
                 </div>
               </div>
-              <Badge variant="amber" dot>No Payments Yet</Badge>
+              <Badge variant={duesStatus.duesPaid ? 'emerald' : 'amber'} dot>
+                {duesStatus.duesPaid ? 'Dues Paid' : 'Dues Outstanding'}
+              </Badge>
             </CardHeader>
 
             <CardContent className="space-y-6">
@@ -2069,10 +2285,14 @@ export function MemberDashboard() {
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-1">
                   <span className="text-[11px] font-semibold text-slate-500 uppercase">2026 Annual Dues</span>
                   <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold text-slate-900">₦0</span>
-                    <Badge variant="amber" size="sm">UNPAID</Badge>
+                    <span className="text-lg font-bold text-slate-900">{formatNaira(duesOutstanding)}</span>
+                    <Badge variant={duesStatus.duesPaid ? 'emerald' : 'amber'} size="sm">
+                      {duesStatus.duesPaid ? 'PAID' : 'UNPAID'}
+                    </Badge>
                   </div>
-                  <p className="text-[11px] text-slate-400">No payment recorded yet</p>
+                  <p className="text-[11px] text-slate-400">
+                    {duesStatus.duesPaid ? 'Settled for 2026' : 'Payable via Paystack'}
+                  </p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-1">
@@ -2097,9 +2317,22 @@ export function MemberDashboard() {
               {/* Progress Indicator */}
               <div className="p-5 rounded-3xl bg-emerald-50/60 border border-emerald-200/60 space-y-3">
                 <ProgressBar
-                  value={0}
+                  value={
+                    duesStatus.duesPaid
+                      ? 100
+                      : Math.min(
+                          100,
+                          Math.round(
+                            (duesStatus.duesPaidAmount / (duesStatus.annualDues || ANNUAL_DUES_NGN)) * 100
+                          )
+                        )
+                  }
                   label="2026 Personal Financial Compliance"
-                  sublabel="No dues payments have been recorded for 2026 yet. Your compliance updates automatically once the treasury confirms your payment."
+                  sublabel={
+                    duesStatus.duesPaid
+                      ? 'Your 2026 dues are fully settled. Thank you for keeping the brotherhood strong.'
+                      : `You have paid ${formatNaira(duesStatus.duesPaidAmount)} of ${formatNaira(duesStatus.annualDues)}. ${formatNaira(duesOutstanding)} outstanding.`
+                  }
                   color="emerald"
                   height="lg"
                 />
@@ -2143,6 +2376,7 @@ export function MemberDashboard() {
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
       )}
 
@@ -2288,6 +2522,193 @@ export function MemberDashboard() {
               ))}
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* PAY DUES MODAL (Paystack) */}
+      {showDuesModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md glass-panel rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl border border-white">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800">
+                  <CreditCard className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Pay Annual Dues</h3>
+                  <p className="text-xs text-slate-500">2026 Statutory Membership Dues</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDuesModal(false)} className="text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 rounded-3xl bg-gradient-to-b from-emerald-50 to-white border border-emerald-100 text-center space-y-1">
+              <span className="text-xs font-semibold text-slate-500 uppercase">Amount Owed</span>
+              <h3 className="text-3xl font-extrabold text-emerald-700 tracking-tight">
+                {formatNaira(duesStatus.annualDues)}
+              </h3>
+              <p className="text-xs text-slate-500">Payable once per annum (2026 cycle)</p>
+            </div>
+
+            <ul className="space-y-2 text-xs text-slate-600">
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Full voting rights in set elections
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Access to member directory &amp; welfare support
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Receipt recorded against {profile.nmsNo}
+              </li>
+            </ul>
+
+            {!isPaystackConfigured() && (
+              <p className="text-[11px] rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3">
+                Paystack has not been configured yet. Payments will be enabled once the administrator adds the
+                gateway API keys.
+              </p>
+            )}
+
+            {paymentResult?.scope === 'dues' && (
+              <p
+                className={`text-xs rounded-2xl px-4 py-3 border ${
+                  paymentResult.status === 'success'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    : 'bg-rose-50 border-rose-200 text-rose-700'
+                }`}
+              >
+                {paymentResult.message}
+              </p>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-1">
+              <Button variant="ghost" className="sm:flex-1" onClick={() => setShowDuesModal(false)}>
+                Close
+              </Button>
+              <Button
+                variant="emerald"
+                className="sm:flex-1"
+                disabled={paymentBusy === 'dues'}
+                icon={
+                  paymentBusy === 'dues' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CreditCard className="w-4 h-4" />
+                  )
+                }
+                onClick={() => startPaystackPayment('dues', duesStatus.annualDues)}
+              >
+                {paymentBusy === 'dues' ? 'Processing…' : `Pay ${formatNaira(duesStatus.annualDues)}`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GOODWILL DONATION MODAL (Paystack) */}
+      {showGoodwillModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md glass-panel rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl border border-white">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-rose-100 text-rose-700">
+                  <Gift className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Goodwill Donation</h3>
+                  <p className="text-xs text-slate-500">Voluntary contribution to the brotherhood</p>
+                </div>
+              </div>
+              <button onClick={() => setShowGoodwillModal(false)} className="text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Support the welfare fund, reunion projects and brotherhood initiatives. Enter any amount you wish to
+              give — every naira counts.
+            </p>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Donation Amount (NGN)</label>
+              <input
+                type="number"
+                min={100}
+                placeholder="e.g. 5000"
+                value={goodwillAmount}
+                onChange={(e) => setGoodwillAmount(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 text-sm font-semibold focus:ring-2 focus:ring-emerald-500 outline-none"
+              />
+              <div className="flex flex-wrap gap-2 mt-3">
+                {[1000, 5000, 10000, 50000].map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setGoodwillAmount(String(amt))}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                      Number(goodwillAmount) === amt
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-300'
+                    }`}
+                  >
+                    {formatNaira(amt)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {duesStatus.goodwillTotal > 0 && (
+              <p className="text-[11px] text-slate-500">
+                You have generously given{' '}
+                <span className="font-semibold text-emerald-700">{formatNaira(duesStatus.goodwillTotal)}</span> so
+                far. Thank you!
+              </p>
+            )}
+
+            {!isPaystackConfigured() && (
+              <p className="text-[11px] rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3">
+                Paystack has not been configured yet. Donations will be enabled once the administrator adds the
+                gateway API keys.
+              </p>
+            )}
+
+            {paymentResult?.scope === 'goodwill' && (
+              <p
+                className={`text-xs rounded-2xl px-4 py-3 border ${
+                  paymentResult.status === 'success'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    : 'bg-rose-50 border-rose-200 text-rose-700'
+                }`}
+              >
+                {paymentResult.message}
+              </p>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-1">
+              <Button variant="ghost" className="sm:flex-1" onClick={() => setShowGoodwillModal(false)}>
+                Close
+              </Button>
+              <Button
+                variant="emerald"
+                className="sm:flex-1"
+                disabled={paymentBusy === 'goodwill' || !goodwillAmount}
+                icon={
+                  paymentBusy === 'goodwill' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Gift className="w-4 h-4" />
+                  )
+                }
+                onClick={() => startPaystackPayment('goodwill', Number(goodwillAmount))}
+              >
+                {paymentBusy === 'goodwill'
+                  ? 'Processing…'
+                  : `Donate${goodwillAmount ? ` ${formatNaira(Number(goodwillAmount))}` : ''}`}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
