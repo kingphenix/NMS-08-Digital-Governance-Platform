@@ -202,9 +202,33 @@ export async function POST(request: Request) {
         profilePayload.password_hash = passwordHash;
       }
 
-      await supabase.from('member_profiles').upsert(profilePayload, {
+      const { error: profileError } = await supabase.from('member_profiles').upsert(profilePayload, {
         onConflict: 'roster_id',
       });
+
+      // The roster row is already claimed, so a failed profile write would leave
+      // the member locked out of an account that does not exist. Release the
+      // claim and report the failure rather than returning a false success.
+      if (profileError) {
+        console.error('Member profile upsert failed:', profileError);
+
+        const { error: releaseError } = await supabase
+          .from('roster')
+          .update({ registered: false, registered_at: null })
+          .eq('id', rosterRow.id);
+
+        if (releaseError) {
+          console.error('Failed to release roster claim after profile upsert failure:', releaseError);
+        }
+
+        return NextResponse.json(
+          {
+            ok: false,
+            message: 'We could not complete your registration. Please try again, or contact the electoral committee.',
+          },
+          { status: 500 }
+        );
+      }
 
       return NextResponse.json({ ok: true, message: 'Registration successful.' });
     } catch (dbErr: any) {

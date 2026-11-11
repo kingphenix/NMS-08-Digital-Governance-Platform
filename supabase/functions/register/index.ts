@@ -214,9 +214,34 @@ Deno.serve(async (req) => {
         profilePayload.password_hash = passwordHash;
       }
 
-      await supabase.from('member_profiles').upsert(profilePayload, { onConflict: 'roster_id' });
+      const { error: profileError } = await supabase
+        .from('member_profiles')
+        .upsert(profilePayload, { onConflict: 'roster_id' });
+
+      if (profileError) throw profileError;
     } catch (upsertErr) {
+      // The roster row is already claimed. If the profile is not stored the
+      // member would be locked out of an account that does not exist, so the
+      // claim is released and the failure is reported instead of swallowed.
       console.error('Member profile upsert error:', upsertErr);
+
+      const { error: releaseError } = await supabase
+        .from('roster')
+        .update({ registered: false, registered_at: null })
+        .eq('id', row.id);
+
+      if (releaseError) {
+        console.error('Failed to release roster claim after profile upsert failure:', releaseError);
+      }
+
+      await log(false, nms);
+      return json(
+        {
+          ok: false,
+          message: 'We could not complete your registration. Please try again, or contact the electoral committee.',
+        },
+        500,
+      );
     }
 
     // Registration is complete: the member is marked registered and their
