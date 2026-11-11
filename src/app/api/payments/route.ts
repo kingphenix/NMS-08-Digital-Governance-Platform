@@ -147,6 +147,21 @@ export async function POST(request: Request) {
     );
   }
 
+  // Test-mode keys (`sk_test_`) produce synthetic transactions. Never record
+  // them as real payments unless a developer explicitly opts in, so local
+  // gateway testing can't pollute live dues data.
+  if (secretKey.startsWith('sk_test_') && process.env.ALLOW_TEST_PAYMENTS !== 'true') {
+    return NextResponse.json(
+      {
+        ok: false,
+        code: 'TEST_MODE',
+        message:
+          'The payment gateway is running with a Paystack test key, so this payment was not recorded. Use live keys to accept real dues.',
+      },
+      { status: 503 }
+    );
+  }
+
   // 1) Verify the transaction directly with Paystack.
   let verification: any = null;
   try {
