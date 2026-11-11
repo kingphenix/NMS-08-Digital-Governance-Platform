@@ -15,6 +15,8 @@ import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Button } from '@/components/ui/Button';
 import { DuesTrendChart, CompanyComplianceChart } from './Charts';
+import { ANNUAL_ARREARS_CAP_NGN, ANNUAL_DISCOUNT_NGN, MONTHLY_DUES_NGN } from '@/lib/dues-utils';
+import { formatNaira } from '@/lib/paystack';
 import {
   ShieldAlert,
   Users,
@@ -175,14 +177,25 @@ export function AdminDashboard() {
     }
   }, []);
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminPassword === 'NMS08') {
-      sessionStorage.setItem('nms08_admin_authed', 'true');
-      setAdminError(null);
-      setAdminAuthed(true);
-    } else {
-      setAdminError('Incorrect admin password. Please try again.');
+    setAdminError(null);
+    try {
+      const res = await fetch('/api/auth/admin-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: adminPassword }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) {
+        sessionStorage.setItem('nms08_admin_authed', 'true');
+        setAdminPassword('');
+        setAdminAuthed(true);
+      } else {
+        setAdminError(data?.message || 'Incorrect admin password. Please try again.');
+      }
+    } catch {
+      setAdminError('Could not reach the server. Please try again.');
     }
   };
 
@@ -190,6 +203,12 @@ export function AdminDashboard() {
     try {
       setLoading(true);
       const res = await fetch('/api/admin/members');
+      if (res.status === 401 || res.status === 403) {
+        // The server session is missing/expired — force the password gate again.
+        sessionStorage.removeItem('nms08_admin_authed');
+        setAdminAuthed(false);
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         if (data.ok) {
@@ -613,6 +632,10 @@ export function AdminDashboard() {
             </h3>
             <ProgressBar value={metrics.complianceRate} showPercentage={false} height="sm" color="emerald" />
             <p className="text-[11px] text-slate-500">{metrics.complianceRate}% set compliance</p>
+            <p className="text-[11px] text-slate-400">
+              {formatNaira(MONTHLY_DUES_NGN)}/month per Ex-Boy • {formatNaira(ANNUAL_DISCOUNT_NGN)} settles the year
+              (max {formatNaira(ANNUAL_ARREARS_CAP_NGN)})
+            </p>
           </CardContent>
         </Card>
 
@@ -1471,7 +1494,7 @@ export function AdminDashboard() {
           <CardHeader>
             <div>
               <CardTitle>Monthly Financial Dues Trend (₦ Millions)</CardTitle>
-              <CardDescription>2026 Collection Run-rate</CardDescription>
+              <CardDescription>₦2,000 monthly instalments collected in 2026</CardDescription>
             </div>
           </CardHeader>
           <CardContent>

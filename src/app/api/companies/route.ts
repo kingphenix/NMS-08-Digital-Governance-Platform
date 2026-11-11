@@ -60,7 +60,6 @@ export async function GET() {
       chapterCounts,
       totalRegistered: 0,
       companies,
-      members: [],
       companyBreakdown: COMPANIES_LIST.map((c) => ({
         company: c.name.replace(/\s*Company\s*/i, ''),
         count: 0,
@@ -75,7 +74,6 @@ export async function GET() {
     });
 
     const countedNms = new Set<string>();
-    const registeredMembers: Array<{ nms_number: string; company: string }> = [];
 
     // 1) Read all registered member profiles
     let profiles: any[] = [];
@@ -106,12 +104,8 @@ export async function GET() {
           if (cid && chapterCounts[cid] !== undefined) {
             chapterCounts[cid]++;
           }
-          registeredMembers.push({
-            nms_number: nms,
-            company: p.company || '',
-          });
-        } catch (e) {
-          console.warn('[CompaniesAPI] Error processing profile:', p, e);
+        } catch {
+          // Skip malformed rows rather than logging member data.
         }
       }
     }
@@ -185,20 +179,16 @@ export async function GET() {
       chapterCounts,
       totalRegistered,
       companies,
-      members: registeredMembers,
       companyBreakdown,
     }, { headers: noCacheHeaders });
   } catch (err: any) {
-    console.error('Error fetching company stats from Supabase:', err);
-    console.error('Error stack:', err?.stack);
-    console.error('Error details:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+    console.error('Error fetching company stats from Supabase:', err?.message || err);
     return NextResponse.json({
       ok: true,
       counts: companyCounts,
       chapterCounts,
       totalRegistered: 0,
       companies: COMPANIES_LIST.map((c) => ({ ...c, totalMembers: 0, duesComplianceRate: 0 })),
-      members: [],
       companyBreakdown: [],
     }, { status: 200, headers: noCacheHeaders }); // Return 200 with fallback data instead of 500
   }

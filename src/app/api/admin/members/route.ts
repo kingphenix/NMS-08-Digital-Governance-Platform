@@ -1,8 +1,25 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { calculateChapterCounts } from '@/lib/chapters';
+import { getSession } from '@/lib/server-auth';
+import { ANNUAL_DISCOUNT_NGN } from '@/lib/dues-utils';
 
-export async function GET() {
+export const runtime = 'nodejs';
+
+/**
+ * Explicit column list for member_profiles. `password_hash` is deliberately
+ * excluded so it can never be leaked to a client, even to admins.
+ */
+const MEMBER_SELECT =
+  'id, roster_id, nms_number, full_name, company, home_cell, rank_appointment, set_appointment, dob, state_of_origin, state_of_residence, address, marital_status, email, phone, occupation, industry, business, skills, professional_qualifications, blood_group, genotype, next_of_kin, relationship, next_of_kin_phone, avatar_url, created_at, updated_at, roster:roster_id(registered, registered_at)';
+
+export async function GET(request: Request) {
+  // Only signed-in members (dashboard) or admins (portal) may read member data.
+  const session = getSession(request);
+  if (!session) {
+    return NextResponse.json({ ok: false, message: 'Authentication required.' }, { status: 401 });
+  }
+
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -36,13 +53,7 @@ export async function GET() {
     // 1) Real member profiles from Supabase (read-only)
     const { data: profiles, error: profilesError } = await supabase
       .from('member_profiles')
-      .select(`
-        *,
-        roster:roster_id (
-          registered,
-          registered_at
-        )
-      `)
+      .select(MEMBER_SELECT)
       .order('created_at', { ascending: false });
 
     if (profilesError) {
@@ -257,7 +268,9 @@ export async function GET() {
       metrics: {
         totalDuesCollected,
         complianceRate,
-        targetDues: totalDuesCollected > 0 ? Math.round(totalDuesCollected / (complianceRate / 100 || 1)) : 0,
+        // Full-year collection target: ₦20,000 per Ex-Boy on the roster (the
+        // discounted yearly settlement amount that clears a member for the cycle).
+        targetDues: finalTotalRoster * ANNUAL_DISCOUNT_NGN,
         welfareFundBalance,
         activeClaimsUnderReview: activeClaimsUnderReview || 0,
         totalVotesCast,

@@ -5,8 +5,14 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
 
+// CORS is restricted to the deployed portal origin(s). Override with the
+// ALLOWED_ORIGIN secret when hosting the portal on a different domain.
+const ALLOWED_ORIGIN =
+  Deno.env.get('ALLOWED_ORIGIN') ?? 'https://nms08-digital-governance-platform.vercel.app';
+
 const cors = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+  Vary: 'Origin',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Max-Age': '86400',
@@ -35,9 +41,31 @@ const normNms = (s: string): string | null => {
   return m ? `NMS/${m[1]}/${m[2]}` : null;
 };
 
-async function sha256(text: string) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
+const PBKDF2_ITERATIONS = 210_000;
+const PBKDF2_KEYLEN_BITS = 256;
+
+const toHex = (bytes: Uint8Array) =>
+  Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+
+// Salted PBKDF2-SHA256 (WebCrypto, no Node compat needed), stored as
+// pbkdf2$iterations$saltHex$hashHex. src/lib/password.ts verifies this format and
+// transparently upgrades it to scrypt on the member's next sign-in.
+// Never store a bare unsalted SHA-256 of the password.
+async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits'],
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    key,
+    PBKDF2_KEYLEN_BITS,
+  );
+  return `pbkdf2$${PBKDF2_ITERATIONS}$${toHex(salt)}$${toHex(new Uint8Array(bits))}`;
 }
 
 Deno.serve(async (req) => {
@@ -152,7 +180,7 @@ Deno.serve(async (req) => {
     try {
       const passwordHash =
         typeof password === 'string' && password.trim().length >= 6
-          ? await sha256(password.trim())
+          ? await hashPassword(password.trim())
           : null;
 
       const profilePayload: Record<string, unknown> = {

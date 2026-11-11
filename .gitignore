@@ -10,3 +10,7 @@ data/roster.csv
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Supabase CLI local state (project ref, pooler URL) — must never be committed
+supabase/.temp/
+supabase/.branches/

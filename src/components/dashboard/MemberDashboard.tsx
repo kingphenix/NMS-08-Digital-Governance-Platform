@@ -65,14 +65,20 @@ import {
   Loader2,
 } from 'lucide-react';
 import {
-  ANNUAL_DUES_NGN,
   PAYSTACK_PUBLIC_KEY,
   buildPaymentReference,
   formatNaira,
   isPaystackConfigured,
   loadPaystackScript,
 } from '@/lib/paystack';
-import type { PaymentPurpose } from '@/lib/paystack';
+import type { PaymentPurpose, PaymentAction } from '@/lib/paystack';
+import {
+  ANNUAL_ARREARS_CAP_NGN,
+  ANNUAL_DISCOUNT_NGN,
+  MONTHLY_DUES_NGN,
+  accruedArrearsNgn,
+} from '@/lib/dues-utils';
+import type { DuesScope } from '@/lib/dues-utils';
 
 export interface ChapterInfo {
   id: string;
@@ -227,9 +233,9 @@ export function MemberDashboard() {
   // Dues & Paystack payment state
   const [showDuesModal, setShowDuesModal] = useState(false);
   const [showGoodwillModal, setShowGoodwillModal] = useState(false);
-  const [paymentBusy, setPaymentBusy] = useState<PaymentPurpose | null>(null);
+  const [paymentBusy, setPaymentBusy] = useState<PaymentAction | null>(null);
   const [paymentResult, setPaymentResult] = useState<{
-    scope: PaymentPurpose;
+    scope: PaymentAction;
     status: 'success' | 'error';
     message: string;
   } | null>(null);
@@ -237,7 +243,8 @@ export function MemberDashboard() {
   const [duesStatus, setDuesStatus] = useState({
     duesPaid: false,
     duesPaidAmount: 0,
-    annualDues: ANNUAL_DUES_NGN,
+    // Instalments accrued since the cycle opened in November 2026 (₦2,000/month, capped ₦24,000).
+    duesOutstanding: accruedArrearsNgn(),
     goodwillTotal: 0,
   });
   const [profileEditForm, setProfileEditForm] = useState({
@@ -1081,7 +1088,7 @@ export function MemberDashboard() {
         setDuesStatus({
           duesPaid: !!data.duesPaid,
           duesPaidAmount: Number(data.duesPaidAmount) || 0,
-          annualDues: Number(data.annualDues) || ANNUAL_DUES_NGN,
+          duesOutstanding: Number(data.duesOutstanding) || 0,
           goodwillTotal: Number(data.goodwillTotal) || 0,
         });
       }
@@ -1094,28 +1101,28 @@ export function MemberDashboard() {
     refreshDuesStatus();
   }, [refreshDuesStatus]);
 
-  const duesOutstanding = duesStatus.duesPaid
-    ? 0
-    : Math.max(0, duesStatus.annualDues - duesStatus.duesPaidAmount);
+  const duesOutstanding = duesStatus.duesOutstanding;
 
-  const startPaystackPayment = async (purpose: PaymentPurpose, amountNgn: number) => {
+  const startPaystackPayment = async (action: PaymentAction, amountNgn: number) => {
+    const purpose: PaymentPurpose = action === 'goodwill' ? 'goodwill' : 'dues';
+    const scope: DuesScope = action === 'dues-annual' ? 'annual' : 'monthly';
     setPaymentResult(null);
 
     if (!profile.email || !profile.email.includes('@')) {
       setPaymentResult({
-        scope: purpose,
+        scope: action,
         status: 'error',
         message: 'Please add a valid email address to your profile before making a payment.',
       });
       return;
     }
     if (!Number.isFinite(amountNgn) || amountNgn <= 0) {
-      setPaymentResult({ scope: purpose, status: 'error', message: 'Please enter a valid amount.' });
+      setPaymentResult({ scope: action, status: 'error', message: 'Please enter a valid amount.' });
       return;
     }
     if (!isPaystackConfigured()) {
       setPaymentResult({
-        scope: purpose,
+        scope: action,
         status: 'error',
         message:
           'The Paystack gateway is not configured yet. Ask the platform administrator to add the Paystack API keys to the environment.',
@@ -1123,84 +1130,131 @@ export function MemberDashboard() {
       return;
     }
 
-    setPaymentBusy(purpose);
-    const ready = await loadPaystackScript();
-    if (!ready || !window.PaystackPop) {
+    setPaymentBusy(action);
+
+    // Guarantees the button can never stay stuck on "Processing…": whichever
+    // path we exit through, the busy state is always cleared.
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    const finish = () => {
+      if (watchdog) {
+        clearTimeout(watchdog);
+        watchdog = undefined;
+      }
       setPaymentBusy(null);
-      setPaymentResult({
-        scope: purpose,
-        status: 'error',
-        message: 'Unable to load the Paystack checkout. Please check your connection and try again.',
-      });
-      return;
-    }
+    };
 
-    const reference = buildPaymentReference(purpose);
-    const handler = window.PaystackPop.setup({
-      key: PAYSTACK_PUBLIC_KEY,
-      email: profile.email,
-      amount: Math.round(amountNgn * 100),
-      currency: 'NGN',
-      ref: reference,
-      metadata: {
-        custom_fields: [
-          { display_name: 'NMS Number', variable_name: 'nms_number', value: profile.nmsNo },
-          {
-            display_name: 'Payment Purpose',
-            variable_name: 'purpose',
-            value: purpose === 'dues' ? 'Annual Dues' : 'Goodwill Donation',
-          },
-        ],
-      },
-      callback: async (response) => {
-        try {
-          const res = await fetch('/api/payments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              reference: response.reference,
-              nms_number: profile.nmsNo,
-              full_name: profile.name,
-              company: profile.company,
-              purpose,
-            }),
-          });
-          const data = await res.json();
-          if (data?.ok) {
-            setPaymentResult({
-              scope: purpose,
-              status: 'success',
-              message:
-                purpose === 'dues'
-                  ? `Your 2026 dues of ${formatNaira(amountNgn)} have been received. Reference: ${data.reference}`
-                  : `Thank you, Ex-Boy! Your goodwill donation of ${formatNaira(amountNgn)} has been received. Reference: ${data.reference}`,
-            });
-            await refreshDuesStatus();
-          } else {
-            setPaymentResult({
-              scope: purpose,
-              status: 'error',
-              message:
-                data?.message ||
-                'We could not confirm your payment. Please keep your reference and contact the secretariat.',
-            });
-          }
-        } catch (err: any) {
-          setPaymentResult({
-            scope: purpose,
-            status: 'error',
-            message: err?.message || 'Payment verification failed. Please try again.',
-          });
-        } finally {
-          setPaymentBusy(null);
-        }
-      },
-      onClose: () => {
+    try {
+      const ready = await loadPaystackScript();
+      if (!ready || !window.PaystackPop) {
+        finish();
+        setPaymentResult({
+          scope: action,
+          status: 'error',
+          message: 'Unable to load the Paystack checkout. Please check your connection and try again.',
+        });
+        return;
+      }
+
+      const reference = buildPaymentReference(purpose);
+
+      // Safety net: if Paystack never reports back, unfreeze the UI.
+      watchdog = setTimeout(() => {
+        watchdog = undefined;
         setPaymentBusy(null);
-      },
-    });
+        setPaymentResult({
+          scope: action,
+          status: 'error',
+          message:
+            'The Paystack checkout did not open. Please allow pop-ups for this site (or disable any ad-blocker) and try again.',
+        });
+      }, 120000);
 
-    handler.openIframe();
+      const paystack = new window.PaystackPop();
+      paystack.newTransaction({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: profile.email,
+        amount: Math.round(amountNgn * 100),
+        currency: 'NGN',
+        reference,
+        metadata: {
+          custom_fields: [
+            { display_name: 'NMS Number', variable_name: 'nms_number', value: profile.nmsNo },
+            {
+              display_name: 'Payment Purpose',
+              variable_name: 'purpose',
+              value:
+                purpose === 'dues'
+                  ? scope === 'annual'
+                    ? 'Annual Dues (Yearly Settlement)'
+                    : 'Monthly Dues'
+                  : 'Goodwill Donation',
+            },
+          ],
+        },
+        onSuccess: async (transaction) => {
+          try {
+            const res = await fetch('/api/payments', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                reference: transaction?.reference || reference,
+                nms_number: profile.nmsNo,
+                full_name: profile.name,
+                company: profile.company,
+                purpose,
+                scope,
+              }),
+            });
+            const data = await res.json();
+            if (data?.ok) {
+              setPaymentResult({
+                scope: action,
+                status: 'success',
+                message:
+                  purpose === 'dues'
+                    ? `Your 2026 ${scope === 'annual' ? 'full-year' : 'monthly'} dues of ${formatNaira(amountNgn)} have been received. Reference: ${data.reference}`
+                    : `Thank you, Ex-Boy! Your goodwill donation of ${formatNaira(amountNgn)} has been received. Reference: ${data.reference}`,
+              });
+              await refreshDuesStatus();
+            } else {
+              setPaymentResult({
+                scope: action,
+                status: 'error',
+                message:
+                  data?.message ||
+                  'We could not confirm your payment. Please keep your reference and contact the secretariat.',
+              });
+            }
+          } catch (err: any) {
+            setPaymentResult({
+              scope: action,
+              status: 'error',
+              message: err?.message || 'Payment verification failed. Please try again.',
+            });
+          } finally {
+            finish();
+          }
+        },
+        onCancel: () => {
+          finish();
+        },
+        onError: (error) => {
+          finish();
+          setPaymentResult({
+            scope: action,
+            status: 'error',
+            message: error?.message || 'Paystack could not start this transaction. Please try again.',
+          });
+        },
+      });
+    } catch (err: any) {
+      finish();
+      setPaymentResult({
+        scope: action,
+        status: 'error',
+        message: err?.message || 'Could not start the Paystack checkout. Please try again.',
+      });
+    }
   };
 
   // Initials-based identity chip (no personal photo on the governance platform)
@@ -2222,7 +2276,7 @@ export function MemberDashboard() {
                   <p className="text-xs text-slate-500">
                     Outstanding balance:{' '}
                     <span className="font-bold text-slate-900">{formatNaira(duesOutstanding)}</span>{' '}
-                    of {formatNaira(duesStatus.annualDues)}
+                    of {formatNaira(ANNUAL_ARREARS_CAP_NGN)} • {formatNaira(MONTHLY_DUES_NGN)} per month
                     {duesStatus.duesPaid && (
                       <span className="ml-2 font-semibold text-emerald-600">• Fully paid for 2026</span>
                     )}
@@ -2283,7 +2337,7 @@ export function MemberDashboard() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-1">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase">2026 Annual Dues</span>
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase">2026 Dues Outstanding</span>
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-bold text-slate-900">{formatNaira(duesOutstanding)}</span>
                     <Badge variant={duesStatus.duesPaid ? 'emerald' : 'amber'} size="sm">
@@ -2291,7 +2345,9 @@ export function MemberDashboard() {
                     </Badge>
                   </div>
                   <p className="text-[11px] text-slate-400">
-                    {duesStatus.duesPaid ? 'Settled for 2026' : 'Payable via Paystack'}
+                    {duesStatus.duesPaid
+                      ? 'Settled for 2026'
+                      : `${formatNaira(MONTHLY_DUES_NGN)}/month • max ${formatNaira(ANNUAL_ARREARS_CAP_NGN)} per year`}
                   </p>
                 </div>
 
@@ -2322,20 +2378,25 @@ export function MemberDashboard() {
                       ? 100
                       : Math.min(
                           100,
-                          Math.round(
-                            (duesStatus.duesPaidAmount / (duesStatus.annualDues || ANNUAL_DUES_NGN)) * 100
-                          )
+                          Math.round((duesStatus.duesPaidAmount / ANNUAL_ARREARS_CAP_NGN) * 100)
                         )
                   }
                   label="2026 Personal Financial Compliance"
                   sublabel={
                     duesStatus.duesPaid
                       ? 'Your 2026 dues are fully settled. Thank you for keeping the brotherhood strong.'
-                      : `You have paid ${formatNaira(duesStatus.duesPaidAmount)} of ${formatNaira(duesStatus.annualDues)}. ${formatNaira(duesOutstanding)} outstanding.`
+                      : `You have paid ${formatNaira(duesStatus.duesPaidAmount)} of ${formatNaira(ANNUAL_ARREARS_CAP_NGN)}. ${formatNaira(duesOutstanding)} outstanding.`
                   }
                   color="emerald"
                   height="lg"
                 />
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Dues are {formatNaira(MONTHLY_DUES_NGN)} monthly and are counted from November 2026 (earlier months are
+                  waived). Settling the full year in one payment costs{' '}
+                  <span className="font-semibold text-emerald-700">{formatNaira(ANNUAL_DISCOUNT_NGN)}</span> instead of{' '}
+                  {formatNaira(ANNUAL_ARREARS_CAP_NGN)} — a saving of{' '}
+                  {formatNaira(ANNUAL_ARREARS_CAP_NGN - ANNUAL_DISCOUNT_NGN)}.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -2535,8 +2596,10 @@ export function MemberDashboard() {
                   <CreditCard className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Pay Annual Dues</h3>
-                  <p className="text-xs text-slate-500">2026 Statutory Membership Dues</p>
+                  <h3 className="text-lg font-bold text-slate-900">Pay Your 2026 Dues</h3>
+                  <p className="text-xs text-slate-500">
+                    {formatNaira(MONTHLY_DUES_NGN)} monthly &middot; {formatNaira(ANNUAL_DISCOUNT_NGN)} for the full year
+                  </p>
                 </div>
               </div>
               <button onClick={() => setShowDuesModal(false)} className="text-slate-400 hover:text-slate-700">
@@ -2547,9 +2610,12 @@ export function MemberDashboard() {
             <div className="p-5 rounded-3xl bg-gradient-to-b from-emerald-50 to-white border border-emerald-100 text-center space-y-1">
               <span className="text-xs font-semibold text-slate-500 uppercase">Amount Owed</span>
               <h3 className="text-3xl font-extrabold text-emerald-700 tracking-tight">
-                {formatNaira(duesStatus.annualDues)}
+                {formatNaira(duesOutstanding)}
               </h3>
-              <p className="text-xs text-slate-500">Payable once per annum (2026 cycle)</p>
+              <p className="text-xs text-slate-500">
+                Arrears build up at {formatNaira(MONTHLY_DUES_NGN)} a month, capped at{' '}
+                {formatNaira(ANNUAL_ARREARS_CAP_NGN)} a year. Counting starts November 2026 — earlier months are waived.
+              </p>
             </div>
 
             <ul className="space-y-2 text-xs text-slate-600">
@@ -2571,7 +2637,7 @@ export function MemberDashboard() {
               </p>
             )}
 
-            {paymentResult?.scope === 'dues' && (
+            {(paymentResult?.scope === 'dues-monthly' || paymentResult?.scope === 'dues-annual') && (
               <p
                 className={`text-xs rounded-2xl px-4 py-3 border ${
                   paymentResult.status === 'success'
@@ -2583,24 +2649,43 @@ export function MemberDashboard() {
               </p>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-3 pt-1">
-              <Button variant="ghost" className="sm:flex-1" onClick={() => setShowDuesModal(false)}>
-                Close
-              </Button>
+            <div className="flex flex-col gap-3 pt-1">
               <Button
                 variant="emerald"
-                className="sm:flex-1"
-                disabled={paymentBusy === 'dues'}
+                className="w-full justify-center"
+                disabled={paymentBusy !== null}
                 icon={
-                  paymentBusy === 'dues' ? (
+                  paymentBusy === 'dues-annual' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <CreditCard className="w-4 h-4" />
                   )
                 }
-                onClick={() => startPaystackPayment('dues', duesStatus.annualDues)}
+                onClick={() => startPaystackPayment('dues-annual', ANNUAL_DISCOUNT_NGN)}
               >
-                {paymentBusy === 'dues' ? 'Processing…' : `Pay ${formatNaira(duesStatus.annualDues)}`}
+                {paymentBusy === 'dues-annual'
+                  ? 'Processing…'
+                  : `Pay ${formatNaira(ANNUAL_DISCOUNT_NGN)} — full year`}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-center"
+                disabled={paymentBusy !== null}
+                icon={
+                  paymentBusy === 'dues-monthly' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CreditCard className="w-4 h-4" />
+                  )
+                }
+                onClick={() => startPaystackPayment('dues-monthly', MONTHLY_DUES_NGN)}
+              >
+                {paymentBusy === 'dues-monthly'
+                  ? 'Processing…'
+                  : `Pay ${formatNaira(MONTHLY_DUES_NGN)} — this month`}
+              </Button>
+              <Button variant="ghost" className="w-full justify-center" onClick={() => setShowDuesModal(false)}>
+                Close
               </Button>
             </div>
           </div>

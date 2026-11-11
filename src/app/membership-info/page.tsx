@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { CheckCircle2, Shield, CreditCard, Heart, Award } from 'lucide-react';
+import { ANNUAL_ARREARS_CAP_NGN, ANNUAL_DISCOUNT_NGN, MONTHLY_DUES_NGN } from '@/lib/dues-utils';
 
 export default function MembershipInfoPage() {
   return (
@@ -21,7 +22,7 @@ export default function MembershipInfoPage() {
           Membership & Dues Information
         </h1>
         <p className="text-sm text-slate-600">
-          Clear breakdown of membership eligibility, annual dues structure, welfare entitlements, and constitutional rights.
+          Clear breakdown of membership eligibility, monthly dues structure, welfare entitlements, and constitutional rights.
         </p>
       </div>
 
@@ -33,9 +34,19 @@ export default function MembershipInfoPage() {
             <span>Standard Member Dues</span>
           </Badge>
           <div className="space-y-1">
-            <h3 className="text-3xl font-extrabold text-slate-900">₦2,000</h3>
-            <span className="text-xs text-slate-500">Per Annum (2026)</span>
+            <h3 className="text-3xl font-extrabold text-slate-900">
+              ₦{MONTHLY_DUES_NGN.toLocaleString('en-NG')}
+            </h3>
+            <span className="text-xs text-slate-500">Per Month (2026)</span>
           </div>
+
+          <p className="text-[11px] text-slate-600 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2 leading-relaxed">
+            Monthly instalments: ₦{MONTHLY_DUES_NGN.toLocaleString('en-NG')} × 12 = ₦
+            {ANNUAL_ARREARS_CAP_NGN.toLocaleString('en-NG')}. Settle the full year in one payment for ₦
+            {ANNUAL_DISCOUNT_NGN.toLocaleString('en-NG')} and save ₦
+            {(ANNUAL_ARREARS_CAP_NGN - ANNUAL_DISCOUNT_NGN).toLocaleString('en-NG')}. Dues are counted from November 2026 —
+            earlier months are waived, so no Ex-Boy is in arrears for January–October 2026.
+          </p>
 
           <ul className="space-y-2 text-xs text-slate-600">
             <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> Full Voting Rights in Set Elections</li>
@@ -46,7 +57,7 @@ export default function MembershipInfoPage() {
 
           <Link href="/dashboard" className="block pt-2">
             <Button variant="emerald" className="w-full justify-center">
-              Pay Annual Dues
+              Pay Your Dues
             </Button>
           </Link>
         </Card>

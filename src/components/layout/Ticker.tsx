@@ -52,7 +52,7 @@ function matchMonthDay(dob?: string, monthDay?: { month: string; day: string }):
 
 export function Ticker() {
   const [adminBroadcasts, setAdminBroadcasts] = useState<Announcement[]>([]);
-  const [dynamicMembers, setDynamicMembers] = useState<Array<{ name: string; company: string; dob: string }>>([]);
+  const [apiBirthdays, setApiBirthdays] = useState<BirthdayPerson[]>([]);
 
   // Fetch admin announcements and registered members
   const fetchTickerData = async () => {
@@ -78,16 +78,15 @@ export function Ticker() {
     }
 
     try {
-      // 2. Fetch registered members for birthdays
-      const resMem = await fetch('/api/admin/members');
+      // 2. Fetch today's birthdays from the public, minimal feed
+      const resMem = await fetch('/api/public/birthdays');
       if (resMem.ok) {
         const data = await resMem.json();
-        if (data.ok && Array.isArray(data.members)) {
-          setDynamicMembers(
-            data.members.map((m: any) => ({
-              name: m.full_name || m.name,
+        if (data.ok && Array.isArray(data.birthdays)) {
+          setApiBirthdays(
+            data.birthdays.map((m: any) => ({
+              name: m.name,
               company: m.company,
-              dob: m.dob,
             }))
           );
         }
@@ -149,8 +148,13 @@ export function Ticker() {
       } catch {}
     }
 
-    // Check dynamic registered members from Supabase API
-    dynamicMembers.forEach((m) => addPerson(m.name, m.company, m.dob));
+    // Today's birthdays supplied by the public API feed
+    apiBirthdays.forEach((b) => {
+      const key = (b.name || '').toLowerCase();
+      if (!key || seenNames.has(key)) return;
+      seenNames.add(key);
+      birthdayPeople.push({ name: b.name, company: b.company || 'NMS 08 Ex-Boy' });
+    });
 
     const birthdayMessages = birthdayPeople.map(
       (b) =>
@@ -159,7 +163,7 @@ export function Ticker() {
 
     // Professional dues payment notices (requested by user)
     const duesMessages = [
-      '🏛️ Cordial Notice to all Ex-Boys: Kindly remember to fulfill your 2026 annual dues and welfare contributions in a timely manner to sustain set governance, welfare mandates, and fraternal brotherhood.',
+      '🏛️ Cordial Notice to all Ex-Boys: Kindly remember to fulfill your 2026 monthly dues (₦2,000 per month) and welfare contributions in a timely manner to sustain set governance, welfare mandates, and fraternal brotherhood. Pay ₦20,000 once to settle the entire year.',
       '💳 Dues Compliance Reminder: Maintaining prompt payment of statutory dues preserves your voting franchise and guarantees full access to all fraternal welfare support benefits.',
     ];
 
@@ -179,7 +183,7 @@ export function Ticker() {
       ...broadcastMessages,
       ...generalNotices,
     ];
-  }, [dynamicMembers, adminBroadcasts]);
+  }, [apiBirthdays, adminBroadcasts]);
 
   // Duplicate for smooth seamless marquee looping
   const doubled = useMemo(() => [...messages, ...messages], [messages]);

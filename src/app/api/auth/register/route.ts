@@ -1,16 +1,30 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
+import { hashPassword } from '@/lib/password';
+import { rateLimit } from '@/lib/server-auth';
 
-function sha256(str: string): string {
-  return crypto.createHash('sha256').update(str.trim()).digest('hex');
-}
+export const runtime = 'nodejs';
+
+const FAIL_MESSAGE =
+  "We couldn't verify those details. Check your NMS number and full name, or contact the electoral committee.";
+
+const ALREADY_REGISTERED_MESSAGE =
+  'This NMS number has already registered. If you believe this is an error, contact the electoral committee.';
 
 const normNms = (s: string): string | null => {
   if (!s || typeof s !== 'string') return null;
   const m = s.trim().match(/^NMS[\s\/\-_.]*(\d{2})[\s\/\-_.]*(\d{1,6})$/i);
   return m ? `NMS/${m[1]}/${m[2]}` : null;
 };
+
+const toTokens = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
 
 export async function POST(request: Request) {
   let body: any = null;
@@ -75,8 +89,14 @@ export async function POST(request: Request) {
       return NextResponse.json(data, { status: res.status });
     }
 
-    // If edge function explicitly rejected due to already registered or invalid credentials
-    if (res.status === 409 || (res.status === 400 && data?.message?.includes("couldn't verify"))) {
+    // If the edge function explicitly rejected the attempt, propagate the
+    // decision instead of retrying it through the direct-database path (which
+    // would otherwise bypass the edge function's rate limiter).
+    if (
+      res.status === 409 ||
+      res.status === 429 ||
+      (res.status === 400 && data?.message?.includes("couldn't verify"))
+    ) {
       return NextResponse.json(data || { ok: false, message: 'Registration rejected.' }, { status: res.status });
     }
   } catch (err) {
@@ -101,28 +121,61 @@ export async function POST(request: Request) {
         );
       }
 
-      // Check roster
+      // This fallback never goes through the Edge Function's limiter, so it needs
+      // its own guard.
+      const ip = forwardedFor?.split(',')[0]?.trim() || 'unknown';
+      const limited = rateLimit(`register:${ip}`, 8, 15 * 60 * 1000);
+      if (!limited.ok) {
+        return NextResponse.json(
+          { ok: false, message: 'Too many attempts. Try again in 15 minutes.' },
+          { status: 429, headers: { 'Retry-After': String(limited.retryAfter) } }
+        );
+      }
+
+      // The roster row is the authority on who may register.
       const { data: rosterRow } = await supabase
         .from('roster')
-        .select('id, full_name, registered')
+        .select('id, full_name, name_tokens, registered')
         .ilike('nms_number', canonicalNms)
         .maybeSingle();
 
-      const rosterId = rosterRow?.id || null;
-
-      // Mark roster as registered
-      if (rosterId) {
-        await supabase
-          .from('roster')
-          .update({ registered: true, registered_at: new Date().toISOString() })
-          .eq('id', rosterId);
+      if (!rosterRow) {
+        return NextResponse.json({ ok: false, message: FAIL_MESSAGE }, { status: 400 });
       }
 
-      // Upsert into member_profiles
+      // Verify the claimed name against the roster name tokens, exactly as the
+      // Edge Function does. Without this, anyone who knows a member's NMS number
+      // could claim that identity and overwrite the account's password.
+      const typed = toTokens(fullName);
+      const rosterTokens: string[] = rosterRow.name_tokens ?? [];
+      if (typed.length < 2 || !typed.every((t) => rosterTokens.includes(t))) {
+        return NextResponse.json({ ok: false, message: FAIL_MESSAGE }, { status: 400 });
+      }
+
+      if (rosterRow.registered) {
+        return NextResponse.json({ ok: false, message: ALREADY_REGISTERED_MESSAGE }, { status: 409 });
+      }
+
+      // Claim the roster row atomically so concurrent registrations cannot both
+      // succeed and clobber each other's profile.
+      const { data: claimed } = await supabase
+        .from('roster')
+        .update({ registered: true, registered_at: new Date().toISOString() })
+        .eq('id', rosterRow.id)
+        .eq('registered', false)
+        .select('id')
+        .maybeSingle();
+
+      if (!claimed) {
+        return NextResponse.json({ ok: false, message: ALREADY_REGISTERED_MESSAGE }, { status: 409 });
+      }
+
+      // Upsert into member_profiles — only reachable for a freshly claimed roster row.
       const password = body?.password ? body.password.toString().trim() : '';
-      const passwordHash = password.length >= 6 ? sha256(password) : null;
+      const passwordHash = password.length >= 6 ? hashPassword(password) : null;
 
       const profilePayload: Record<string, any> = {
+        roster_id: rosterRow.id,
         nms_number: canonicalNms,
         full_name: fullName,
         company: body?.company || 'Unassigned',
@@ -145,15 +198,12 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString(),
       };
 
-      if (rosterId) {
-        profilePayload.roster_id = rosterId;
-      }
       if (passwordHash) {
         profilePayload.password_hash = passwordHash;
       }
 
       await supabase.from('member_profiles').upsert(profilePayload, {
-        onConflict: rosterId ? 'roster_id' : 'nms_number',
+        onConflict: 'roster_id',
       });
 
       return NextResponse.json({ ok: true, message: 'Registration successful.' });

@@ -682,7 +682,7 @@ export const MEMBERS_ROSTER: MemberRosterEntry[] = [
 ];
 
 export const TICKER_MESSAGES: string[] = [
-  "A friendly reminder to all Ex-Boys: kindly ensure your 2026 annual dues and welfare levies are settled to support set governance and brotherhood initiatives.",
+  "A friendly reminder to all Ex-Boys: 2026 statutory dues are ₦2,000 monthly (₦24,000 for the year, or ₦20,000 if paid in full upfront). Kindly keep your dues and welfare levies settled to support set governance and brotherhood initiatives.",
   "📢 The 2026 Virtual National AGM will hold on October 28, 2026 at 6:00 PM WAT. All Ex-Boys are enjoined to attend via the Digital Portal.",
   " Mark your calendars: The 18th Anniversary Reunion Gala holds November 20–22, 2026 at Transcorp Hilton, Abuja. Register today!",
   "⚖️ The Secretariat has published proposed amendments to the NMS 08 Constitution (2025 Revised). Members may review and submit comments via the Documents Library.",

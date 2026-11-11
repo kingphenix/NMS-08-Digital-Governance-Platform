@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/server-auth';
+
+export const runtime = 'nodejs';
 
 export interface Announcement {
   id: string;
@@ -17,8 +20,8 @@ export interface Announcement {
 let serverAnnouncements: Announcement[] = [
   {
     id: 'ann-001',
-    title: 'Statutory Annual Dues & Welfare Levy Compliance Notice',
-    message: 'A cordial reminder to all esteemed Ex-Boys: kindly ensure your 2026 annual membership dues and welfare levies are fully settled to support our set governance, welfare mandates, and fraternal obligations.',
+    title: 'Statutory Monthly Dues & Welfare Levy Compliance Notice',
+    message: 'A cordial reminder to all esteemed Ex-Boys: statutory dues are ₦2,000 monthly, capped at ₦24,000 for the 2026 cycle — or pay ₦20,000 once to settle the whole year. Kindly ensure your dues and welfare levies are up to date to support our set governance, welfare mandates, and fraternal obligations.',
     type: 'dues',
     severity: 'info',
     target: 'all',
@@ -49,6 +52,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  // Broadcasting is an administrative action — the public ticker feed stays open,
+  // but only an authenticated admin may publish.
+  if (!requireAdmin(request)) {
+    return NextResponse.json({ ok: false, message: 'Administrator authentication required.' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     if (!body || !body.title || !body.message) {
@@ -88,6 +97,10 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  if (!requireAdmin(request)) {
+    return NextResponse.json({ ok: false, message: 'Administrator authentication required.' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

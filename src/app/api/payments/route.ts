@@ -1,9 +1,23 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getSession } from '@/lib/server-auth';
+import {
+  ANNUAL_ARREARS_CAP_NGN,
+  ANNUAL_DISCOUNT_NGN,
+  MONTHLY_DUES_NGN,
+  accruedArrearsNgn,
+  isDuesSettled,
+  monthsElapsedInCycle,
+} from '@/lib/dues-utils';
+import type { DuesScope } from '@/lib/dues-utils';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ANNUAL_DUES_NGN = 2000;
+const MONTH_LABELS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
 
 function getServiceClient() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -17,8 +31,14 @@ function getServiceClient() {
  * Returns the member's live dues / goodwill payment status recorded in Supabase.
  */
 export async function GET(request: Request) {
+  // Payment history is private to the member it belongs to.
+  const session = getSession(request);
+  if (!session) {
+    return NextResponse.json({ ok: false, message: 'Authentication required.' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
-  const nms = (searchParams.get('nms') || '').trim();
+  const nms = session.role === 'admin' ? (searchParams.get('nms') || '').trim() : session.sub;
 
   if (!nms) {
     return NextResponse.json({ ok: false, message: 'NMS number is required' }, { status: 400 });
@@ -39,9 +59,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: true, duesPaid: false, duesAmount: 0, goodwillTotal: 0, payments: [] });
   }
 
-  const rows = (data || []) as Array<{ amount_ngn: number | string; notes: string | null }>;
-  const isDues = (notes?: string | null) =>
-    !!notes && notes.trim().toLowerCase().startsWith('annual dues');
+  const rows = (data || []) as Array<{
+    amount_ngn: number | string;
+    notes: string | null;
+  }>;
+  const isDues = (notes?: string | null) => {
+    if (!notes) return false;
+    const normalised = notes.trim().toLowerCase();
+    return normalised.startsWith('monthly dues') || normalised.startsWith('annual dues');
+  };
 
   let duesPaidAmount = 0;
   let goodwillTotal = 0;
@@ -51,12 +77,21 @@ export async function GET(request: Request) {
     else goodwillTotal += amount;
   }
 
+  // The cycle opens in November 2026, so nothing is owed for Jan–Oct 2026.
+  const monthsElapsed = monthsElapsedInCycle();
+  const arrearsDue = accruedArrearsNgn();
+  const duesPaid = isDuesSettled(duesPaidAmount, arrearsDue);
+
   return NextResponse.json({
     ok: true,
-    duesPaid: duesPaidAmount >= ANNUAL_DUES_NGN,
+    duesPaid,
     duesPaidAmount,
-    annualDues: ANNUAL_DUES_NGN,
-    duesOutstanding: Math.max(0, ANNUAL_DUES_NGN - duesPaidAmount),
+    monthlyDues: MONTHLY_DUES_NGN,
+    annualDues: ANNUAL_ARREARS_CAP_NGN,
+    annualDiscount: ANNUAL_DISCOUNT_NGN,
+    arrearsDue,
+    monthsElapsed,
+    duesOutstanding: duesPaid ? 0 : Math.max(0, arrearsDue - duesPaidAmount),
     goodwillTotal,
     payments: rows,
   });
@@ -68,6 +103,12 @@ export async function GET(request: Request) {
  * Body: { reference, nms_number, full_name?, company?, purpose: 'dues' | 'goodwill' }
  */
 export async function POST(request: Request) {
+  // A payment may only be recorded against the caller's own account.
+  const session = getSession(request);
+  if (!session) {
+    return NextResponse.json({ ok: false, message: 'Authentication required.' }, { status: 401 });
+  }
+
   let body: any = null;
   try {
     body = await request.json();
@@ -76,10 +117,15 @@ export async function POST(request: Request) {
   }
 
   const reference = (body?.reference || '').toString().trim();
-  const nms = (body?.nms_number || body?.nms || '').toString().trim();
+  const nms = session.role === 'admin'
+    ? (body?.nms_number || body?.nms || '').toString().trim()
+    : session.sub;
   const fullName = (body?.full_name || body?.name || '').toString().trim();
   const company = (body?.company || '').toString().trim();
   const purpose: 'dues' | 'goodwill' = body?.purpose === 'goodwill' ? 'goodwill' : 'dues';
+  // Dues are either the ₦2,000 monthly instalment or the ₦20,000 discounted
+  // yearly settlement; anything that is not explicitly "annual" is monthly.
+  const scope: DuesScope = body?.scope === 'annual' ? 'annual' : 'monthly';
 
   if (!reference) {
     return NextResponse.json({ ok: false, message: 'Payment reference is required' }, { status: 400 });
@@ -150,11 +196,16 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (existing?.id) {
-    return NextResponse.json({ ok: true, duplicate: true, amount_ngn: amountNgn, reference: referenceFromGateway, purpose });
+    return NextResponse.json({ ok: true, duplicate: true, amount_ngn: amountNgn, reference: referenceFromGateway, purpose, scope });
   }
 
   // 3) Record the payment.
-  const notes = purpose === 'dues' ? `Annual Dues ${now.getFullYear()}` : 'Goodwill Donation';
+  const notes =
+    purpose === 'goodwill'
+      ? 'Goodwill Donation'
+      : scope === 'annual'
+        ? `Annual Dues ${now.getFullYear()} (Discounted Yearly)`
+        : `Monthly Dues ${now.getFullYear()} - ${MONTH_LABELS[now.getMonth()]}`;
   const insertPayload = {
     nms_number: nms,
     full_name: fullName || null,
@@ -183,6 +234,7 @@ export async function POST(request: Request) {
     amount_ngn: amountNgn,
     reference: referenceFromGateway,
     purpose,
+    scope,
     notes,
   });
 }

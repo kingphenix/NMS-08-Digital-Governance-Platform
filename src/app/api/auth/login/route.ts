@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
+import { hashPassword, needsRehash, verifyPassword } from '@/lib/password';
+import { attachSession, getClientIp, rateLimit } from '@/lib/server-auth';
 
-function sha256(str: string): string {
-  return crypto.createHash('sha256').update(str.trim()).digest('hex');
-}
+export const runtime = 'nodejs';
+
+const GENERIC_AUTH_ERROR = 'Incorrect NMS number/email or password. Please try again.';
 
 function normalizeNms(input: string): string | null {
   const trimmed = input.trim();
@@ -43,13 +44,25 @@ export async function POST(request: Request) {
       );
     }
 
-    const identifier = typeof body?.identifier === 'string' ? body.identifier : '';
+    const identifier = typeof body?.identifier === 'string' ? body.identifier.trim() : '';
     const password = typeof body?.password === 'string' ? body.password : '';
 
-    if (!identifier.trim() || !password) {
+    if (!identifier || !password) {
       return NextResponse.json(
         { ok: false, message: 'Please provide your NMS Number or Email and Password.' },
         { status: 400 }
+      );
+    }
+
+    // Throttle brute-force attempts by client IP and by targeted account.
+    const ip = getClientIp(request);
+    const ipLimit = rateLimit(`login:ip:${ip}`, 20, 15 * 60 * 1000);
+    const idLimit = rateLimit(`login:id:${identifier.toLowerCase()}`, 8, 15 * 60 * 1000);
+    if (!ipLimit.ok || !idLimit.ok) {
+      const retryAfter = Math.max(ipLimit.retryAfter, idLimit.retryAfter);
+      return NextResponse.json(
+        { ok: false, message: `Too many sign-in attempts. Please try again in ${retryAfter} seconds.` },
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } }
       );
     }
 
@@ -67,10 +80,8 @@ export async function POST(request: Request) {
       auth: { persistSession: false },
     });
 
-    const id = identifier.trim();
-    const isEmail = id.includes('@');
-    const inputHash = sha256(password);
-    const canonical = normalizeNms(id);
+    const isEmail = identifier.includes('@');
+    const canonical = normalizeNms(identifier);
 
     let member: any = null;
 
@@ -78,7 +89,7 @@ export async function POST(request: Request) {
       const { data } = await supabase
         .from('member_profiles')
         .select('*')
-        .ilike('email', id)
+        .ilike('email', identifier)
         .maybeSingle();
       member = data;
     } else {
@@ -97,7 +108,7 @@ export async function POST(request: Request) {
         const { data } = await supabase
           .from('member_profiles')
           .select('*')
-          .ilike('nms_number', id)
+          .ilike('nms_number', identifier)
           .maybeSingle();
         member = data;
       }
@@ -107,29 +118,30 @@ export async function POST(request: Request) {
         const { data } = await supabase
           .from('member_profiles')
           .select('*')
-          .ilike('email', id)
+          .ilike('email', identifier)
           .maybeSingle();
         member = data;
       }
     }
 
-    if (!member) {
-      return NextResponse.json(
-        { ok: false, message: 'No registered Ex-Boy profile found with this NMS number or email.' },
-        { status: 401 }
-      );
+    // Use a single generic message so attackers cannot enumerate valid accounts.
+    if (!member || !verifyPassword(password, member.password_hash)) {
+      return NextResponse.json({ ok: false, message: GENERIC_AUTH_ERROR }, { status: 401 });
     }
 
-    // Verify password hash
-    if (!member.password_hash || member.password_hash !== inputHash) {
-      return NextResponse.json(
-        { ok: false, message: 'Incorrect password. Please verify your password and try again.' },
-        { status: 401 }
-      );
+    // Transparently upgrade legacy unsalted hashes to scrypt.
+    if (needsRehash(member.password_hash)) {
+      try {
+        await supabase
+          .from('member_profiles')
+          .update({ password_hash: hashPassword(password) })
+          .eq('id', member.id);
+      } catch {
+        // Non-fatal: sign-in still succeeds, upgrade retried next time.
+      }
     }
 
-    // Return authenticated profile
-    return NextResponse.json({
+    const response = NextResponse.json({
       ok: true,
       message: 'Authentication successful',
       profile: {
@@ -172,6 +184,12 @@ export async function POST(request: Request) {
         next_of_kin_phone: member.next_of_kin_phone,
         nextOfKinPhone: member.next_of_kin_phone,
       },
+    });
+
+    return attachSession(response, {
+      sub: member.nms_number,
+      role: 'member',
+      name: member.full_name,
     });
   } catch (err: any) {
     console.error('Login error:', err);

@@ -4,12 +4,12 @@
 // The public key is safe to expose; the secret key lives only on the server
 // (see src/app/api/payments/route.ts).
 
-/** Statutory 2026 annual dues owed by every Ex-Boy (in Naira). */
-export const ANNUAL_DUES_NGN = 2000;
-
 export type PaymentPurpose = 'dues' | 'goodwill';
 
-export const PAYSTACK_SCRIPT_SRC = 'https://js.paystack.co/v1/inline.js';
+/** UI-level identifier for the specific payment button that is in flight. */
+export type PaymentAction = 'dues-monthly' | 'dues-annual' | 'goodwill';
+
+export const PAYSTACK_SCRIPT_SRC = 'https://js.paystack.co/v2/inline.js';
 
 export const PAYSTACK_PUBLIC_KEY = (process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '').trim();
 
@@ -20,22 +20,32 @@ export function isPaystackConfigured(): boolean {
   );
 }
 
-interface PaystackSetupOptions {
+export interface PaystackTransaction {
+  reference: string;
+  status?: string;
+  message?: string;
+  [key: string]: unknown;
+}
+
+export interface PaystackTransactionOptions {
   key: string;
   email: string;
   amount: number; // in kobo
   currency?: string;
-  ref: string;
+  reference?: string;
   metadata?: Record<string, unknown>;
   channels?: string[];
-  callback: (response: { reference: string; status?: string }) => void;
-  onClose: () => void;
+  onSuccess: (transaction: PaystackTransaction) => void;
+  onLoad?: (response: { id?: string; accessCode?: string }) => void;
+  onCancel?: () => void;
+  onError?: (error: { message?: string }) => void;
 }
 
 declare global {
   interface Window {
-    PaystackPop?: {
-      setup: (options: PaystackSetupOptions) => { openIframe: () => void };
+    // Paystack InlineJS v2 exposes a constructor: `new PaystackPop().newTransaction(...)`
+    PaystackPop?: new () => {
+      newTransaction: (options: PaystackTransactionOptions) => void;
     };
   }
 }

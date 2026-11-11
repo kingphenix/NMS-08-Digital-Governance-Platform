@@ -1,0 +1,14 @@
+{
+  "//": "Scopes the editor's TypeScript service for the Deno Edge Functions. The root tsconfig excludes supabase/, so without this VS Code falls back to an inferred project and reports the esm.sh URL import and the Deno global as errors. Deployment is unaffected: supabase functions deploy bundles these files with Deno, which resolves both natively.",
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["**/*.ts"]
+}
