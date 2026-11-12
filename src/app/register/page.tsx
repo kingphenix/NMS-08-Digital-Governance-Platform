@@ -13,6 +13,7 @@ import {
   Building,
   AlertCircle,
   Award,
+  Calendar,
   Eye,
   EyeOff,
   Info,
@@ -40,6 +41,7 @@ export default function RegisterPage() {
     nmsNo: '',
     company: 'Alpha Company',
     name: '',
+    dob: '',
     homeCell: 'Abuja Executive Chapter',
     email: '',
     phone: '',
@@ -81,6 +83,7 @@ export default function RegisterPage() {
     const payload = {
       nms_number: nmsInput,
       full_name: nameInput,
+      dob: form.dob,
       company: form.company,
       home_cell: form.homeCell,
       email: form.email.trim(),
@@ -208,6 +211,7 @@ export default function RegisterPage() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 <div><span className="text-slate-400 block">Service Number:</span> <strong className="font-mono">{form.nmsNo}</strong></div>
                 <div><span className="text-slate-400 block">Military Company:</span> <strong>{form.company}</strong></div>
+                <div><span className="text-slate-400 block">Date of Birth:</span> <span>{form.dob || 'N/A'}</span></div>
                 <div><span className="text-slate-400 block">Home Cell:</span> <strong className="text-emerald-700">{form.homeCell}</strong></div>
                 <div><span className="text-slate-400 block">Email Address:</span> <span>{form.email || 'N/A'}</span></div>
                 <div><span className="text-slate-400 block">Phone:</span> <span>{form.phone || 'N/A'}</span></div>
@@ -320,6 +324,22 @@ export default function RegisterPage() {
                     <p className="text-[11px] text-slate-500 mt-1">
                       Must match your name tokens on the official class roster (order and middle name are flexible).
                     </p>
+                  </div>
+
+                  <div>
+                    <label htmlFor="dob" className={labelClasses}>
+                      <Calendar className="w-3.5 h-3.5 text-slate-400" /> Date of Birth <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="dob"
+                      type="date"
+                      required
+                      value={form.dob}
+                      onChange={(e) => setForm({ ...form, dob: e.target.value })}
+                      disabled={loading}
+                      autoComplete="bday"
+                      className={inputClasses}
+                    />
                   </div>
 
                   <div>

@@ -178,6 +178,7 @@ export async function POST(request: Request) {
         roster_id: rosterRow.id,
         nms_number: canonicalNms,
         full_name: fullName,
+        dob: body?.dob || '',
         company: body?.company || 'Unassigned',
         home_cell: body?.home_cell || body?.homeCell || '',
         state_of_origin: body?.state_of_origin || body?.stateOfOrigin || '',
