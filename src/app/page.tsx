@@ -22,7 +22,8 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { NEWS_LIST, EVENTS_LIST, LEADERSHIP_LIST } from '@/lib/mock-data';
+import { NEWS_LIST, LEADERSHIP_LIST } from '@/lib/mock-data';
+import { WEDDINGS, formatWeddingDate } from '@/lib/weddings';
 import { CompanyShowcasePreview } from '@/components/companies/CompanyShowcasePreview';
 
 export default function HomePage() {
@@ -194,20 +195,38 @@ export default function HomePage() {
             </Card>
           ))}
 
-          {/* Upcoming Event Feature */}
+          {/* Wedding Invitations Feature */}
           <Card variant="emerald" className="lg:col-span-1 p-6 flex flex-col justify-between space-y-4">
             <div className="space-y-3">
               <Badge variant="outline" className="bg-white/20 text-white border-white/30">
-                Featured Event
+                Wedding Invitations
               </Badge>
-              <h3 className="text-lg font-bold text-white">{EVENTS_LIST[0].title}</h3>
-              <p className="text-xs text-emerald-100">{EVENTS_LIST[0].description}</p>
+              <h3 className="text-lg font-bold text-white">
+                {WEDDINGS.length} Set Weddings
+              </h3>
+              <ul className="space-y-2 text-xs text-emerald-100">
+                {WEDDINGS.slice(0, 3).map((wedding) => (
+                  <li key={wedding.id} className="flex items-start gap-2">
+                    <Heart className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-200" />
+                    <span>
+                      <strong className="font-semibold text-white">{wedding.couple}</strong>
+                      {' — '}
+                      {formatWeddingDate(wedding.isoDate)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {WEDDINGS.length > 3 && (
+                <p className="text-[11px] text-emerald-200/90">
+                  …and {WEDDINGS.length - 3} more invitation{WEDDINGS.length - 3 > 1 ? 's' : ''}.
+                </p>
+              )}
             </div>
             <div className="pt-4 border-t border-white/20 flex items-center justify-between text-xs">
-              <span className="text-emerald-100">{EVENTS_LIST[0].date}</span>
+              <span className="text-emerald-100">Ex-Boys are invited</span>
               <Link href="/events">
                 <Button variant="glass" size="sm" className="text-slate-900 font-semibold">
-                  Register
+                  View Invitations
                 </Button>
               </Link>
             </div>

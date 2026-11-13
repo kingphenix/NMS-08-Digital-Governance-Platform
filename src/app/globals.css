@@ -89,7 +89,7 @@ body {
   display: inline-flex;
   width: max-content;
   will-change: transform;
-  animation: tickerMove 80s linear infinite;
+  animation: tickerMove 140s linear infinite;
 }
 
 .ticker-track:hover {

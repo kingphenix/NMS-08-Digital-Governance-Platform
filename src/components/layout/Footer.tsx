@@ -4,6 +4,7 @@ import Image from 'next/image';
 import mainLogo from '@/assets/nms-new-logo.webp';
 import shieldSvg from '@/assets/shield.svg';
 import { Heart, ExternalLink, Mail, Phone, MapPin } from 'lucide-react';
+import { SuggestionBox } from './SuggestionBox';
 
 export function Footer() {
   return (
@@ -45,7 +46,7 @@ export function Footer() {
               <li><Link href="/companies" className="hover:text-emerald-400 transition-colors">Companies</Link></li>
               <li><Link href="/news" className="hover:text-emerald-400 transition-colors">News & Press</Link></li>
               <li><Link href="/events" className="hover:text-emerald-400 transition-colors">Events & Reunions</Link></li>
-              <li><Link href="/contact" className="hover:text-emerald-400 transition-colors">Contact Us</Link></li>
+              <li><SuggestionBox /></li>
             </ul>
           </div>
 

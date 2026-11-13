@@ -61,19 +61,6 @@ export interface NewsItem {
   isImportant?: boolean;
 }
 
-export interface EventItem {
-  id: string;
-  title: string;
-  date: string;
-  time: string;
-  location: string;
-  category: "AGM" | "Reunion" | "Welfare" | "Sports" | "Gala";
-  description: string;
-  attendeesCount: number;
-  isRegistered?: boolean;
-  bannerUrl: string;
-}
-
 export interface LeaderProfile {
   id: string;
   name: string;
@@ -403,47 +390,6 @@ export const NEWS_LIST: NewsItem[] = [
     imageUrl: "https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?auto=format&fit=crop&q=80&w=800",
   },
 ];
-
-export const EVENTS_LIST: EventItem[] = [
-  {
-    id: "evt-1",
-    title: "NMS 08 Grand Reunion Gala & Business Summit 2026",
-    date: "November 20-22, 2026",
-    time: "09:00 AM (WAT)",
-    location: "Transcorp Hilton Convention Center, Abuja",
-    category: "Reunion",
-    description: "The flagship annual gathering of NMS 08 Ex-Boys featuring keynote speeches, company drills, networking, and gala dinner.",
-    attendeesCount: 215,
-    isRegistered: true,
-    bannerUrl: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=800",
-  },
-  {
-    id: "evt-2",
-    title: "Virtual National AGM & Financial Presentation Q3",
-    date: "October 28, 2026",
-    time: "06:00 PM (WAT)",
-    location: "Online (Zoom & Portal Live Stream)",
-    category: "AGM",
-    description: "Annual General Meeting to review 2026 financial audits, approve constitutional amendments, and discuss set governance priorities.",
-    attendeesCount: 340,
-    isRegistered: false,
-    bannerUrl: "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&q=80&w=800",
-  },
-  {
-    id: "evt-3",
-    title: "Inter-Company Military Drill & Veterans Sports Day",
-    date: "December 12, 2026",
-    time: "07:30 AM (WAT)",
-    location: "NMS Sports Complex, Zaria",
-    category: "Sports",
-    description: "Revisit the parade grounds! Inter-company football, tug of war, obstacle course, and squad parade in Zaria.",
-    attendeesCount: 180,
-    isRegistered: false,
-    bannerUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=800",
-  },
-];
-
-
 
 export const WELFARE_CLAIMS: WelfareClaim[] = [
   {

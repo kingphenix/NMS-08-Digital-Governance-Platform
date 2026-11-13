@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import mainLogo from '@/assets/nms-new-logo.webp';
 import militaryManSvg from '@/assets/military-man.svg';
 import cardSvg from '@/assets/card.svg';
@@ -13,11 +14,11 @@ import medalSvg from '@/assets/medal.svg';
 import {
   COMPANIES_LIST,
   NEWS_LIST,
-  EVENTS_LIST,
   DOCUMENTS_LIST,
   NOTIFICATIONS_LIST,
 } from '@/lib/mock-data';
 import type { WelfareClaim } from '@/lib/mock-data';
+import { WEDDINGS, formatWeddingDate } from '@/lib/weddings';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -1099,6 +1100,19 @@ export function MemberDashboard() {
 
   useEffect(() => {
     refreshDuesStatus();
+
+    // Dues can also be verified manually from the admin panel, so poll for
+    // updates and refresh whenever the member returns to the tab.
+    const interval = setInterval(refreshDuesStatus, 30000);
+    const handleFocus = () => refreshDuesStatus();
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
   }, [refreshDuesStatus]);
 
   const duesOutstanding = duesStatus.duesOutstanding;
@@ -2518,30 +2532,31 @@ export function MemberDashboard() {
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div>
-                  <CardTitle>Upcoming Set Events & Reunions</CardTitle>
-                  <CardDescription>Calendar of Brotherhood Gatherings</CardDescription>
+                  <CardTitle>Upcoming Set Events & Weddings</CardTitle>
+                  <CardDescription>Wedding invitations from our set brothers</CardDescription>
                 </div>
               </div>
             </CardHeader>
 
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {EVENTS_LIST.map((evt) => (
-                  <div key={evt.id} className="p-4 rounded-3xl bg-white border border-slate-200/80 shadow-apple-sm space-y-3 flex flex-col justify-between">
+                {WEDDINGS.map((wedding) => (
+                  <div key={wedding.id} className="p-4 rounded-3xl bg-white border border-slate-200/80 shadow-apple-sm space-y-3 flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant="emerald" size="sm">{evt.category}</Badge>
-                        <span className="text-[11px] font-medium text-emerald-700">{evt.date}</span>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <Badge variant="emerald" size="sm">Wedding</Badge>
+                        <span className="text-[11px] font-medium text-emerald-700 text-right">{formatWeddingDate(wedding.isoDate)}</span>
                       </div>
-                      <h4 className="text-sm font-bold text-slate-900 leading-snug">{evt.title}</h4>
-                      <p className="text-xs text-slate-500 line-clamp-2 mt-1">{evt.description}</p>
+                      <h4 className="text-sm font-bold text-slate-900 leading-snug">{wedding.couple}</h4>
                     </div>
 
                     <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[11px] text-slate-500">{evt.attendeesCount} Attending</span>
-                      <Button variant={evt.isRegistered ? 'ghost' : 'emerald'} size="sm">
-                        {evt.isRegistered ? 'Registered ✓' : 'Register Now'}
-                      </Button>
+                      <span className="text-[11px] text-slate-500">Ex-Boys are invited</span>
+                      <Link href="/events">
+                        <Button variant="emerald" size="sm">
+                          View Invitation
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 ))}

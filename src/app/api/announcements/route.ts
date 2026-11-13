@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/server-auth';
+import { formatWeddingDate, upcomingWeddings } from '@/lib/weddings';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +15,8 @@ export interface Announcement {
   postedBy: string;
   createdAt: string;
   active: boolean;
+  /** Derived from app data rather than published by an admin — not user-manageable. */
+  derived?: boolean;
 }
 
 // In-memory persistent storage across server lifecycle
@@ -44,10 +47,32 @@ let serverAnnouncements: Announcement[] = [
   },
 ];
 
+/**
+ * Wedding invitations are rebuilt from src/lib/weddings.ts on every request, so a
+ * wedding stops being broadcast automatically once its date has passed.
+ */
+function weddingBroadcasts(): Announcement[] {
+  return upcomingWeddings().map((wedding) => ({
+    id: `wedding-${wedding.id}`,
+    title: `Wedding Invitation: ${wedding.couple}`,
+    message: `${wedding.couple} cordially invite all NMS 08 Ex-Boys to celebrate with them on ${formatWeddingDate(
+      wedding.isoDate
+    )}. Open the Events & Reunions page to view the full invitation flyer.`,
+    type: 'event',
+    severity: 'info',
+    target: 'all',
+    showOnTicker: true,
+    postedBy: 'National Executive Secretariat',
+    createdAt: wedding.isoDate,
+    active: true,
+    derived: true,
+  }));
+}
+
 export async function GET() {
   return NextResponse.json({
     ok: true,
-    announcements: serverAnnouncements,
+    announcements: [...weddingBroadcasts(), ...serverAnnouncements],
   });
 }
 

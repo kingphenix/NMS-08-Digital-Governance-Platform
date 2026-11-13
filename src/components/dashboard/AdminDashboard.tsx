@@ -18,6 +18,11 @@ import { DuesTrendChart, CompanyComplianceChart } from './Charts';
 import { ANNUAL_ARREARS_CAP_NGN, ANNUAL_DISCOUNT_NGN, MONTHLY_DUES_NGN } from '@/lib/dues-utils';
 import { formatNaira } from '@/lib/paystack';
 import {
+  WEDDING_COMPANIES,
+  WEDDING_GOAL_NGN,
+  WEDDING_SEED_CONTRIBUTIONS,
+} from '@/lib/wedding-contributions';
+import {
   ShieldAlert,
   Users,
   CreditCard,
@@ -54,6 +59,7 @@ import {
   Bell,
   Check,
   Cake,
+  MessageSquare,
 } from 'lucide-react';
 import { normalizeCompanyId } from '@/lib/company-utils';
 
@@ -116,6 +122,17 @@ interface BroadcastAnnouncement {
   active: boolean;
 }
 
+interface SuggestionItem {
+  id: string;
+  name: string | null;
+  email: string | null;
+  category: string;
+  message: string;
+  status: 'new' | 'reviewed' | 'resolved';
+  created_at: string;
+  reviewed_at: string | null;
+}
+
 const SORT_OPTIONS: Array<{ field: SortField; label: string; icon: React.ReactNode }> = [
   { field: 'industry', label: 'Industry', icon: <Briefcase className="w-3.5 h-3.5" /> },
   { field: 'blood_group', label: 'Blood Group', icon: <Droplet className="w-3.5 h-3.5" /> },
@@ -152,6 +169,9 @@ export function AdminDashboard() {
   const [sortBy, setSortBy] = useState<SortField>('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [activeAdminSection, setActiveAdminSection] = useState<
+    'overview' | 'members' | 'dues' | 'wedding' | 'communications' | 'suggestions'
+  >('overview');
 
   // Broadcast modal & announcements state
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
@@ -164,6 +184,22 @@ export function AdminDashboard() {
   const [broadcastSending, setBroadcastSending] = useState(false);
   const [broadcastSuccess, setBroadcastSuccess] = useState<string | null>(null);
   const [activeAnnouncements, setActiveAnnouncements] = useState<BroadcastAnnouncement[]>([]);
+  const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionBusy, setSuggestionBusy] = useState<string | null>(null);
+  const [suggestionError, setSuggestionError] = useState('');
+
+  // Dues verification (manual "has paid" updates) & wedding contribution tracker
+  const [duesSearch, setDuesSearch] = useState('');
+  const [duesBusy, setDuesBusy] = useState<string | null>(null);
+  const [duesMessage, setDuesMessage] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
+  const [duesVerifications, setDuesVerifications] = useState<any[]>([]);
+  const [weddingContributions, setWeddingContributions] = useState<Array<{ id: string; name: string; amount: number }>>(
+    WEDDING_COMPANIES.map((c) => ({ ...c, amount: WEDDING_SEED_CONTRIBUTIONS[c.id] ?? 0 }))
+  );
+  const [weddingForm, setWeddingForm] = useState({ company: 'alpha', amount: '' });
+  const [weddingBusy, setWeddingBusy] = useState(false);
+  const [weddingMessage, setWeddingMessage] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
 
   // Admin portal password gate
   const [adminAuthed, setAdminAuthed] = useState(false);
@@ -268,7 +304,9 @@ export function AdminDashboard() {
       if (res.ok) {
         const data = await res.json();
         if (data.ok && Array.isArray(data.announcements)) {
-          setActiveAnnouncements(data.announcements);
+          // Wedding invitations are derived from src/lib/weddings.ts and expire on
+          // their own, so they are broadcast to the ticker but are not admin-managed.
+          setActiveAnnouncements(data.announcements.filter((a: any) => !a.derived));
           if (typeof window !== 'undefined') {
             localStorage.setItem('nms08_admin_announcements', JSON.stringify(data.announcements));
           }
@@ -284,9 +322,191 @@ export function AdminDashboard() {
     }
   };
 
+  const fetchDuesVerifications = async () => {
+    try {
+      const res = await fetch('/api/admin/dues', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.verifications)) setDuesVerifications(data.verifications);
+      }
+    } catch {
+      /* verification list is best-effort */
+    }
+  };
+
+  const fetchWeddingContributions = async () => {
+    try {
+      const res = await fetch('/api/wedding-contributions', { cache: 'no-store' });
+      const data = await res.json();
+      if (data?.ok && Array.isArray(data.contributions)) {
+        setWeddingContributions(data.contributions);
+      }
+    } catch {
+      /* keeps the figures already on screen */
+    }
+  };
+
+  const fetchSuggestions = async () => {
+    setSuggestionsLoading(true);
+    setSuggestionError('');
+    try {
+      const response = await fetch('/api/admin/suggestions', { cache: 'no-store' });
+      const data = await response.json().catch(() => null);
+      if (response.status === 401 || response.status === 403) {
+        sessionStorage.removeItem('nms08_admin_authed');
+        setAdminAuthed(false);
+        return;
+      }
+      if (response.ok && data?.ok && Array.isArray(data.suggestions)) {
+        setSuggestions(data.suggestions);
+      } else {
+        setSuggestionError(data?.message || 'Could not load suggestions.');
+      }
+    } catch {
+      setSuggestionError('Could not reach the server to load suggestions.');
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
+
+  const updateSuggestionStatus = async (
+    id: string,
+    status: SuggestionItem['status']
+  ) => {
+    setSuggestionBusy(id);
+    setSuggestionError('');
+    try {
+      const response = await fetch('/api/admin/suggestions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.ok) {
+        setSuggestionError(data?.message || 'Could not update this suggestion.');
+        return;
+      }
+      setSuggestions((items) =>
+        items.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                status,
+                reviewed_at: status === 'new' ? null : new Date().toISOString(),
+              }
+            : item
+        )
+      );
+    } catch {
+      setSuggestionError('Could not reach the server to update this suggestion.');
+    } finally {
+      setSuggestionBusy(null);
+    }
+  };
+
+  const markDuesPaid = async (member: MemberProfileData, scope: 'monthly' | 'annual') => {
+    const key = `${member.nms_number}:${scope}`;
+    setDuesBusy(key);
+    setDuesMessage(null);
+    try {
+      const res = await fetch('/api/admin/dues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nms_number: member.nms_number, scope }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) {
+        const who = member.full_name || member.nms_number;
+        setDuesMessage({
+          tone: 'ok',
+          text: data.duplicate
+            ? `${who} was already verified for this period.`
+            : `${who} marked as paid (${scope === 'annual' ? 'full year' : 'this month'}).`,
+        });
+        fetchDuesVerifications();
+      } else {
+        setDuesMessage({ tone: 'err', text: data?.message || 'Could not record the verification.' });
+      }
+    } catch {
+      setDuesMessage({ tone: 'err', text: 'Could not reach the server.' });
+    } finally {
+      setDuesBusy(null);
+    }
+  };
+
+  const revokeDuesVerification = async (id: string) => {
+    setDuesBusy(id);
+    setDuesMessage(null);
+    try {
+      const res = await fetch(`/api/admin/dues?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) {
+        setDuesMessage({ tone: 'ok', text: 'Verification revoked.' });
+        fetchDuesVerifications();
+      } else {
+        setDuesMessage({ tone: 'err', text: data?.message || 'Could not revoke the verification.' });
+      }
+    } catch {
+      setDuesMessage({ tone: 'err', text: 'Could not reach the server.' });
+    } finally {
+      setDuesBusy(null);
+    }
+  };
+
+  const submitWeddingContribution = async (mode: 'add' | 'set') => {
+    const amount = Number(weddingForm.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setWeddingMessage({ tone: 'err', text: 'Enter a valid contribution amount.' });
+      return;
+    }
+    setWeddingBusy(true);
+    setWeddingMessage(null);
+    try {
+      const res = await fetch('/api/admin/wedding-contributions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company: weddingForm.company, amount, mode }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) {
+        setWeddingMessage({ tone: 'ok', text: `New total: ${formatNaira(data.amount)}.` });
+        setWeddingForm((f) => ({ ...f, amount: '' }));
+        fetchWeddingContributions();
+      } else {
+        setWeddingMessage({ tone: 'err', text: data?.message || 'Could not save the contribution.' });
+      }
+    } catch {
+      setWeddingMessage({ tone: 'err', text: 'Could not reach the server.' });
+    } finally {
+      setWeddingBusy(false);
+    }
+  };
+
+  // Members matching the dues-verification search box
+  const duesSearchResults = useMemo(() => {
+    const q = duesSearch.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return members
+      .filter(
+        (m) =>
+          (m.full_name || '').toLowerCase().includes(q) ||
+          (m.nms_number || '').toLowerCase().includes(q)
+      )
+      .slice(0, 8);
+  }, [members, duesSearch]);
+
+  const weddingTotalTarget = WEDDING_GOAL_NGN * weddingContributions.length;
+  const weddingTotalContributed = weddingContributions.reduce((sum, c) => sum + c.amount, 0);
+  const newSuggestionCount = suggestions.filter((item) => item.status === 'new').length;
+
   useEffect(() => {
+    if (!adminAuthed) return;
+
     fetchMembers();
     fetchAnnouncements();
+    fetchDuesVerifications();
+    fetchWeddingContributions();
+    fetchSuggestions();
 
     const handleUpdate = () => {
       fetchMembers();
@@ -302,7 +522,7 @@ export function AdminDashboard() {
       window.removeEventListener('nms08-company-updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
     };
-  }, []);
+  }, [adminAuthed]);
 
   // Compute live registered member counts per company for filters and summaries
   const companyCounts = useMemo(() => {
@@ -554,54 +774,123 @@ export function AdminDashboard() {
   }
 
   const activeSortLabel = SORT_OPTIONS.find((s) => s.field === sortBy)?.label || 'Registration Date';
+  const adminSectionMeta = {
+    overview: {
+      title: 'Dashboard',
+      description: 'A quick view of membership, dues, and welfare activity.',
+    },
+    members: {
+      title: 'Member Directory',
+      description: 'Search the accredited roster and review member dossiers.',
+    },
+    dues: {
+      title: 'Dues & Finance',
+      description: 'Verify payments and review dues collection and compliance.',
+    },
+    wedding: {
+      title: 'Wedding Contributions',
+      description: 'Record company contributions and follow the set-wide goal.',
+    },
+    communications: {
+      title: 'Communications',
+      description: 'Manage member announcements and portal broadcasts.',
+    },
+    suggestions: {
+      title: 'Suggestions',
+      description: 'Review feedback shared by members and visitors.',
+    },
+  }[activeAdminSection];
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* Header */}
-      <Card variant="emerald" className="p-8 sm:p-10 relative overflow-hidden">
-        <div className="absolute -right-6 -bottom-6 opacity-20 pointer-events-none">
-          <Image
-            src={mainLogo}
-            alt="NMS Watermark Logo"
-            width={240}
-            height={240}
-            className="w-60 h-auto object-contain"
-          />
-        </div>
-
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-white/20 text-white border-white/30">
-                National Executive Console
-              </Badge>
-              <Badge variant="outline" className="bg-emerald-950/50 text-emerald-100 border-white/20">
-                Super Admin Access
-              </Badge>
+    <div className="pb-16">
+      <div className="grid grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] gap-6 items-start">
+        <aside className="lg:sticky lg:top-6 rounded-3xl border border-slate-200/80 bg-white/90 shadow-sm p-4 sm:p-5">
+          <div className="flex items-center gap-3 px-2 pb-5 border-b border-slate-100">
+            <Image src={mainLogo} alt="NMS 08" width={44} height={44} className="w-11 h-11 object-contain" />
+            <div className="min-w-0">
+              <p className="text-sm font-extrabold tracking-tight text-slate-900">NMS 08</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                Governance Console
+              </p>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Executive Governance & Administrative Dashboard
-            </h1>
-            <p className="text-xs sm:text-sm text-emerald-100">
-              NMS 08 Alumni Secretariat Operations • Live Member Dossiers & Accredited Roster
+          </div>
+
+          <p className="hidden lg:block px-3 pt-5 pb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+            Workspace
+          </p>
+          <nav aria-label="Admin sections" className="mt-3 lg:mt-0 flex lg:flex-col gap-1 overflow-x-auto">
+            {[
+              { id: 'overview' as const, label: 'Dashboard', icon: <Activity className="w-4 h-4" /> },
+              { id: 'members' as const, label: 'Members', icon: <Users className="w-4 h-4" /> },
+              { id: 'dues' as const, label: 'Dues & Finance', icon: <CreditCard className="w-4 h-4" /> },
+              { id: 'wedding' as const, label: 'Wedding Fund', icon: <Heart className="w-4 h-4" /> },
+              { id: 'communications' as const, label: 'Communications', icon: <Megaphone className="w-4 h-4" /> },
+              { id: 'suggestions' as const, label: 'Suggestions', icon: <MessageSquare className="w-4 h-4" /> },
+            ].map((item) => {
+              const selected = activeAdminSection === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveAdminSection(item.id)}
+                  aria-current={selected ? 'page' : undefined}
+                  className={`flex shrink-0 lg:shrink items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors ${
+                    selected
+                      ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  {item.icon}
+                  <span className="whitespace-nowrap">{item.label}</span>
+                  {item.id === 'suggestions' && newSuggestionCount > 0 && (
+                    <span className="ml-auto rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">
+                      {newSuggestionCount}
+                    </span>
+                  )}
+                  {selected && <span className="ml-auto hidden lg:block h-1.5 w-1.5 rounded-full bg-emerald-600" />}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="hidden lg:block mt-8 rounded-2xl bg-slate-50 p-4">
+            <div className="flex items-center gap-2 text-slate-700">
+              <Shield className="w-4 h-4 text-emerald-700" />
+              <span className="text-xs font-bold">Restricted access</span>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
+              National Executive Secretariat administration tools.
             </p>
           </div>
+        </aside>
 
-          <div className="flex items-center gap-3">
+        <main className="min-w-0 space-y-6">
+          <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-slate-200/80 bg-white/90 px-5 py-5 sm:px-7 shadow-sm">
+            <div>
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">
+                <span>Admin workspace</span>
+                <span className="text-slate-300">/</span>
+                <span className="text-slate-400">NMS 08</span>
+              </div>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">
+                {adminSectionMeta.title}
+              </h1>
+              <p className="mt-1 text-xs text-slate-500">{adminSectionMeta.description}</p>
+            </div>
             <Button
-              variant="secondary"
+              variant="emerald"
               size="sm"
               onClick={() => setShowBroadcastModal(true)}
-              icon={<Image src={speakerSvg} alt="Speaker" width={16} height={16} className="w-4 h-4 object-contain" />}
+              icon={<Image src={speakerSvg} alt="" width={16} height={16} className="w-4 h-4 object-contain" />}
             >
-              Post Broadcast Notification
+              New announcement
             </Button>
-          </div>
-        </div>
-      </Card>
+          </header>
 
       {/* METRIC OVERVIEW CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {activeAdminSection === 'overview' && (
+      <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <Card hoverEffect variant="glass">
           <CardContent className="p-6 space-y-2">
             <div className="flex items-center justify-between">
@@ -658,8 +947,11 @@ export function AdminDashboard() {
         </Card>
 
       </div>
+      </div>
+      )}
 
       {/* REGISTERED EX-BOYS DIRECTORY & DOSSIER ACCESS TABLE */}
+      {activeAdminSection === 'members' && (
       <Card hoverEffect variant="glass">
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1193,8 +1485,10 @@ export function AdminDashboard() {
           })()}
         </CardContent>
       </Card>
+      )}
 
       {/* ACTIVE BROADCAST ANNOUNCEMENTS MANAGEMENT CARD */}
+      {activeAdminSection === 'communications' && (
       <Card hoverEffect variant="glass">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1280,6 +1574,364 @@ export function AdminDashboard() {
           )}
         </CardContent>
       </Card>
+      )}
+
+      {/* PUBLIC SUGGESTION INBOX */}
+      {activeAdminSection === 'suggestions' && (
+      <Card hoverEffect={false} variant="glass">
+        <CardHeader>
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center rounded-2xl bg-sky-100 p-2.5 text-sky-800 shadow-apple-sm">
+                <MessageSquare className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle>Suggestion Inbox</CardTitle>
+                <CardDescription>
+                  Suggestions submitted from the public website. Only administrators can view these messages.
+                </CardDescription>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchSuggestions}
+              disabled={suggestionsLoading}
+              icon={<RefreshCw className={`h-3.5 w-3.5 ${suggestionsLoading ? 'animate-spin' : ''}`} />}
+            >
+              Refresh
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {suggestionError && (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800">
+              {suggestionError}
+            </div>
+          )}
+          {suggestionsLoading && suggestions.length === 0 ? (
+            <div className="py-10 text-center text-sm text-slate-400">Loading suggestions...</div>
+          ) : suggestions.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-10 text-center">
+              <MessageSquare className="mx-auto h-8 w-8 text-slate-300" />
+              <p className="mt-3 text-sm font-semibold text-slate-600">No suggestions yet</p>
+              <p className="mt-1 text-xs text-slate-400">
+                New submissions from the footer suggestion box will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {suggestions.map((suggestion) => (
+                <article
+                  key={suggestion.id}
+                  className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          size="sm"
+                          variant={
+                            suggestion.status === 'new'
+                              ? 'blue'
+                              : suggestion.status === 'reviewed'
+                                ? 'amber'
+                                : 'emerald'
+                          }
+                        >
+                          {suggestion.status}
+                        </Badge>
+                        <Badge size="sm" variant="subtle">{suggestion.category}</Badge>
+                        <span className="text-[11px] text-slate-400">
+                          {new Date(suggestion.created_at).toLocaleString('en-GB')}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                        <span className="font-bold text-slate-800">{suggestion.name || 'Anonymous'}</span>
+                        {suggestion.email && (
+                          <a
+                            href={`mailto:${suggestion.email}`}
+                            className="text-emerald-700 hover:underline"
+                          >
+                            {suggestion.email}
+                          </a>
+                        )}
+                      </div>
+                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-600">
+                        {suggestion.message}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      {suggestion.status === 'new' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={suggestionBusy !== null}
+                          onClick={() => updateSuggestionStatus(suggestion.id, 'reviewed')}
+                        >
+                          Mark reviewed
+                        </Button>
+                      )}
+                      {suggestion.status !== 'resolved' ? (
+                        <Button
+                          variant="emerald"
+                          size="sm"
+                          disabled={suggestionBusy !== null}
+                          onClick={() => updateSuggestionStatus(suggestion.id, 'resolved')}
+                        >
+                          {suggestionBusy === suggestion.id ? 'Saving...' : 'Resolve'}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={suggestionBusy !== null}
+                          onClick={() => updateSuggestionStatus(suggestion.id, 'new')}
+                        >
+                          Reopen
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      )}
+
+      {/* MANUAL DUES VERIFICATION CARD */}
+      {activeAdminSection === 'dues' && (
+      <Card hoverEffect variant="glass">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 shadow-apple-sm flex items-center justify-center">
+              <CreditCard className="w-5 h-5" />
+            </div>
+            <div>
+              <CardTitle>Dues Verification</CardTitle>
+              <CardDescription>
+                Record that an Ex-Boy has paid their dues — for this month ({formatNaira(MONTHLY_DUES_NGN)}) or the full
+                year ({formatNaira(ANNUAL_DISCOUNT_NGN)}). A verified member sees it on their dashboard straight away.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={duesSearch}
+              onChange={(e) => setDuesSearch(e.target.value)}
+              placeholder="Search a member by name or NMS number…"
+              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            />
+          </div>
+
+          {duesMessage && (
+            <div
+              className={`text-xs font-medium px-4 py-2.5 rounded-2xl border ${
+                duesMessage.tone === 'ok'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : 'bg-rose-50 border-rose-200 text-rose-800'
+              }`}
+            >
+              {duesMessage.text}
+            </div>
+          )}
+
+          {duesSearchResults.length > 0 && (
+            <div className="space-y-2">
+              {duesSearchResults.map((m) => (
+                <div
+                  key={m.id || m.nms_number}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border border-slate-200/80 bg-white"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-slate-900 truncate">{m.full_name}</p>
+                    <p className="text-[11px] text-slate-500">
+                      {m.nms_number}
+                      {m.company ? ` • ${m.company}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={duesBusy !== null}
+                      onClick={() => markDuesPaid(m, 'monthly')}
+                    >
+                      {duesBusy === `${m.nms_number}:monthly`
+                        ? 'Saving…'
+                        : `Paid This Month · ${formatNaira(MONTHLY_DUES_NGN)}`}
+                    </Button>
+                    <Button
+                      variant="emerald"
+                      size="sm"
+                      disabled={duesBusy !== null}
+                      onClick={() => markDuesPaid(m, 'annual')}
+                    >
+                      {duesBusy === `${m.nms_number}:annual`
+                        ? 'Saving…'
+                        : `Paid Full Year · ${formatNaira(ANNUAL_DISCOUNT_NGN)}`}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="space-y-3 pt-2">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Recently verified by admin
+            </p>
+            {duesVerifications.length === 0 ? (
+              <div className="p-6 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                No manual dues verifications recorded yet.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {duesVerifications.map((v) => (
+                  <div
+                    key={v.id}
+                    className="flex items-center justify-between gap-3 p-3 rounded-2xl border border-slate-200/80 bg-white"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 truncate">
+                        {v.full_name || v.nms_number}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        {v.notes} • {formatNaira(Number(v.amount_ngn) || 0)}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={duesBusy !== null}
+                      onClick={() => revokeDuesVerification(v.id)}
+                      className="text-rose-600 hover:text-rose-800 hover:bg-rose-100/50 shrink-0"
+                      icon={<Trash2 className="w-4 h-4" />}
+                    >
+                      Revoke
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      )}
+
+      {/* WEDDING CONTRIBUTION TRACKER CARD */}
+      {activeAdminSection === 'wedding' && (
+      <Card hoverEffect variant="glass">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-amber-100 text-amber-800 shadow-apple-sm flex items-center justify-center">
+              <Heart className="w-5 h-5" />
+            </div>
+            <div>
+              <CardTitle>Wedding Contribution Tracker</CardTitle>
+              <CardDescription>
+                Log company contributions towards the {formatNaira(WEDDING_GOAL_NGN)} per-company wedding-fund goal as
+                they come in. Updates appear on the public Companies page.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1">
+              <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+                Company
+              </label>
+              <select
+                value={weddingForm.company}
+                onChange={(e) => setWeddingForm((f) => ({ ...f, company: e.target.value }))}
+                className="w-full px-3.5 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+              >
+                {WEDDING_COMPANIES.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+                Amount (₦)
+              </label>
+              <input
+                type="number"
+                min="1"
+                inputMode="numeric"
+                value={weddingForm.amount}
+                onChange={(e) => setWeddingForm((f) => ({ ...f, amount: e.target.value }))}
+                placeholder="e.g. 5000"
+                className="w-full px-3.5 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="emerald"
+                size="md"
+                disabled={weddingBusy}
+                onClick={() => submitWeddingContribution('add')}
+                icon={<Plus className="w-4 h-4" />}
+              >
+                {weddingBusy ? 'Saving…' : 'Add'}
+              </Button>
+              <Button
+                variant="outline"
+                size="md"
+                disabled={weddingBusy}
+                onClick={() => submitWeddingContribution('set')}
+              >
+                Set total
+              </Button>
+            </div>
+          </div>
+
+          {weddingMessage && (
+            <div
+              className={`text-xs font-medium px-4 py-2.5 rounded-2xl border ${
+                weddingMessage.tone === 'ok'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : 'bg-rose-50 border-rose-200 text-rose-800'
+              }`}
+            >
+              {weddingMessage.text}
+            </div>
+          )}
+
+          <div className="space-y-5 pt-4 border-t border-slate-200/60">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Company progress</p>
+              <p className="text-xs font-bold text-emerald-800">
+                {formatNaira(weddingTotalContributed)}{' '}
+                <span className="text-slate-400 font-medium">of {formatNaira(weddingTotalTarget)}</span>
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+              {weddingContributions.map((c) => (
+                <ProgressBar
+                  key={c.id}
+                  value={c.amount}
+                  max={WEDDING_GOAL_NGN}
+                  label={c.name}
+                  sublabel={`${formatNaira(c.amount)} of ${formatNaira(WEDDING_GOAL_NGN)}`}
+                  color="amber"
+                  height="md"
+                />
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      )}
 
       {/* FULL MEMBER PROFILE DOSSIER MODAL */}
       {selectedMember && (
@@ -1489,6 +2141,7 @@ export function AdminDashboard() {
       )}
 
       {/* CHARTS SECTION */}
+      {(activeAdminSection === 'overview' || activeAdminSection === 'dues') && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card hoverEffect variant="glass">
           <CardHeader>
@@ -1525,6 +2178,9 @@ export function AdminDashboard() {
             )}
           </CardContent>
         </Card>
+      </div>
+      )}
+        </main>
       </div>
 
       {/* BROADCAST ANNOUNCEMENT MODAL (Requested by user) */}
