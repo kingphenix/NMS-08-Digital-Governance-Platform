@@ -231,6 +231,17 @@ export function MemberDashboard() {
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [editProfileSaving, setEditProfileSaving] = useState(false);
+
+  // Seeking Employment state
+  const [showEmploymentModal, setShowEmploymentModal] = useState(false);
+  const [employmentForm, setEmploymentForm] = useState({
+    industry: '',
+    skills: '',
+    jobInterest: '',
+    preferredLocation: '',
+  });
+  const [employmentSubmitting, setEmploymentSubmitting] = useState(false);
+  const [employmentResult, setEmploymentResult] = useState<{ tone: 'ok' | 'err'; message: string } | null>(null);
   // Dues & Paystack payment state
   const [showDuesModal, setShowDuesModal] = useState(false);
   const [showGoodwillModal, setShowGoodwillModal] = useState(false);
@@ -910,6 +921,103 @@ export function MemberDashboard() {
     setWelfareForm({ type: 'Medical', amount: '', description: '' });
   };
 
+  const handleOpenEmploymentModal = () => {
+    setEmploymentResult(null);
+    setEmploymentForm({
+      industry: profile.industry || '',
+      skills: profile.skills || '',
+      jobInterest: '',
+      preferredLocation: profile.stateOfResidence || '',
+    });
+    setShowEmploymentModal(true);
+  };
+
+  const handleEmploymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmploymentResult(null);
+
+    const ind = employmentForm.industry.trim();
+    const skl = employmentForm.skills.trim();
+    const jb = employmentForm.jobInterest.trim();
+
+    if (!ind) {
+      setEmploymentResult({ tone: 'err', message: 'Please specify your industry sector.' });
+      return;
+    }
+    if (!skl) {
+      setEmploymentResult({ tone: 'err', message: 'Please specify your key skills & competencies.' });
+      return;
+    }
+    if (!jb) {
+      setEmploymentResult({ tone: 'err', message: 'Please describe the type of jobs or roles you are interested in.' });
+      return;
+    }
+
+    setEmploymentSubmitting(true);
+    try {
+      const res = await fetch('/api/employment-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nms_number: profile.nmsNo || '',
+          full_name: profile.name,
+          company: profile.company,
+          phone: profile.phone,
+          email: profile.email,
+          industry: ind,
+          skills: skl,
+          job_interest: jb,
+          preferred_location: employmentForm.preferredLocation.trim(),
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && data?.ok) {
+        // Update local profile with skills & industry so they persist
+        setProfile((prev) => ({
+          ...prev,
+          industry: ind,
+          skills: skl,
+        }));
+
+        try {
+          if (typeof window !== 'undefined') {
+            const rawStored = localStorage.getItem('nms08_current_profile');
+            if (rawStored) {
+              const parsed = JSON.parse(rawStored);
+              parsed.industry = ind;
+              parsed.skills = skl;
+              localStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
+            }
+          }
+        } catch {}
+
+        setEmploymentResult({
+          tone: 'ok',
+          message: 'Employment request submitted successfully! An administrative notification has been sent to the alumni employment desk.',
+        });
+
+        setTimeout(() => {
+          setShowEmploymentModal(false);
+          setEmploymentResult(null);
+        }, 2200);
+      } else {
+        setEmploymentResult({
+          tone: 'err',
+          message: data?.message || 'Could not submit your request. Please try again.',
+        });
+      }
+    } catch {
+      setEmploymentResult({
+        tone: 'err',
+        message: 'Network error. Please check your connection and try again.',
+      });
+    } finally {
+      setEmploymentSubmitting(false);
+    }
+  };
+
   const markAllRead = () => {
     setNotifications(notifications.map(n => ({ ...n, isRead: true })));
   };
@@ -1471,13 +1579,22 @@ export function MemberDashboard() {
           </div>
 
           {/* Action Buttons Bar */}
-          <div className="flex items-center gap-2.5 sm:self-center w-full lg:w-auto pt-2.5 lg:pt-0 border-t border-white/10 lg:border-t-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 sm:self-center w-full lg:w-auto pt-2.5 lg:pt-0 border-t border-white/10 lg:border-t-0">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleOpenEmploymentModal}
+              icon={<Briefcase className="w-3.5 h-3.5 text-amber-700" />}
+              className="flex-1 sm:flex-initial justify-center shadow-apple-md font-bold text-xs py-2 sm:py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200"
+            >
+              Seeking Employment
+            </Button>
             <Button
               variant="secondary"
               size="sm"
               onClick={() => setShowWelfareModal(true)}
               icon={<Heart className="w-4 h-4 text-emerald-600 fill-emerald-600" />}
-              className="flex-1 lg:flex-initial justify-center shadow-apple-md font-bold text-xs py-2 sm:py-2.5"
+              className="flex-1 sm:flex-initial justify-center shadow-apple-md font-bold text-xs py-2 sm:py-2.5"
             >
               Request Welfare
             </Button>
@@ -1486,7 +1603,7 @@ export function MemberDashboard() {
               size="sm"
               onClick={() => setShowEditProfileModal(true)}
               icon={<Edit2 className="w-3.5 h-3.5 text-white" />}
-              className="flex-1 lg:flex-initial justify-center bg-white/10 hover:bg-white/20 text-white border-white/30 text-xs py-2 sm:py-2.5"
+              className="flex-1 sm:flex-initial justify-center bg-white/10 hover:bg-white/20 text-white border-white/30 text-xs py-2 sm:py-2.5"
             >
               Edit Profile
             </Button>
@@ -2875,6 +2992,146 @@ export function MemberDashboard() {
                 </Button>
                 <Button type="submit" variant="emerald">
                   Submit Claim
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* SEEKING EMPLOYMENT MODAL */}
+      {showEmploymentModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-xl max-h-[92vh] flex flex-col glass-panel rounded-3xl p-6 sm:p-8 space-y-5 shadow-2xl border border-white">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-amber-100 text-amber-800 shadow-apple-sm flex items-center justify-center">
+                  <Briefcase className="w-6 h-6 text-amber-700" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Seeking Employment Support</h3>
+                  <p className="text-xs text-slate-500">NMS 08 Brotherhood Career & Job Placement Desk</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEmploymentModal(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Member identification badge */}
+            <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-900">{profile.name}</span>
+                <span className="font-mono text-slate-500 font-semibold">{profile.nmsNo}</span>
+              </div>
+              <Badge variant="subtle" size="sm">{profile.company}</Badge>
+            </div>
+
+            {/* If skills or industry are not filled yet on the profile */}
+            {(!profile.industry?.trim() || !profile.skills?.trim()) && (
+              <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-950 flex items-start gap-2.5 text-xs shrink-0">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-amber-900">Career Information Required</p>
+                  <p className="text-amber-800 text-[11px] mt-0.5">
+                    Your profile does not yet have your Industry and Skills specified. Please fill them in below so the Executive Secretariat and alumni network can match you with relevant opportunities.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {employmentResult && (
+              <div
+                className={`p-3.5 rounded-2xl border text-xs font-medium shrink-0 ${
+                  employmentResult.tone === 'ok'
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                    : 'bg-rose-50 border-rose-300 text-rose-900'
+                }`}
+              >
+                {employmentResult.message}
+              </div>
+            )}
+
+            <form onSubmit={handleEmploymentSubmit} className="overflow-y-auto space-y-4 pr-1 max-h-[58vh]">
+              {/* Industry Sector */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Industry / Career Sector <span className="text-amber-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Information Technology, Oil & Gas, Banking & Finance, Defense, Construction..."
+                  value={employmentForm.industry}
+                  onChange={(e) => setEmploymentForm({ ...employmentForm, industry: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+
+              {/* Key Skills */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Key Skills & Competencies <span className="text-amber-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Project Management, Software Development, Financial Analysis, Supply Chain..."
+                  value={employmentForm.skills}
+                  onChange={(e) => setEmploymentForm({ ...employmentForm, skills: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+
+              {/* Type of jobs interested in */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Describe the Type of Jobs or Roles You Are Interested In <span className="text-amber-600">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="Describe your ideal roles, target job titles, seniority level, specific areas of interest, or relevant experience (e.g. Seeking Project Lead or IT Operations roles in Lagos or remote; 5+ years experience in telecommunications...)"
+                  value={employmentForm.jobInterest}
+                  onChange={(e) => setEmploymentForm({ ...employmentForm, jobInterest: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none resize-none leading-relaxed"
+                />
+              </div>
+
+              {/* Preferred Location */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Preferred Work Location / Arrangement
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Lagos, Abuja, Remote, Open to Relocation..."
+                  value={employmentForm.preferredLocation}
+                  onChange={(e) => setEmploymentForm({ ...employmentForm, preferredLocation: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowEmploymentModal(false)}
+                  disabled={employmentSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="emerald"
+                  disabled={employmentSubmitting}
+                  icon={<Briefcase className="w-4 h-4" />}
+                >
+                  {employmentSubmitting ? 'Submitting Request...' : 'Submit Employment Request'}
                 </Button>
               </div>
             </form>

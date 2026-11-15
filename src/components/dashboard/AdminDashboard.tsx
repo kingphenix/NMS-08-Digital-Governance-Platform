@@ -170,7 +170,7 @@ export function AdminDashboard() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [activeAdminSection, setActiveAdminSection] = useState<
-    'overview' | 'members' | 'dues' | 'wedding' | 'communications' | 'suggestions'
+    'overview' | 'members' | 'dues' | 'wedding' | 'employment' | 'communications' | 'suggestions'
   >('overview');
 
   // Broadcast modal & announcements state
@@ -194,6 +194,18 @@ export function AdminDashboard() {
   const [duesBusy, setDuesBusy] = useState<string | null>(null);
   const [duesMessage, setDuesMessage] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const [duesVerifications, setDuesVerifications] = useState<any[]>([]);
+
+  // Dues payers list
+  const [duesPayers, setDuesPayers] = useState<any[]>([]);
+  const [duesPayersLoading, setDuesPayersLoading] = useState(false);
+  const [duesPayersSearch, setDuesPayersSearch] = useState('');
+
+  // Employment requests state
+  const [employmentRequests, setEmploymentRequests] = useState<any[]>([]);
+  const [employmentLoading, setEmploymentLoading] = useState(false);
+  const [employmentSearch, setEmploymentSearch] = useState('');
+  const [selectedEmploymentRequest, setSelectedEmploymentRequest] = useState<any | null>(null);
+  const [employmentActionBusy, setEmploymentActionBusy] = useState<string | null>(null);
   const [weddingContributions, setWeddingContributions] = useState<Array<{ id: string; name: string; amount: number }>>(
     WEDDING_COMPANIES.map((c) => ({ ...c, amount: WEDDING_SEED_CONTRIBUTIONS[c.id] ?? 0 }))
   );
@@ -331,6 +343,58 @@ export function AdminDashboard() {
       }
     } catch {
       /* verification list is best-effort */
+    }
+  };
+
+  const fetchDuesPayers = async () => {
+    setDuesPayersLoading(true);
+    try {
+      const res = await fetch('/api/admin/dues/payers', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.payers)) setDuesPayers(data.payers);
+      }
+    } catch {
+      /* payers list is best-effort */
+    } finally {
+      setDuesPayersLoading(false);
+    }
+  };
+
+  const fetchEmploymentRequests = async () => {
+    setEmploymentLoading(true);
+    try {
+      const res = await fetch('/api/employment-requests', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.requests)) {
+          setEmploymentRequests(data.requests);
+        }
+      }
+    } catch {
+      /* best-effort */
+    } finally {
+      setEmploymentLoading(false);
+    }
+  };
+
+  const handleUpdateEmploymentStatus = async (id: string, status: string) => {
+    setEmploymentActionBusy(id);
+    try {
+      const res = await fetch('/api/employment-requests', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+      if (res.ok) {
+        fetchEmploymentRequests();
+        if (selectedEmploymentRequest && selectedEmploymentRequest.id === id) {
+          setSelectedEmploymentRequest((prev: any) => (prev ? { ...prev, status } : null));
+        }
+      }
+    } catch {}
+    finally {
+      setEmploymentActionBusy(null);
     }
   };
 
@@ -495,6 +559,34 @@ export function AdminDashboard() {
       .slice(0, 8);
   }, [members, duesSearch]);
 
+  // Filtered payers list for the search box in the payers section
+  const filteredDuesPayers = useMemo(() => {
+    const q = duesPayersSearch.trim().toLowerCase();
+    if (!q) return duesPayers;
+    return duesPayers.filter(
+      (p) =>
+        (p.full_name || '').toLowerCase().includes(q) ||
+        (p.nms_number || '').toLowerCase().includes(q) ||
+        (p.company || '').toLowerCase().includes(q)
+    );
+  }, [duesPayers, duesPayersSearch]);
+
+  // Filtered employment seekers list
+  const filteredEmploymentRequests = useMemo(() => {
+    const q = employmentSearch.trim().toLowerCase();
+    if (!q) return employmentRequests;
+    return employmentRequests.filter(
+      (r) =>
+        (r.full_name || '').toLowerCase().includes(q) ||
+        (r.nms_number || '').toLowerCase().includes(q) ||
+        (r.company || '').toLowerCase().includes(q) ||
+        (r.industry || '').toLowerCase().includes(q) ||
+        (r.skills || '').toLowerCase().includes(q) ||
+        (r.job_interest || '').toLowerCase().includes(q) ||
+        (r.preferred_location || '').toLowerCase().includes(q)
+    );
+  }, [employmentRequests, employmentSearch]);
+
   const weddingTotalTarget = WEDDING_GOAL_NGN * weddingContributions.length;
   const weddingTotalContributed = weddingContributions.reduce((sum, c) => sum + c.amount, 0);
   const newSuggestionCount = suggestions.filter((item) => item.status === 'new').length;
@@ -505,6 +597,8 @@ export function AdminDashboard() {
     fetchMembers();
     fetchAnnouncements();
     fetchDuesVerifications();
+    fetchDuesPayers();
+    fetchEmploymentRequests();
     fetchWeddingContributions();
     fetchSuggestions();
 
@@ -791,6 +885,10 @@ export function AdminDashboard() {
       title: 'Wedding Contributions',
       description: 'Record company contributions and follow the set-wide goal.',
     },
+    employment: {
+      title: 'Employment & Career Desk',
+      description: 'Review registered members seeking employment, their skills, and career preferences.',
+    },
     communications: {
       title: 'Communications',
       description: 'Manage member announcements and portal broadcasts.',
@@ -824,6 +922,7 @@ export function AdminDashboard() {
               { id: 'members' as const, label: 'Members', icon: <Users className="w-4 h-4" /> },
               { id: 'dues' as const, label: 'Dues & Finance', icon: <CreditCard className="w-4 h-4" /> },
               { id: 'wedding' as const, label: 'Wedding Fund', icon: <Heart className="w-4 h-4" /> },
+              { id: 'employment' as const, label: 'Employment', icon: <Briefcase className="w-4 h-4" /> },
               { id: 'communications' as const, label: 'Communications', icon: <Megaphone className="w-4 h-4" /> },
               { id: 'suggestions' as const, label: 'Suggestions', icon: <MessageSquare className="w-4 h-4" /> },
             ].map((item) => {
@@ -842,6 +941,11 @@ export function AdminDashboard() {
                 >
                   {item.icon}
                   <span className="whitespace-nowrap">{item.label}</span>
+                  {item.id === 'employment' && employmentRequests.length > 0 && (
+                    <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                      {employmentRequests.length}
+                    </span>
+                  )}
                   {item.id === 'suggestions' && newSuggestionCount > 0 && (
                     <span className="ml-auto rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">
                       {newSuggestionCount}
@@ -1825,6 +1929,129 @@ export function AdminDashboard() {
       </Card>
       )}
 
+      {/* DUES PAYERS LIST CARD */}
+      {activeAdminSection === 'dues' && (
+      <Card hoverEffect variant="glass">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 shadow-apple-sm flex items-center justify-center">
+              <Users className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <CardTitle>Members Who Have Paid Dues</CardTitle>
+              <CardDescription>
+                All Ex-Boys with at least one dues payment on record — {duesPayersLoading ? 'loading…' : `${duesPayers.length} member${duesPayers.length !== 1 ? 's' : ''}`}.
+              </CardDescription>
+            </div>
+            <button
+              onClick={fetchDuesPayers}
+              disabled={duesPayersLoading}
+              className="shrink-0 text-xs font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl px-3 py-1.5 transition-colors disabled:opacity-50"
+            >
+              {duesPayersLoading ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={duesPayersSearch}
+              onChange={(e) => setDuesPayersSearch(e.target.value)}
+              placeholder="Filter by name, NMS number or company…"
+              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            />
+          </div>
+
+          {duesPayersLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5].map((_, i) => (
+                <div key={i} className="h-14 rounded-2xl bg-slate-100 animate-pulse" />
+              ))}
+            </div>
+          ) : filteredDuesPayers.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+              {duesPayersSearch ? 'No matches found.' : 'No dues payments recorded yet.'}
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+              {/* Header row */}
+              <div className="grid grid-cols-12 gap-2 px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <span className="col-span-1 text-center">#</span>
+                <span className="col-span-4">Name</span>
+                <span className="col-span-3">NMS Number</span>
+                <span className="col-span-2">Company</span>
+                <span className="col-span-2 text-right">Total Paid</span>
+              </div>
+              {filteredDuesPayers.map((p, idx) => (
+                <div
+                  key={p.nms_number}
+                  className="grid grid-cols-12 gap-2 items-center px-3.5 py-3 rounded-2xl border border-slate-200/80 bg-white hover:bg-emerald-50/40 transition-colors"
+                >
+                  {/* Index */}
+                  <span className="col-span-1 text-center text-xs font-bold text-slate-400">
+                    {idx + 1}
+                  </span>
+
+                  {/* Name */}
+                  <div className="col-span-4 min-w-0">
+                    <p className="text-sm font-bold text-slate-900 truncate">
+                      {p.full_name || '—'}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      {p.payment_count} payment{p.payment_count !== 1 ? 's' : ''}
+                      {p.last_paid_at
+                        ? ` · Last: ${new Date(p.last_paid_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                        : ''}
+                    </p>
+                  </div>
+
+                  {/* NMS Number */}
+                  <div className="col-span-3 min-w-0">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 text-[11px] font-mono font-semibold text-slate-700 truncate max-w-full">
+                      {p.nms_number}
+                    </span>
+                  </div>
+
+                  {/* Company */}
+                  <div className="col-span-2 min-w-0">
+                    <span className="text-xs text-slate-600 truncate block">
+                      {p.company ? p.company.replace(/\s*Company\s*/i, '') : '—'}
+                    </span>
+                  </div>
+
+                  {/* Total paid */}
+                  <div className="col-span-2 text-right">
+                    <span className="text-xs font-bold text-emerald-700">
+                      ₦{(p.total_paid_ngn / 1000).toFixed(0)}k
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Summary footer */}
+          {!duesPayersLoading && duesPayers.length > 0 && (
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+              <span>
+                Showing <span className="font-bold text-slate-700">{filteredDuesPayers.length}</span> of{' '}
+                <span className="font-bold text-slate-700">{duesPayers.length}</span> members
+              </span>
+              <span>
+                Total collected:{' '}
+                <span className="font-bold text-emerald-700">
+                  ₦{(duesPayers.reduce((s, p) => s + (p.total_paid_ngn || 0), 0) / 1_000_000).toFixed(2)}M
+                </span>
+              </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      )}
+
       {/* WEDDING CONTRIBUTION TRACKER CARD */}
       {activeAdminSection === 'wedding' && (
       <Card hoverEffect variant="glass">
@@ -1931,6 +2158,335 @@ export function AdminDashboard() {
           </div>
         </CardContent>
       </Card>
+      )}
+
+      {/* EMPLOYMENT & CAREER DESK SECTION */}
+      {activeAdminSection === 'employment' && (
+      <div className="space-y-6">
+        <Card hoverEffect variant="glass">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-amber-100 text-amber-800 shadow-apple-sm flex items-center justify-center">
+                  <Briefcase className="w-5 h-5 text-amber-700" />
+                </div>
+                <div>
+                  <CardTitle>Employment & Career Opportunities Desk</CardTitle>
+                  <CardDescription>
+                    Registered Ex-Boys currently seeking career placement, advisory roles, or employment opportunities.
+                  </CardDescription>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={fetchEmploymentRequests}
+                disabled={employmentLoading}
+                className="self-start sm:self-auto shrink-0 text-xs font-semibold text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl px-3.5 py-2 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${employmentLoading ? 'animate-spin' : ''}`} />
+                <span>{employmentLoading ? 'Refreshing…' : 'Refresh Roster'}</span>
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Quick Metrics Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Seekers</span>
+                <span className="text-xl font-extrabold text-slate-900 mt-0.5 block">{employmentRequests.length}</span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/70">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">Pending Review</span>
+                <span className="text-xl font-extrabold text-amber-900 mt-0.5 block">
+                  {employmentRequests.filter((r) => r.status === 'Pending').length}
+                </span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200/70">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 block">Under Review</span>
+                <span className="text-xl font-extrabold text-blue-900 mt-0.5 block">
+                  {employmentRequests.filter((r) => r.status === 'Reviewing' || r.status === 'Contacted').length}
+                </span>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200/70">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">Placed / Settled</span>
+                <span className="text-xl font-extrabold text-emerald-900 mt-0.5 block">
+                  {employmentRequests.filter((r) => r.status === 'Placed').length}
+                </span>
+              </div>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={employmentSearch}
+                onChange={(e) => setEmploymentSearch(e.target.value)}
+                placeholder="Search by name, NMS number, company, industry, or skills…"
+                className="w-full pl-10 pr-4 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+              />
+            </div>
+
+            {/* List / Cards */}
+            {employmentLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((_, i) => (
+                  <div key={i} className="h-28 rounded-2xl bg-slate-100 animate-pulse" />
+                ))}
+              </div>
+            ) : filteredEmploymentRequests.length === 0 ? (
+              <div className="p-10 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 space-y-2">
+                <Briefcase className="w-8 h-8 text-slate-300 mx-auto" />
+                <p className="font-semibold text-slate-600">
+                  {employmentSearch ? 'No employment requests matched your search query.' : 'No employment requests recorded yet.'}
+                </p>
+                <p className="text-slate-400 max-w-sm mx-auto">
+                  When registered members click &ldquo;Seeking Employment&rdquo; in their dashboard and describe the jobs they are looking for, their dossiers appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                {filteredEmploymentRequests.map((req) => {
+                  const statusColors: Record<string, { bg: string; text: string; border: string }> = {
+                    Pending: { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200' },
+                    Reviewing: { bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-200' },
+                    Contacted: { bg: 'bg-purple-50', text: 'text-purple-800', border: 'border-purple-200' },
+                    Placed: { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200' },
+                  };
+                  const color = statusColors[req.status] || statusColors.Pending;
+
+                  return (
+                    <div
+                      key={req.id}
+                      className="p-4 sm:p-5 rounded-2xl border border-slate-200/90 bg-white shadow-apple-sm hover:border-amber-300 transition-all space-y-3.5"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 font-extrabold flex items-center justify-center text-sm shadow-sm shrink-0">
+                            {req.full_name ? req.full_name[0].toUpperCase() : 'E'}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-base font-bold text-slate-900">{req.full_name}</h4>
+                              <span className="font-mono text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-lg">
+                                {req.nms_number}
+                              </span>
+                              {req.company && (
+                                <Badge variant="subtle" size="sm">
+                                  {req.company.replace(/\s*Company\s*/i, '')}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Submitted {req.createdAt ? new Date(req.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently'}
+                              {req.preferred_location ? ` • Preferred: ${req.preferred_location}` : ''}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${color.bg} ${color.text} ${color.border}`}>
+                            {req.status}
+                          </span>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setSelectedEmploymentRequest(req)}
+                            icon={<Eye className="w-3.5 h-3.5 text-amber-700" />}
+                            className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold shadow-sm"
+                          >
+                            View Details (Pop Up)
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Industry & Skills row */}
+                      <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                        <span className="font-semibold text-slate-600">Industry:</span>
+                        <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 font-bold text-slate-800">
+                          {req.industry || 'Not specified'}
+                        </span>
+                        <span className="text-slate-300">|</span>
+                        <span className="font-semibold text-slate-600">Skills:</span>
+                        <span className="px-2.5 py-0.5 rounded-lg bg-slate-50 border border-slate-200 font-medium text-slate-700">
+                          {req.skills || 'Not specified'}
+                        </span>
+                      </div>
+
+                      {/* Job interests box preview */}
+                      <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200/80 text-xs">
+                        <span className="font-bold text-amber-900 block mb-1">Target Roles & Interests:</span>
+                        <p className="text-slate-700 line-clamp-2 leading-relaxed">
+                          {req.job_interest}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      )}
+
+      {/* DETAILED EMPLOYMENT DOSSIER POP UP MODAL */}
+      {selectedEmploymentRequest && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl max-h-[92vh] flex flex-col glass-panel rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl border border-white">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-amber-100 text-amber-800 shadow-apple-sm flex items-center justify-center">
+                  <Briefcase className="w-6 h-6 text-amber-700" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Ex-Boy Employment Dossier</h3>
+                  <p className="text-xs text-slate-500 font-mono">
+                    Candidate: {selectedEmploymentRequest.nms_number} • {selectedEmploymentRequest.company}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedEmploymentRequest(null)}
+                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="overflow-y-auto space-y-5 pr-1 max-h-[64vh]">
+              {/* Member Overview Card */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-lg font-extrabold text-slate-900">{selectedEmploymentRequest.full_name}</h4>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="font-mono text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                      {selectedEmploymentRequest.nms_number}
+                    </span>
+                    <Badge variant="subtle" size="sm">{selectedEmploymentRequest.company}</Badge>
+                    <span className="text-xs text-slate-500">
+                      Submitted: {selectedEmploymentRequest.createdAt ? new Date(selectedEmploymentRequest.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Status Switcher */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs font-semibold text-slate-500">Status:</span>
+                  <select
+                    value={selectedEmploymentRequest.status}
+                    disabled={employmentActionBusy !== null}
+                    onChange={(e) => handleUpdateEmploymentStatus(selectedEmploymentRequest.id, e.target.value)}
+                    className="text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Reviewing">Under Review</option>
+                    <option value="Contacted">Contacted</option>
+                    <option value="Placed">Placed / Settled</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Contact Particulars */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200/80 space-y-3">
+                <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400">Direct Contact Particulars</h5>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="font-semibold text-slate-800 truncate">
+                        {selectedEmploymentRequest.phone || 'Phone not on file'}
+                      </span>
+                    </div>
+                    {selectedEmploymentRequest.phone && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <a
+                          href={`tel:${selectedEmploymentRequest.phone}`}
+                          className="px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold text-[10px] transition-colors"
+                        >
+                          Call
+                        </a>
+                        <a
+                          href={`https://wa.me/${selectedEmploymentRequest.phone.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition-colors"
+                        >
+                          WhatsApp
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Mail className="w-4 h-4 text-blue-600 shrink-0" />
+                      <span className="font-semibold text-slate-800 truncate">
+                        {selectedEmploymentRequest.email || 'Email not on file'}
+                      </span>
+                    </div>
+                    {selectedEmploymentRequest.email && (
+                      <a
+                        href={`mailto:${selectedEmploymentRequest.email}?subject=NMS 08 Career Opportunity Inquiry`}
+                        className="px-2 py-1 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold text-[10px] shrink-0 transition-colors"
+                      >
+                        Email
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Career Particulars */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Industry Sector</span>
+                  <p className="font-bold text-slate-900 text-sm">{selectedEmploymentRequest.industry || 'Not specified'}</p>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Preferred Work Location</span>
+                  <p className="font-bold text-slate-900 text-sm">{selectedEmploymentRequest.preferred_location || 'Flexible / Any'}</p>
+                </div>
+              </div>
+
+              {/* Key Skills */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Key Skills & Competencies</span>
+                <p className="font-semibold text-slate-900 text-xs leading-relaxed">
+                  {selectedEmploymentRequest.skills || 'Not specified'}
+                </p>
+              </div>
+
+              {/* Target Job Interests Box (Full Description) */}
+              <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300 space-y-2">
+                <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                  <Briefcase className="w-4 h-4 text-amber-700" />
+                  <span>Target Jobs & Roles of Interest</span>
+                </div>
+                <p className="text-slate-800 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap bg-white/70 p-3.5 rounded-xl border border-amber-200/60 font-medium">
+                  {selectedEmploymentRequest.job_interest}
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-3 border-t border-slate-200 flex items-center justify-between shrink-0">
+              <span className="text-xs text-slate-400">
+                Request ID: <span className="font-mono">{selectedEmploymentRequest.id}</span>
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedEmploymentRequest(null)}
+              >
+                Close Pop Up
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* FULL MEMBER PROFILE DOSSIER MODAL */}

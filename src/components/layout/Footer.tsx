@@ -11,7 +11,7 @@ export function Footer() {
     <footer className="bg-black text-slate-300 pt-16 pb-12 border-t border-slate-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-slate-900">
-          
+
           {/* Brand Info */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-3">
@@ -68,15 +68,15 @@ export function Footer() {
             <ul className="space-y-3 text-xs text-slate-400">
               <li className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span>NMS Alumni House, Central Business District, Abuja, Nigeria</span>
+                <span>Nigerian Military School, Zaria Chindit Cantonment, PMB 1012.</span>
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>secretariat@nms08alumni.org</span>
+                <span>Nms08exboysassociation@gmail.com</span>
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>+234 803 000 0008</span>
+                <span>+234704912795, +2348137685454</span>
               </li>
             </ul>
           </div>
