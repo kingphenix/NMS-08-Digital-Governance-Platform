@@ -173,6 +173,11 @@ export async function GET() {
       compliance: c.duesComplianceRate,
     }));
 
+    const members = profiles.map((p) => ({
+      nms_number: (p.nms_number || '').trim().toUpperCase(),
+      company: p.company || '',
+    }));
+
     return NextResponse.json({
       ok: true,
       counts: companyCounts,
@@ -180,6 +185,7 @@ export async function GET() {
       totalRegistered,
       companies,
       companyBreakdown,
+      members,
     }, { headers: noCacheHeaders });
   } catch (err: any) {
     console.error('Error fetching company stats from Supabase:', err?.message || err);
@@ -190,6 +196,7 @@ export async function GET() {
       totalRegistered: 0,
       companies: COMPANIES_LIST.map((c) => ({ ...c, totalMembers: 0, duesComplianceRate: 0 })),
       companyBreakdown: [],
+      members: [],
     }, { status: 200, headers: noCacheHeaders }); // Return 200 with fallback data instead of 500
   }
 }

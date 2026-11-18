@@ -262,7 +262,7 @@ export function AdminDashboard() {
         if (data.ok) {
           let list: MemberProfileData[] = data.members || [];
 
-          // Merge any locally registered member submissions
+          // Merge any locally registered member submissions or profile updates
           if (typeof window !== 'undefined') {
             try {
               const localSaved = localStorage.getItem('nms08_registered_members');
@@ -270,10 +270,28 @@ export function AdminDashboard() {
                 const parsed = JSON.parse(localSaved);
                 if (Array.isArray(parsed)) {
                   parsed.forEach((pm: any) => {
-                    if (!list.some((existing) => existing.nms_number === pm.nms_number)) {
+                    const pmNms = (pm.nms_number || pm.nmsNo || pm.nms || '').trim().toUpperCase();
+                    if (!pmNms) return;
+                    const idx = list.findIndex((existing) => (existing.nms_number || '').trim().toUpperCase() === pmNms);
+                    if (idx >= 0) {
+                      list[idx] = { ...list[idx], ...pm };
+                    } else {
                       list = [pm, ...list];
                     }
                   });
+                }
+              }
+            } catch {}
+            try {
+              const currentProfile = localStorage.getItem('nms08_current_profile');
+              if (currentProfile) {
+                const cp = JSON.parse(currentProfile);
+                const cpNms = (cp.nms_number || cp.nmsNo || cp.nms || '').trim().toUpperCase();
+                if (cpNms) {
+                  const idx = list.findIndex((existing) => (existing.nms_number || '').trim().toUpperCase() === cpNms);
+                  if (idx >= 0) {
+                    list[idx] = { ...list[idx], company: cp.company || list[idx].company };
+                  }
                 }
               }
             } catch {}

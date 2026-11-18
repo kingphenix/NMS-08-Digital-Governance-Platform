@@ -48,56 +48,88 @@ export function getRegisteredCountsFromStorage(
   if (typeof window === 'undefined') return counts;
 
   try {
-    const countedNms = new Set<string>();
+    // 1. Build map of server known members: nms -> normalized companyId
+    const serverMemberMap = new Map<string, CompanyId | null>();
     if (Array.isArray(knownMembers)) {
       for (const m of knownMembers) {
         const nms = (m.nms_number || m.nmsNo || '').toString().trim().toUpperCase();
-        if (nms) countedNms.add(nms);
+        if (nms) {
+          serverMemberMap.set(nms, normalizeCompanyId(m.company));
+        }
       }
     }
 
-    const processMember = (m: any) => {
+    // 2. Gather local member records (active profile and locally stored registered members)
+    const localMembersMap = new Map<string, CompanyId | null>();
+
+    const registerLocal = (m: any) => {
       if (!m) return;
       const nms = (m.nms_number || m.nmsNo || m.nms || '').toString().trim().toUpperCase();
-      if (nms && countedNms.has(nms)) return;
-      if (nms) countedNms.add(nms);
-
+      if (!nms) return;
       const cid = normalizeCompanyId(m.company);
-      if (cid && counts[cid] !== undefined) {
-        counts[cid]++;
-      }
+      localMembersMap.set(nms, cid);
     };
 
-    // 1. Process localStorage registered members
-    const localSaved = localStorage.getItem('nms08_registered_members');
-    if (localSaved) {
-      const parsed = JSON.parse(localSaved);
-      if (Array.isArray(parsed)) {
-        parsed.forEach(processMember);
+    // Read localStorage registered members
+    try {
+      const localSaved = localStorage.getItem('nms08_registered_members');
+      if (localSaved) {
+        const parsed = JSON.parse(localSaved);
+        if (Array.isArray(parsed)) parsed.forEach(registerLocal);
       }
-    }
+    } catch {}
 
-    // 2. Process sessionStorage registered members
-    const sessionSaved = sessionStorage.getItem('nms08_registered_members');
-    if (sessionSaved) {
-      const parsed = JSON.parse(sessionSaved);
-      if (Array.isArray(parsed)) {
-        parsed.forEach(processMember);
+    // Read sessionStorage registered members
+    try {
+      const sessionSaved = sessionStorage.getItem('nms08_registered_members');
+      if (sessionSaved) {
+        const parsed = JSON.parse(sessionSaved);
+        if (Array.isArray(parsed)) parsed.forEach(registerLocal);
       }
-    }
+    } catch {}
 
-    // 3. Process current active profile from localStorage and sessionStorage
-    const currentLocal = localStorage.getItem('nms08_current_profile');
-    if (currentLocal) {
-      try {
-        processMember(JSON.parse(currentLocal));
-      } catch {}
-    }
-    const currentSession = sessionStorage.getItem('nms08_current_profile');
-    if (currentSession) {
-      try {
-        processMember(JSON.parse(currentSession));
-      } catch {}
+    // Current active profile takes top precedence
+    try {
+      const currentLocal = localStorage.getItem('nms08_current_profile');
+      if (currentLocal) registerLocal(JSON.parse(currentLocal));
+    } catch {}
+    try {
+      const currentSession = sessionStorage.getItem('nms08_current_profile');
+      if (currentSession) registerLocal(JSON.parse(currentSession));
+    } catch {}
+
+    // 3. Reconcile local members with server counts
+    if (serverMemberMap.size === 0) {
+      // Pure offline/fallback mode (no server members data)
+      const hasBaseCounts = baseCounts && Object.values(baseCounts).some((v) => v > 0);
+      if (!hasBaseCounts) {
+        for (const [, cid] of localMembersMap) {
+          if (cid && counts[cid] !== undefined) {
+            counts[cid]++;
+          }
+        }
+      }
+    } else {
+      // Server members known: reconcile any differences or new local members
+      for (const [nms, localCid] of localMembersMap) {
+        if (serverMemberMap.has(nms)) {
+          const serverCid = serverMemberMap.get(nms);
+          if (serverCid !== localCid) {
+            // User changed company locally: decrement old company, increment new company
+            if (serverCid && counts[serverCid] !== undefined && counts[serverCid] > 0) {
+              counts[serverCid]--;
+            }
+            if (localCid && counts[localCid] !== undefined) {
+              counts[localCid]++;
+            }
+          }
+        } else {
+          // Newly registered member not yet returned in server member set
+          if (localCid && counts[localCid] !== undefined) {
+            counts[localCid]++;
+          }
+        }
+      }
     }
   } catch (err) {
     console.warn('Error reading storage for company counts:', err);

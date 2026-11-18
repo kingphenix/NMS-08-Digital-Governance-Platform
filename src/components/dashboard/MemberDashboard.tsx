@@ -698,7 +698,7 @@ export function MemberDashboard() {
     setTimeout(() => setShowPhotoToast(false), 4000);
   };
 
-  const handleUpdateCompany = (companyName: string) => {
+  const handleUpdateCompany = async (companyName: string) => {
     const derivedSquad = companyName ? companyName.replace(/\s*Company\s*/i, '').trim() : '';
     setProfile((prev) => ({ ...prev, company: companyName, squad: derivedSquad || prev.squad }));
     try {
@@ -727,19 +727,29 @@ export function MemberDashboard() {
       }));
     }
 
-    try {
-      const regSaved = localStorage.getItem('nms08_registered_members');
-      if (regSaved) {
-        const arr = JSON.parse(regSaved);
+    const targetNms = (profile.nmsNo || '').trim().toUpperCase();
+    const updateMemberList = (raw: string | null) => {
+      if (!raw) return null;
+      try {
+        const arr = JSON.parse(raw);
         if (Array.isArray(arr)) {
-          const updated = arr.map((item: any) =>
-            (item.nms_number || item.nmsNo) === profile.nmsNo
-              ? { ...item, company: companyName }
-              : item
+          return JSON.stringify(
+            arr.map((item: any) =>
+              (item.nms_number || item.nmsNo || item.nms || '').trim().toUpperCase() === targetNms
+                ? { ...item, company: companyName }
+                : item
+            )
           );
-          localStorage.setItem('nms08_registered_members', JSON.stringify(updated));
         }
-      }
+      } catch {}
+      return null;
+    };
+
+    try {
+      const updatedLocal = updateMemberList(localStorage.getItem('nms08_registered_members'));
+      if (updatedLocal) localStorage.setItem('nms08_registered_members', updatedLocal);
+      const updatedSession = updateMemberList(sessionStorage.getItem('nms08_registered_members'));
+      if (updatedSession) sessionStorage.setItem('nms08_registered_members', updatedSession);
     } catch {}
 
     window.dispatchEvent(new Event('nms08-company-updated'));
@@ -747,14 +757,18 @@ export function MemberDashboard() {
     window.dispatchEvent(new Event('storage'));
 
     if (profile.nmsNo) {
-      fetch('/api/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nms: profile.nmsNo,
-          company: companyName,
-        }),
-      }).catch((err) => console.warn('Company update error:', err));
+      try {
+        await fetch('/api/profile', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nms: profile.nmsNo,
+            company: companyName,
+          }),
+        });
+      } catch (err) {
+        console.warn('Company update error:', err);
+      }
     }
     setShowCompanyModal(false);
     setPhotoToastMessage(`Company Affiliation updated to ${companyName}`);
@@ -863,27 +877,37 @@ export function MemberDashboard() {
         window.dispatchEvent(new Event('nms08-company-updated'));
       }
 
-      try {
-        const regSaved = localStorage.getItem('nms08_registered_members');
-        if (regSaved) {
-          const arr = JSON.parse(regSaved);
+      const targetNms = (profile.nmsNo || '').trim().toUpperCase();
+      const updateMemberList = (raw: string | null) => {
+        if (!raw) return null;
+        try {
+          const arr = JSON.parse(raw);
           if (Array.isArray(arr)) {
-            const updatedMembers = arr.map((item: any) =>
-              (item.nms_number || item.nmsNo) === profile.nmsNo
-                ? {
-                    ...item,
-                    company: profileEditForm.company || item.company,
-                    home_cell: profileEditForm.homeCell || item.home_cell,
-                    homeCell: profileEditForm.homeCell || item.homeCell,
-                    state_of_residence: profileEditForm.stateOfResidence || item.state_of_residence,
-                    stateOfResidence: profileEditForm.stateOfResidence || item.stateOfResidence,
-                    address: profileEditForm.address || item.address,
-                  }
-                : item
+            return JSON.stringify(
+              arr.map((item: any) =>
+                (item.nms_number || item.nmsNo || item.nms || '').trim().toUpperCase() === targetNms
+                  ? {
+                      ...item,
+                      company: profileEditForm.company || item.company,
+                      home_cell: profileEditForm.homeCell || item.home_cell,
+                      homeCell: profileEditForm.homeCell || item.homeCell,
+                      state_of_residence: profileEditForm.stateOfResidence || item.state_of_residence,
+                      stateOfResidence: profileEditForm.stateOfResidence || item.stateOfResidence,
+                      address: profileEditForm.address || item.address,
+                    }
+                  : item
+              )
             );
-            localStorage.setItem('nms08_registered_members', JSON.stringify(updatedMembers));
           }
-        }
+        } catch {}
+        return null;
+      };
+
+      try {
+        const updatedLocal = updateMemberList(localStorage.getItem('nms08_registered_members'));
+        if (updatedLocal) localStorage.setItem('nms08_registered_members', updatedLocal);
+        const updatedSession = updateMemberList(sessionStorage.getItem('nms08_registered_members'));
+        if (updatedSession) sessionStorage.setItem('nms08_registered_members', updatedSession);
       } catch {}
 
       setChapterCounts(calculateChapterCounts(serverMembers, updated));
@@ -1094,7 +1118,7 @@ export function MemberDashboard() {
         if (res.ok) {
           const data = await res.json();
           if (data.ok && data.counts) {
-            const merged = getRegisteredCountsFromStorage(data.counts);
+            const merged = getRegisteredCountsFromStorage(data.counts, data.members);
             setCompanyCounts(merged);
             if (data.chapterCounts) {
               setChapterCounts((prev) => calculateChapterCounts(serverMembers, profile, data.chapterCounts));
