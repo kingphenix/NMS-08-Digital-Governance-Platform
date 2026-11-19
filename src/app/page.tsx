@@ -1,11 +1,12 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import mainLogo from '@/assets/nms-new-logo.webp';
+import mainLogo from '@/assets/nMS 08 LOGO.png';
 import marchImage from '@/assets/march.webp';
 import setChairman from '@/assets/set chairman.jpeg';
 import militaryManSvg from '@/assets/military-man.svg';
 import tankSvg from '@/assets/tank.svg';
+import elueluImage from '@/assets/elumelu.jpeg';
 import speakerSvg from '@/assets/speaker.svg';
 import {
   Shield,
@@ -134,6 +135,20 @@ export default function HomePage() {
             </div>
           </div>
         </Card>
+      </section>
+
+      {/* ELUMELU BANNER */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative w-full overflow-hidden rounded-3xl shadow-apple-lg">
+          <Image
+            src={elueluImage}
+            alt="Tony Elumelu — NMS Class of 2008 Event"
+            width={1400}
+            height={500}
+            className="w-full h-auto object-cover"
+            priority={false}
+          />
+        </div>
       </section>
 
       {/* COMPANIES SHOWCASE PREVIEW */}

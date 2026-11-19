@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import secondaryLogo from '@/assets/slogo@2x.png';
+import secondaryLogo from '@/assets/nMS 08 LOGO.png';
 import dogTagsSvg from '@/assets/Dog-tags.svg';
 
 export const HOME_CELL_CHAPTERS = [
