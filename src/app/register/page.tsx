@@ -55,6 +55,15 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const isFormComplete =
+    form.nmsNo.trim().length > 0 &&
+    form.name.trim().length > 0 &&
+    form.dob.length > 0 &&
+    form.email.trim().length > 0 &&
+    form.phone.trim().length > 0 &&
+    form.password.length >= 6 &&
+    form.confirmPassword === form.password;
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
@@ -239,7 +248,7 @@ export default function RegisterPage() {
         ) : (
           /* Compact Registration Form */
           <Card variant="glass" className="p-8 md:p-12 shadow-apple-lg border-white/60 bg-white/90">
-            <form onSubmit={handleRegister} className="space-y-8 text-xs">
+            <form onSubmit={handleRegister} noValidate className="space-y-8 text-xs">
               {/* Error Alert */}
               {errorMessage && (
                 <div
@@ -476,7 +485,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   id="register-submit-btn"
-                  disabled={loading || !form.nmsNo.trim() || !form.name.trim()}
+                  disabled={loading || !isFormComplete}
                   className="w-full py-4 px-6 rounded-xl font-bold text-sm tracking-wide bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white transition-all shadow-md shadow-emerald-900/10 flex items-center justify-center gap-2 active:scale-[0.99]"
                 >
                   {loading ? (
@@ -494,6 +503,25 @@ export default function RegisterPage() {
                 <p className="text-center text-[11px] text-slate-400 mt-3">
                   By registering, you confirm that your details are accurate and agree to the platform's governance terms.
                 </p>
+                {!isFormComplete && !loading && (
+                  <div className="text-center text-[11px] text-amber-600 mt-2 space-y-0.5">
+                    <p className="font-semibold">Please complete all fields to enable registration:</p>
+                    <p className="text-amber-500">
+                      {[
+                        !form.nmsNo.trim() && 'NMS Number',
+                        !form.name.trim() && 'Full Name',
+                        !form.dob && 'Date of Birth',
+                        !form.email.trim() && 'Email',
+                        !form.phone.trim() && 'Phone',
+                        !form.password && 'Password',
+                        form.password && form.password.length < 6 && 'Password (min 6 chars)',
+                        form.password && form.password.length >= 6 && form.confirmPassword !== form.password && 'Passwords must match',
+                      ]
+                        .filter(Boolean)
+                        .join(' • ')}
+                    </p>
+                  </div>
+                )}
               </div>
             </form>
           </Card>
