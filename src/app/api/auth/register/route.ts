@@ -140,15 +140,20 @@ export async function POST(request: Request) {
         .maybeSingle();
 
       if (!rosterRow) {
+        console.warn(`Registration failed: NMS number '${canonicalNms}' not found in roster`);
         return NextResponse.json({ ok: false, message: FAIL_MESSAGE }, { status: 400 });
       }
 
-      // Verify the claimed name against the roster name tokens, exactly as the
-      // Edge Function does. Without this, anyone who knows a member's NMS number
-      // could claim that identity and overwrite the account's password.
+      // Verify the claimed name against the roster name tokens.
+      // The user must supply at least 2 tokens, and at least 2 of the roster's
+      // own tokens must appear in the user's input. This allows the user to
+      // type extra names (middle names, nicknames) without being rejected,
+      // while still verifying they know the name on the roster.
       const typed = toTokens(fullName);
       const rosterTokens: string[] = rosterRow.name_tokens ?? [];
-      if (typed.length < 2 || !typed.every((t) => rosterTokens.includes(t))) {
+      const matchCount = rosterTokens.filter((rt) => typed.includes(rt)).length;
+      if (typed.length < 2 || matchCount < 2 || (rosterTokens.length > 0 && matchCount < Math.min(2, rosterTokens.length))) {
+        console.warn(`Registration name mismatch: typed=${JSON.stringify(typed)}, roster=${JSON.stringify(rosterTokens)}, matchCount=${matchCount}`);
         return NextResponse.json({ ok: false, message: FAIL_MESSAGE }, { status: 400 });
       }
 

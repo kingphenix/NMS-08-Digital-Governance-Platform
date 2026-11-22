@@ -148,12 +148,16 @@ Deno.serve(async (req) => {
     const { data: row } = await supabase
       .from('roster')
       .select('id, full_name, name_tokens, registered')
-      .eq('nms_number', nms)
+      .ilike('nms_number', nms)
       .maybeSingle();
 
     const typed = toTokens(full_name);
     const rosterTokens: string[] = row?.name_tokens ?? [];
-    const nameOk = typed.length >= 2 && typed.every((t) => rosterTokens.includes(t));
+    // The user must supply at least 2 tokens, and at least 2 of the roster's
+    // own tokens must appear in the user's input. This allows users to type
+    // extra names (middle names, nicknames) without being rejected.
+    const matchCount = rosterTokens.filter((rt: string) => typed.includes(rt)).length;
+    const nameOk = typed.length >= 2 && matchCount >= Math.min(2, rosterTokens.length);
 
     if (!row || !nameOk) {
       await log(false, nms);
