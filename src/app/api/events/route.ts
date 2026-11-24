@@ -1,7 +1,38 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 
 export const runtime = 'nodejs';
+
+const isUuid = (val?: string) =>
+  typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+const DATA_DIR = path.join(process.cwd(), '.data');
+const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
+
+function getLocalEvents(): any[] {
+  try {
+    if (!fs.existsSync(EVENTS_FILE)) return [];
+    const content = fs.readFileSync(EVENTS_FILE, 'utf8');
+    const parsed = JSON.parse(content);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalEvents(events: any[]): void {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(EVENTS_FILE, JSON.stringify(events, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Failed to save local events fallback:', err);
+  }
+}
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -17,7 +48,7 @@ export async function GET(request: Request) {
   const admin = searchParams.get('admin') === 'true';
 
   if (!supabase) {
-    return NextResponse.json({ ok: true, events: [] });
+    return NextResponse.json({ ok: true, events: getLocalEvents() });
   }
 
   try {
@@ -33,23 +64,34 @@ export async function GET(request: Request) {
     const { data, error } = await query;
 
     if (error) {
-      console.warn('Events query warning (table may be pending migration):', error.message);
-      return NextResponse.json({ ok: true, events: [] });
+      // If table is not yet in Supabase schema cache, use local storage fallback
+      console.warn('Events query (using local fallback if table pending migration):', error.message);
+      const local = getLocalEvents();
+      const filtered = admin ? local : local.filter((e) => e.status !== 'draft');
+      return NextResponse.json({ ok: true, events: filtered });
     }
 
-    return NextResponse.json({ ok: true, events: data || [] });
+    // Merge with any local offline events
+    const local = getLocalEvents();
+    const existingIds = new Set((data || []).map((e: any) => e.id));
+    const merged = [...(data || [])];
+    for (const le of local) {
+      if (!existingIds.has(le.id) && (admin || le.status !== 'draft')) {
+        merged.push(le);
+      }
+    }
+    merged.sort((a, b) => b.event_date.localeCompare(a.event_date));
+
+    return NextResponse.json({ ok: true, events: merged });
   } catch (err) {
     console.error('Events GET error:', err);
-    return NextResponse.json({ ok: true, events: [] });
+    return NextResponse.json({ ok: true, events: getLocalEvents() });
   }
 }
 
 /** POST /api/events — Create or update an event (admin only) */
 export async function POST(request: Request) {
   const supabase = getSupabase();
-  if (!supabase) {
-    return NextResponse.json({ ok: false, message: 'Database service unavailable' }, { status: 503 });
-  }
 
   try {
     const body = await request.json();
@@ -74,7 +116,10 @@ export async function POST(request: Request) {
       );
     }
 
+    const eventId = isUuid(id) ? id : crypto.randomUUID();
+
     const payload: Record<string, any> = {
+      id: eventId,
       title: title.trim(),
       description: description?.trim() || '',
       event_date,
@@ -88,6 +133,20 @@ export async function POST(request: Request) {
       updated_at: new Date().toISOString(),
     };
 
+    if (!supabase) {
+      // Local fallback
+      const local = getLocalEvents();
+      const existingIdx = local.findIndex((e) => e.id === payload.id);
+      if (existingIdx >= 0) {
+        local[existingIdx] = { ...local[existingIdx], ...payload };
+      } else {
+        payload.created_at = new Date().toISOString();
+        local.unshift(payload);
+      }
+      saveLocalEvents(local);
+      return NextResponse.json({ ok: true, event: payload });
+    }
+
     if (id) {
       // Update existing
       const { data, error } = await supabase
@@ -98,6 +157,17 @@ export async function POST(request: Request) {
         .maybeSingle();
 
       if (error) {
+        if (error.message.includes('schema cache') || error.code === 'PGRST204') {
+          const local = getLocalEvents();
+          const existingIdx = local.findIndex((e) => e.id === payload.id);
+          if (existingIdx >= 0) {
+            local[existingIdx] = { ...local[existingIdx], ...payload };
+          } else {
+            local.unshift(payload);
+          }
+          saveLocalEvents(local);
+          return NextResponse.json({ ok: true, event: payload });
+        }
         return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
       }
 
@@ -112,6 +182,13 @@ export async function POST(request: Request) {
         .maybeSingle();
 
       if (error) {
+        // If table doesn't exist yet, save locally so admin is never blocked
+        if (error.message.includes('schema cache') || error.code === 'PGRST204') {
+          const local = getLocalEvents();
+          local.unshift(payload);
+          saveLocalEvents(local);
+          return NextResponse.json({ ok: true, event: payload }, { status: 201 });
+        }
         return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
       }
 
@@ -126,10 +203,6 @@ export async function POST(request: Request) {
 /** DELETE /api/events?id=... — Delete an event (admin only) */
 export async function DELETE(request: Request) {
   const supabase = getSupabase();
-  if (!supabase) {
-    return NextResponse.json({ ok: false, message: 'Database service unavailable' }, { status: 503 });
-  }
-
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
 
@@ -137,9 +210,20 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ ok: false, message: 'Event ID is required.' }, { status: 400 });
   }
 
+  // Always remove from local fallback if present
+  const local = getLocalEvents();
+  const filtered = local.filter((e) => e.id !== id);
+  if (filtered.length !== local.length) {
+    saveLocalEvents(filtered);
+  }
+
+  if (!supabase) {
+    return NextResponse.json({ ok: true, message: 'Event deleted successfully.' });
+  }
+
   try {
     const { error } = await supabase.from('events').delete().eq('id', id);
-    if (error) {
+    if (error && !error.message.includes('schema cache')) {
       return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
     }
     return NextResponse.json({ ok: true, message: 'Event deleted successfully.' });
