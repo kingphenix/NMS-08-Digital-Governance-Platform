@@ -37,6 +37,7 @@ export function Navbar() {
     { href: '/about', label: 'About NMS 08' },
     { href: '/leadership', label: 'Leadership' },
     { href: '/companies', label: 'Companies' },
+    { href: '/reports', label: 'Reports' },
     { href: '/news', label: 'News & Announcements' },
     { href: '/events', label: 'Events' },
     { href: '/gallery', label: 'Gallery' },

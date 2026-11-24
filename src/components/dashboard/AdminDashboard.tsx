@@ -15,6 +15,8 @@ import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Button } from '@/components/ui/Button';
 import { DuesTrendChart, CompanyComplianceChart } from './Charts';
+import { AdminReportsManager } from './AdminReportsManager';
+import { AdminEventsManager } from './AdminEventsManager';
 import { ANNUAL_ARREARS_CAP_NGN, ANNUAL_DISCOUNT_NGN, MONTHLY_DUES_NGN } from '@/lib/dues-utils';
 import { formatNaira } from '@/lib/paystack';
 import {
@@ -60,6 +62,7 @@ import {
   Check,
   Cake,
   MessageSquare,
+  FileText,
 } from 'lucide-react';
 import { normalizeCompanyId } from '@/lib/company-utils';
 
@@ -170,7 +173,7 @@ export function AdminDashboard() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [activeAdminSection, setActiveAdminSection] = useState<
-    'overview' | 'members' | 'dues' | 'wedding' | 'employment' | 'communications' | 'suggestions'
+    'overview' | 'members' | 'dues' | 'wedding' | 'employment' | 'events' | 'communications' | 'suggestions' | 'reports'
   >('overview');
 
   // Broadcast modal & announcements state
@@ -907,6 +910,10 @@ export function AdminDashboard() {
       title: 'Employment & Career Desk',
       description: 'Review registered members seeking employment, their skills, and career preferences.',
     },
+    events: {
+      title: 'Events & Reunions',
+      description: 'Create and manage class reunions, meetings, and brother events with picture flyers.',
+    },
     communications: {
       title: 'Communications',
       description: 'Manage member announcements and portal broadcasts.',
@@ -914,6 +921,10 @@ export function AdminDashboard() {
     suggestions: {
       title: 'Suggestions',
       description: 'Review feedback shared by members and visitors.',
+    },
+    reports: {
+      title: 'Accountability Reports',
+      description: 'Prepare, edit, and publish monthly financial transparency reports.',
     },
   }[activeAdminSection];
 
@@ -941,8 +952,10 @@ export function AdminDashboard() {
               { id: 'dues' as const, label: 'Dues & Finance', icon: <CreditCard className="w-4 h-4" /> },
               { id: 'wedding' as const, label: 'Wedding Fund', icon: <Heart className="w-4 h-4" /> },
               { id: 'employment' as const, label: 'Employment', icon: <Briefcase className="w-4 h-4" /> },
+              { id: 'events' as const, label: 'Events', icon: <Calendar className="w-4 h-4" /> },
               { id: 'communications' as const, label: 'Communications', icon: <Megaphone className="w-4 h-4" /> },
               { id: 'suggestions' as const, label: 'Suggestions', icon: <MessageSquare className="w-4 h-4" /> },
+              { id: 'reports' as const, label: 'Reports', icon: <FileText className="w-4 h-4" /> },
             ].map((item) => {
               const selected = activeAdminSection === item.id;
               return (
@@ -1003,7 +1016,7 @@ export function AdminDashboard() {
               variant="emerald"
               size="sm"
               onClick={() => setShowBroadcastModal(true)}
-              icon={<Image src={speakerSvg} alt="" width={16} height={16} className="w-4 h-4 object-contain" />}
+              icon={<Image src={speakerSvg} alt="" width={16} height={16} className="w-4 h-auto object-contain" />}
             >
               New announcement
             </Button>
@@ -1616,7 +1629,7 @@ export function AdminDashboard() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 shadow-apple-sm flex items-center justify-center">
-                <Image src={speakerSvg} alt="Broadcast Speaker" width={20} height={20} className="w-5 h-5 object-contain" />
+                <Image src={speakerSvg} alt="Broadcast Speaker" width={20} height={20} className="w-5 h-auto object-contain" />
               </div>
               <div>
                 <CardTitle>Active Portal Broadcasts & Member Notifications</CardTitle>
@@ -2348,6 +2361,24 @@ export function AdminDashboard() {
       </div>
       )}
 
+      {/* EVENTS & REUNIONS MANAGEMENT SECTION */}
+      {activeAdminSection === 'events' && (
+        <div className="space-y-6">
+          <Card variant="glass" className="p-6">
+            <AdminEventsManager />
+          </Card>
+        </div>
+      )}
+
+      {/* ACCOUNTABILITY REPORTS SECTION */}
+      {activeAdminSection === 'reports' && (
+        <div className="space-y-6">
+          <Card variant="glass" className="p-6">
+            <AdminReportsManager />
+          </Card>
+        </div>
+      )}
+
       {/* DETAILED EMPLOYMENT DOSSIER POP UP MODAL */}
       {selectedEmploymentRequest && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -2764,7 +2795,7 @@ export function AdminDashboard() {
             <div className="flex items-start justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
-                  <Image src={speakerSvg} alt="Broadcast Speaker" width={20} height={20} className="w-5 h-5 object-contain" />
+                  <Image src={speakerSvg} alt="Broadcast Speaker" width={20} height={20} className="w-5 h-auto object-contain" />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">Broadcast Official Notice</h3>

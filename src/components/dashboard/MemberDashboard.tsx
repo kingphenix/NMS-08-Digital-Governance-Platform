@@ -1682,7 +1682,7 @@ export function MemberDashboard() {
         <div className="space-y-3 animate-in fade-in slide-in-from-top-3 duration-300">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
-              <Image src={speakerSvg} alt="Speaker Broadcast" width={16} height={16} className="w-4 h-4 object-contain" />
+              <Image src={speakerSvg} alt="Speaker Broadcast" width={16} height={16} className="w-4 h-auto object-contain" />
               <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
                 Official Secretariat Notifications ({visibleBroadcasts.length})
               </span>
@@ -1731,7 +1731,7 @@ export function MemberDashboard() {
                       {isUrgent ? (
                         <AlertTriangle className="w-4 h-4" />
                       ) : (
-                        <Image src={speakerSvg} alt="Speaker" width={16} height={16} className="w-4 h-4 object-contain" />
+                        <Image src={speakerSvg} alt="Speaker" width={16} height={16} className="w-4 h-auto object-contain" />
                       )}
                     </div>
 
@@ -2469,6 +2469,26 @@ export function MemberDashboard() {
               </p>
             )}
           </Card>
+
+          {/* FINANCIAL TRANSPARENCY REPORT BANNER */}
+          <div className="p-5 rounded-3xl bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 text-white border border-emerald-900/60 shadow-apple-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Brotherhood Financial Transparency
+                </span>
+              </div>
+              <h4 className="text-base font-extrabold text-white">Monthly Accountability Reports</h4>
+              <p className="text-xs text-slate-300 max-w-xl">
+                Every naira received. Every naira spent. Every balance accounted for. Explore visual income &amp; expenditure breakdowns and the 7-company scorecard.
+              </p>
+            </div>
+            <Link href="/reports">
+              <Button variant="emerald" size="sm" icon={<FileText className="w-4 h-4" />}>
+                View Reports
+              </Button>
+            </Link>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 

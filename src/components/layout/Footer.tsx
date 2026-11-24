@@ -55,6 +55,7 @@ export function Footer() {
             <h4 className="text-xs font-semibold text-white uppercase tracking-wider mb-4">Governance & Portal</h4>
             <ul className="space-y-2.5 text-sm">
               <li><Link href="/dashboard" className="hover:text-emerald-400 transition-colors flex items-center gap-1.5">Member Portal <ExternalLink className="w-3 h-3 text-slate-500" /></Link></li>
+              <li><Link href="/reports" className="hover:text-emerald-400 transition-colors">Financial Reports</Link></li>
               <li><Link href="/membership-info" className="hover:text-emerald-400 transition-colors">Dues & Welfare Information</Link></li>
               <li><Link href="/gallery" className="hover:text-emerald-400 transition-colors">Photo Gallery</Link></li>
               <li><Link href="/login" className="hover:text-emerald-400 transition-colors">Member Sign In</Link></li>

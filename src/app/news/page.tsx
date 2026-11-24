@@ -26,7 +26,7 @@ export default function NewsPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
       <div className="text-center max-w-2xl mx-auto space-y-3">
         <Badge variant="emerald" size="lg" className="inline-flex items-center gap-2">
-          <Image src={speakerSvg} alt="Official Press Speaker" width={18} height={18} className="w-4.5 h-4.5 object-contain" />
+          <Image src={speakerSvg} alt="Official Press Speaker" width={18} height={18} className="w-4.5 h-auto object-contain" />
           <span>Official Press & Dispatch</span>
         </Badge>
         <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
