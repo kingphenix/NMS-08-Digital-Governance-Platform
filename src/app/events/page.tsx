@@ -22,13 +22,18 @@ export interface EventItem {
   is_featured?: boolean;
 }
 
+const WEDDING_FLYERS: Record<string, any> = {};
+for (const w of WEDDINGS) {
+  WEDDING_FLYERS[w.id] = w.flyer;
+}
+
 export default function EventsPage() {
   const [adminEvents, setAdminEvents] = useState<EventItem[]>([]);
   const [selected, setSelected] = useState<EventItem | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [loading, setLoading] = useState(true);
 
-  // Fetch dynamic events created by admin
+  // Fetch dynamic events created by admin (includes static events unless deleted)
   useEffect(() => {
     fetch('/api/events')
       .then((res) => res.json())
@@ -41,24 +46,15 @@ export default function EventsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Merge static weddings into the unified event stream
+  // Map flyers and sort chronologically
   const allEvents = useMemo<EventItem[]>(() => {
-    const formattedWeddings: EventItem[] = WEDDINGS.map((w) => ({
-      id: w.id,
-      title: w.couple,
-      description: `Wedding celebration for our set brother ${w.couple}. All Ex-Boys are warmly invited to honor and celebrate this special union.`,
-      event_date: w.isoDate,
-      event_time: '10:00 AM',
-      location: 'Official Ceremony',
-      category: 'Wedding',
-      flyer_static: w.flyer,
-      organizer: 'NMS 08 Set Brothers',
-    }));
-
-    // Combine and sort chronologically (soonest / latest first)
-    return [...adminEvents, ...formattedWeddings].sort((a, b) =>
-      b.event_date.localeCompare(a.event_date)
-    );
+    return adminEvents.map((e) => {
+      const staticFlyer = WEDDING_FLYERS[(e as any).flyer_static_id || e.id];
+      return {
+        ...e,
+        flyer_static: staticFlyer || e.flyer_static,
+      };
+    }).sort((a, b) => (b.event_date || '').localeCompare(a.event_date || ''));
   }, [adminEvents]);
 
   // Categories list

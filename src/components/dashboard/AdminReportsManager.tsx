@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/Button';
 interface IncomeItem { source: string; amount: number }
 interface ExpenditureItem { category: string; amount: number }
 interface FundPosition { fund: string; balance: number }
+interface ObligationItem { name: string; amount: number }
 interface CompanyScore { company: string; expected: number; received: number; outstanding: number }
 
 interface FinancialReport {
@@ -37,13 +38,17 @@ interface FinancialReport {
   closing_balance: number;
   income_items: IncomeItem[];
   expenditure_items: ExpenditureItem[];
-  fund_positions: FundPosition[];
+  fund_positions?: FundPosition[];
+  obligation_items?: ObligationItem[];
   outstanding_obligations: number;
   unpaid_commitments: number;
   company_scorecard: CompanyScore[];
   highlights_text: string | null;
   key_activities: string[];
   welfare_interventions: number;
+  loans_to_members?: number;
+  loan_repayments?: number;
+  number_of_loans?: number;
   projects_funded: number;
   closing_balance_records: number;
   closing_bank_balance: number;
@@ -75,11 +80,10 @@ const DEFAULT_EXPENDITURE_ITEMS: ExpenditureItem[] = [
   { category: 'Other Approved Expenses', amount: 0 },
 ];
 
-const DEFAULT_FUND_POSITIONS: FundPosition[] = [
-  { fund: 'General Fund', balance: 0 },
-  { fund: 'Welfare Fund', balance: 0 },
-  { fund: 'Special Project Funds', balance: 0 },
-  { fund: 'Restricted / Earmarked Funds', balance: 0 },
+const DEFAULT_OBLIGATION_ITEMS: ObligationItem[] = [
+  { name: 'National dues', amount: 120000 },
+  { name: 'Wedding contribution', amount: 560000 },
+  { name: 'Digital Platform', amount: 100000 },
 ];
 
 const DEFAULT_SCORECARD: CompanyScore[] = [
@@ -115,13 +119,16 @@ function newReport(): Omit<FinancialReport, 'id' | 'created_at'> {
     closing_balance: 0,
     income_items: [...DEFAULT_INCOME_ITEMS],
     expenditure_items: [...DEFAULT_EXPENDITURE_ITEMS],
-    fund_positions: [...DEFAULT_FUND_POSITIONS],
-    outstanding_obligations: 0,
+    obligation_items: [...DEFAULT_OBLIGATION_ITEMS],
+    outstanding_obligations: 780000,
     unpaid_commitments: 0,
     company_scorecard: [...DEFAULT_SCORECARD],
     highlights_text: null,
     key_activities: [],
-    welfare_interventions: 0,
+    welfare_interventions: 30000,
+    loans_to_members: 0,
+    loan_repayments: 0,
+    number_of_loans: 0,
     projects_funded: 0,
     closing_balance_records: 0,
     closing_bank_balance: 0,
@@ -174,17 +181,57 @@ export function AdminReportsManager() {
     setMessage(null);
   };
 
+  const isLegacyFund = (name: string) =>
+    ['general fund', 'welfare fund', 'special project funds', 'restricted / earmarked funds'].includes(
+      name.toLowerCase().trim()
+    );
+
   const startEdit = (r: FinancialReport) => {
-    setEditingReport({ ...r });
+    const rawObligations = r.obligation_items && r.obligation_items.length > 0
+      ? r.obligation_items
+      : (r.fund_positions && r.fund_positions.length > 0
+          ? r.fund_positions
+              .filter((f: any) => !isLegacyFund(f.name || f.fund || ''))
+              .map((f: any) => ({ name: f.name || f.fund, amount: Number(f.amount ?? f.balance) || 0 }))
+          : []);
+
+    const obligations = rawObligations.length > 0 ? rawObligations : [...DEFAULT_OBLIGATION_ITEMS];
+    setEditingReport({
+      ...r,
+      obligation_items: obligations,
+      loans_to_members: r.loans_to_members || 0,
+      loan_repayments: r.loan_repayments || 0,
+      number_of_loans: r.number_of_loans || 0,
+      welfare_interventions: r.welfare_interventions || 0,
+    });
     setIsNew(false);
     setMessage(null);
   };
 
   const recalcTotals = (rpt: any) => {
+    const opening = parseFloat(rpt.opening_balance) || 0;
     const totalIncome = (rpt.income_items || []).reduce((s: number, i: any) => s + (parseFloat(i.amount) || 0), 0);
     const totalExpenditure = (rpt.expenditure_items || []).reduce((s: number, i: any) => s + (parseFloat(i.amount) || 0), 0);
-    const closingBalance = (parseFloat(rpt.opening_balance) || 0) + totalIncome - totalExpenditure;
-    return { ...rpt, total_income: totalIncome, total_expenditure: totalExpenditure, closing_balance: closingBalance };
+    const closingBalance = opening + totalIncome - totalExpenditure;
+
+    const rawObligations = rpt.obligation_items || rpt.fund_positions || DEFAULT_OBLIGATION_ITEMS;
+    const totalObligations = rawObligations.reduce((s: number, o: any) => s + (parseFloat(o.amount ?? o.balance) || 0), 0);
+
+    const bankBal = parseFloat(rpt.closing_bank_balance) || 0;
+    const otherBal = parseFloat(rpt.closing_other_accounts) || 0;
+    const unreconciled = bankBal + otherBal - closingBalance;
+
+    return {
+      ...rpt,
+      opening_balance: opening,
+      total_income: totalIncome,
+      total_expenditure: totalExpenditure,
+      closing_balance: closingBalance,
+      closing_balance_records: closingBalance,
+      outstanding_obligations: totalObligations,
+      unreconciled_difference: unreconciled,
+      reconciliation_status: unreconciled === 0 ? 'Reconciled' : 'Pending',
+    };
   };
 
   const handleSave = async (publish = false) => {
@@ -413,16 +460,73 @@ export function AdminReportsManager() {
       {/* Section: Income */}
       <SectionHeader sectionKey="income" title="Where The Money Came From" icon={<span className="text-emerald-600 font-black">2</span>} />
       {expandedSections.income && (
-        <div className="space-y-2">
-          {(rpt.income_items || []).map((item: IncomeItem, i: number) => (
-            <div key={i} className="flex items-center gap-2">
-              <input className={`${inputCls} flex-1`} value={item.source} onChange={(e) => updateArrayItem('income_items', i, 'source', e.target.value)} placeholder="Income source" />
-              <input type="number" step="0.01" className={`${inputCls} w-32`} value={item.amount || ''} onChange={(e) => updateArrayItem('income_items', i, 'amount', e.target.value)} placeholder="₦ Amount" />
-              <button onClick={() => removeArrayItem('income_items', i)} className="p-1 text-red-400 hover:text-red-600"><X className="w-3.5 h-3.5" /></button>
+        <div className="space-y-3">
+          <div className="grid grid-cols-12 gap-2 px-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+            <span className="col-span-7 sm:col-span-8 md:col-span-9">Income Source / Description</span>
+            <span className="col-span-4 sm:col-span-3 md:col-span-2 text-right">Amount (₦)</span>
+            <span className="col-span-1"></span>
+          </div>
+
+          {/* Line Item 1: Opening Balance (Always First) */}
+          <div className="grid grid-cols-12 gap-2 items-center bg-emerald-50/50 p-1.5 rounded-xl border border-emerald-100">
+            <div className="col-span-7 sm:col-span-8 md:col-span-9">
+              <span className="text-xs sm:text-sm font-semibold text-slate-800 px-2">Opening Balance</span>
             </div>
-          ))}
-          <button onClick={() => addArrayItem('income_items', { source: '', amount: 0 })} className="text-xs text-emerald-600 font-medium hover:text-emerald-800 flex items-center gap-1">
-            <Plus className="w-3 h-3" /> Add income source
+            <div className="col-span-4 sm:col-span-3 md:col-span-2">
+              <input
+                type="number"
+                step="0.01"
+                className="w-full px-3.5 py-2 rounded-xl bg-white border border-emerald-200 outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 text-xs sm:text-sm font-mono text-right transition-all font-bold"
+                value={rpt.opening_balance || ''}
+                onChange={(e) => updateField('opening_balance', e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="col-span-1 flex justify-center">
+              <span className="text-[10px] text-slate-400 font-medium italic">Fixed</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {(rpt.income_items || []).map((item: IncomeItem, i: number) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <div className="col-span-7 sm:col-span-8 md:col-span-9">
+                  <input
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 text-xs sm:text-sm font-medium transition-all"
+                    value={item.source}
+                    onChange={(e) => updateArrayItem('income_items', i, 'source', e.target.value)}
+                    placeholder="e.g. Monthly Membership Dues / Donations"
+                  />
+                </div>
+                <div className="col-span-4 sm:col-span-3 md:col-span-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 text-xs sm:text-sm font-mono text-right transition-all"
+                    value={item.amount || ''}
+                    onChange={(e) => updateArrayItem('income_items', i, 'amount', e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="col-span-1 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => removeArrayItem('income_items', i)}
+                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Remove item"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => addArrayItem('income_items', { source: '', amount: 0 })}
+            className="text-xs text-emerald-600 font-semibold hover:text-emerald-800 flex items-center gap-1.5 pt-1"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add income source
           </button>
         </div>
       )}
@@ -430,44 +534,116 @@ export function AdminReportsManager() {
       {/* Section: Expenditure */}
       <SectionHeader sectionKey="expenditure" title="Where The Money Went" icon={<span className="text-emerald-600 font-black">3</span>} />
       {expandedSections.expenditure && (
-        <div className="space-y-2">
-          {(rpt.expenditure_items || []).map((item: ExpenditureItem, i: number) => (
-            <div key={i} className="flex items-center gap-2">
-              <input className={`${inputCls} flex-1`} value={item.category} onChange={(e) => updateArrayItem('expenditure_items', i, 'category', e.target.value)} placeholder="Expenditure category" />
-              <input type="number" step="0.01" className={`${inputCls} w-32`} value={item.amount || ''} onChange={(e) => updateArrayItem('expenditure_items', i, 'amount', e.target.value)} placeholder="₦ Amount" />
-              <button onClick={() => removeArrayItem('expenditure_items', i)} className="p-1 text-red-400 hover:text-red-600"><X className="w-3.5 h-3.5" /></button>
-            </div>
-          ))}
-          <button onClick={() => addArrayItem('expenditure_items', { category: '', amount: 0 })} className="text-xs text-emerald-600 font-medium hover:text-emerald-800 flex items-center gap-1">
-            <Plus className="w-3 h-3" /> Add expenditure category
+        <div className="space-y-3">
+          <div className="grid grid-cols-12 gap-2 px-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+            <span className="col-span-7 sm:col-span-8 md:col-span-9">Expenditure Category / Purpose</span>
+            <span className="col-span-4 sm:col-span-3 md:col-span-2 text-right">Amount (₦)</span>
+            <span className="col-span-1"></span>
+          </div>
+          <div className="space-y-2">
+            {(rpt.expenditure_items || []).map((item: ExpenditureItem, i: number) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <div className="col-span-7 sm:col-span-8 md:col-span-9">
+                  <input
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 text-xs sm:text-sm font-medium transition-all"
+                    value={item.category}
+                    onChange={(e) => updateArrayItem('expenditure_items', i, 'category', e.target.value)}
+                    placeholder="e.g. Welfare Support / Administrative Expenses"
+                  />
+                </div>
+                <div className="col-span-4 sm:col-span-3 md:col-span-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 text-xs sm:text-sm font-mono text-right transition-all"
+                    value={item.amount || ''}
+                    onChange={(e) => updateArrayItem('expenditure_items', i, 'amount', e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="col-span-1 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => removeArrayItem('expenditure_items', i)}
+                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Remove item"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => addArrayItem('expenditure_items', { category: '', amount: 0 })}
+            className="text-xs text-emerald-600 font-semibold hover:text-emerald-800 flex items-center gap-1.5 pt-1"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add expenditure category
           </button>
         </div>
       )}
 
-      {/* Section: Fund Position */}
-      <SectionHeader sectionKey="funds" title="Fund Position" icon={<span className="text-emerald-600 font-black">4</span>} />
+      {/* Section: Outstanding Obligations */}
+      <SectionHeader sectionKey="funds" title="Outstanding Obligations" icon={<span className="text-emerald-600 font-black">4</span>} />
       {expandedSections.funds && (
         <div className="space-y-3">
-          {(rpt.fund_positions || []).map((fp: FundPosition, i: number) => (
-            <div key={i} className="flex items-center gap-2">
-              <input className={`${inputCls} flex-1`} value={fp.fund} onChange={(e) => updateArrayItem('fund_positions', i, 'fund', e.target.value)} placeholder="Fund name" />
-              <input type="number" step="0.01" className={`${inputCls} w-32`} value={fp.balance || ''} onChange={(e) => updateArrayItem('fund_positions', i, 'balance', e.target.value)} placeholder="₦ Balance" />
-              <button onClick={() => removeArrayItem('fund_positions', i)} className="p-1 text-red-400 hover:text-red-600"><X className="w-3.5 h-3.5" /></button>
-            </div>
-          ))}
-          <button onClick={() => addArrayItem('fund_positions', { fund: '', balance: 0 })} className="text-xs text-emerald-600 font-medium hover:text-emerald-800 flex items-center gap-1">
-            <Plus className="w-3 h-3" /> Add fund
-          </button>
-          <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <label className={labelCls}>Outstanding Obligations (₦)</label>
-              <input type="number" step="0.01" className={inputCls} value={rpt.outstanding_obligations || ''} onChange={(e) => updateField('outstanding_obligations', e.target.value)} />
+              <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Total Outstanding Obligations</p>
+              <p className="text-lg font-black text-amber-950 font-mono">{fmt(calculated.outstanding_obligations)}</p>
             </div>
-            <div>
-              <label className={labelCls}>Unpaid Approved Commitments (₦)</label>
-              <input type="number" step="0.01" className={inputCls} value={rpt.unpaid_commitments || ''} onChange={(e) => updateField('unpaid_commitments', e.target.value)} />
-            </div>
+            <p className="text-[11px] text-amber-700 max-w-xs">
+              Auto-calculated from all listed obligations below. You can add, edit, or remove obligations as required.
+            </p>
           </div>
+
+          <div className="grid grid-cols-12 gap-2 px-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+            <span className="col-span-7 sm:col-span-8 md:col-span-9">Obligation Description / Beneficiary</span>
+            <span className="col-span-4 sm:col-span-3 md:col-span-2 text-right">Amount (₦)</span>
+            <span className="col-span-1"></span>
+          </div>
+          <div className="space-y-2">
+            {(rpt.obligation_items || []).map((item: ObligationItem, i: number) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <div className="col-span-7 sm:col-span-8 md:col-span-9">
+                  <input
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 text-xs sm:text-sm font-medium transition-all"
+                    value={item.name}
+                    onChange={(e) => updateArrayItem('obligation_items', i, 'name', e.target.value)}
+                    placeholder="e.g. National dues / Wedding contribution"
+                  />
+                </div>
+                <div className="col-span-4 sm:col-span-3 md:col-span-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 text-xs sm:text-sm font-mono text-right transition-all font-semibold"
+                    value={item.amount || ''}
+                    onChange={(e) => updateArrayItem('obligation_items', i, 'amount', e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="col-span-1 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => removeArrayItem('obligation_items', i)}
+                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Remove obligation"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => addArrayItem('obligation_items', { name: '', amount: 0 })}
+            className="text-xs text-emerald-600 font-semibold hover:text-emerald-800 flex items-center gap-1.5 pt-1"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add obligation
+          </button>
         </div>
       )}
 
@@ -490,19 +666,42 @@ export function AdminReportsManager() {
       )}
 
       {/* Section: Highlights */}
-      <SectionHeader sectionKey="highlights" title="Performance Highlights" icon={<span className="text-emerald-600 font-black">6</span>} />
+      <SectionHeader sectionKey="highlights" title="Performance Highlights & Loans" icon={<span className="text-emerald-600 font-black">6</span>} />
       {expandedSections.highlights && (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
             <div>
-              <label className={labelCls}>Welfare Interventions</label>
-              <input type="number" className={inputCls} value={rpt.welfare_interventions || ''} onChange={(e) => updateField('welfare_interventions', e.target.value)} />
+              <label className={labelCls}>Welfare Interventions (₦)</label>
+              <input type="number" step="0.01" className={inputCls} value={rpt.welfare_interventions || ''} onChange={(e) => updateField('welfare_interventions', e.target.value)} placeholder="e.g. 30000" />
             </div>
             <div>
-              <label className={labelCls}>Projects Funded</label>
-              <input type="number" className={inputCls} value={rpt.projects_funded || ''} onChange={(e) => updateField('projects_funded', e.target.value)} />
+              <label className={labelCls}>Loans to Members (₦)</label>
+              <input type="number" step="0.01" className={inputCls} value={rpt.loans_to_members || ''} onChange={(e) => updateField('loans_to_members', e.target.value)} placeholder="0.00" />
+            </div>
+            <div>
+              <label className={labelCls}>Number of Loans</label>
+              <input type="number" step="1" className={inputCls} value={rpt.number_of_loans ?? ''} onChange={(e) => updateField('number_of_loans', e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <label className={labelCls}>Loan Repayments (₦)</label>
+              <input type="number" step="0.01" className={inputCls} value={rpt.loan_repayments || ''} onChange={(e) => updateField('loan_repayments', e.target.value)} placeholder="0.00" />
+            </div>
+            <div>
+              <label className={labelCls}>Projects Funded (Count)</label>
+              <input type="number" className={inputCls} value={rpt.projects_funded || ''} onChange={(e) => updateField('projects_funded', e.target.value)} placeholder="0" />
             </div>
           </div>
+
+          <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Member Loan Policy Directive</p>
+              <p className="text-[11px] text-amber-800">
+                Loans to members are capped to a maximum of <strong>₦70,000.00</strong> for now. All loan requests must be made directly to the Welfare Officer.
+              </p>
+            </div>
+          </div>
+
           <div>
             <label className={labelCls}>Key Activities &amp; Financial Decisions</label>
             {(rpt.key_activities || []).map((act: string, i: number) => (
@@ -528,8 +727,13 @@ export function AdminReportsManager() {
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Closing Balance per Records (₦)</label>
-              <input type="number" step="0.01" className={inputCls} value={rpt.closing_balance_records || ''} onChange={(e) => updateField('closing_balance_records', e.target.value)} />
+              <label className={labelCls}>Closing Balance per Records (₦) [Auto]</label>
+              <input
+                type="text"
+                readOnly
+                className={`${inputCls} bg-slate-50 font-mono font-bold text-slate-700 cursor-not-allowed`}
+                value={fmt(calculated.closing_balance)}
+              />
             </div>
             <div>
               <label className={labelCls}>Closing Bank Balance (₦)</label>
@@ -540,14 +744,19 @@ export function AdminReportsManager() {
               <input type="number" step="0.01" className={inputCls} value={rpt.closing_other_accounts || ''} onChange={(e) => updateField('closing_other_accounts', e.target.value)} />
             </div>
             <div>
-              <label className={labelCls}>Unreconciled Difference (₦)</label>
-              <input type="number" step="0.01" className={inputCls} value={rpt.unreconciled_difference || ''} onChange={(e) => updateField('unreconciled_difference', e.target.value)} />
+              <label className={labelCls}>Unreconciled Difference (₦) [Auto]</label>
+              <input
+                type="text"
+                readOnly
+                className={`${inputCls} bg-slate-50 font-mono font-bold ${calculated.unreconciled_difference === 0 ? 'text-emerald-700' : 'text-amber-700'} cursor-not-allowed`}
+                value={fmt(calculated.unreconciled_difference)}
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Reconciliation Status</label>
-              <select className={inputCls} value={rpt.reconciliation_status || 'Pending'} onChange={(e) => updateField('reconciliation_status', e.target.value)}>
+              <select className={inputCls} value={calculated.unreconciled_difference === 0 ? 'Reconciled' : (rpt.reconciliation_status || 'Pending')} onChange={(e) => updateField('reconciliation_status', e.target.value)}>
                 <option value="Reconciled">Reconciled</option>
                 <option value="Pending">Pending</option>
               </select>

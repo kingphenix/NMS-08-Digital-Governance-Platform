@@ -216,6 +216,12 @@ export function AdminDashboard() {
   const [weddingBusy, setWeddingBusy] = useState(false);
   const [weddingMessage, setWeddingMessage] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
 
+  // Handover note management
+  const [handoverStatus, setHandoverStatus] = useState<{ exists: boolean; url: string; filename: string; uploadedAt: string } | null>(null);
+  const [handoverLoading, setHandoverLoading] = useState(false);
+  const [handoverUploading, setHandoverUploading] = useState(false);
+  const [handoverMessage, setHandoverMessage] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
+
   // Admin portal password gate
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
@@ -227,6 +233,71 @@ export function AdminDashboard() {
       setAdminAuthed(true);
     }
   }, []);
+
+  // ── Handover note helpers ────────────────────────────────────────────────
+  const fetchHandoverStatus = async () => {
+    setHandoverLoading(true);
+    try {
+      const res = await fetch('/api/admin/handover-note');
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) {
+        setHandoverStatus({ exists: data.exists, url: data.url, filename: data.filename, uploadedAt: data.uploadedAt });
+      }
+    } catch { /* ignore */ } finally {
+      setHandoverLoading(false);
+    }
+  };
+
+  const handleHandoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setHandoverUploading(true);
+    setHandoverMessage(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/admin/handover-note?admin=true', { method: 'POST', headers: { 'x-admin-auth': 'nms08-admin' }, body: form });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) {
+        setHandoverMessage({ tone: 'ok', text: 'Handover note uploaded successfully.' });
+        await fetchHandoverStatus();
+      } else {
+        setHandoverMessage({ tone: 'err', text: data?.message || 'Upload failed.' });
+      }
+    } catch (err: unknown) {
+      setHandoverMessage({ tone: 'err', text: err instanceof Error ? err.message : 'Network error' });
+    } finally {
+      setHandoverUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleHandoverDelete = async () => {
+    if (!confirm('Remove the current handover note from the site? This cannot be undone.')) return;
+    setHandoverLoading(true);
+    setHandoverMessage(null);
+    try {
+      const res = await fetch('/api/admin/handover-note?admin=true', { method: 'DELETE', headers: { 'x-admin-auth': 'nms08-admin' } });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) {
+        setHandoverMessage({ tone: 'ok', text: 'Handover note removed.' });
+        setHandoverStatus({ exists: false, url: '', filename: '', uploadedAt: '' });
+      } else {
+        setHandoverMessage({ tone: 'err', text: data?.message || 'Delete failed.' });
+      }
+    } catch (err: unknown) {
+      setHandoverMessage({ tone: 'err', text: err instanceof Error ? err.message : 'Network error' });
+    } finally {
+      setHandoverLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeAdminSection === 'communications' && handoverStatus === null) {
+      fetchHandoverStatus();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAdminSection]);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -284,7 +355,7 @@ export function AdminDashboard() {
                   });
                 }
               }
-            } catch {}
+            } catch { }
             try {
               const currentProfile = localStorage.getItem('nms08_current_profile');
               if (currentProfile) {
@@ -297,7 +368,7 @@ export function AdminDashboard() {
                   }
                 }
               }
-            } catch {}
+            } catch { }
           }
 
           setMembers(list);
@@ -350,7 +421,7 @@ export function AdminDashboard() {
         try {
           const stored = localStorage.getItem('nms08_admin_announcements');
           if (stored) setActiveAnnouncements(JSON.parse(stored));
-        } catch {}
+        } catch { }
       }
     }
   };
@@ -413,7 +484,7 @@ export function AdminDashboard() {
           setSelectedEmploymentRequest((prev: any) => (prev ? { ...prev, status } : null));
         }
       }
-    } catch {}
+    } catch { }
     finally {
       setEmploymentActionBusy(null);
     }
@@ -475,10 +546,10 @@ export function AdminDashboard() {
         items.map((item) =>
           item.id === id
             ? {
-                ...item,
-                status,
-                reviewed_at: status === 'new' ? null : new Date().toISOString(),
-              }
+              ...item,
+              status,
+              reviewed_at: status === 'new' ? null : new Date().toISOString(),
+            }
             : item
         )
       );
@@ -964,11 +1035,10 @@ export function AdminDashboard() {
                   type="button"
                   onClick={() => setActiveAdminSection(item.id)}
                   aria-current={selected ? 'page' : undefined}
-                  className={`flex shrink-0 lg:shrink items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors ${
-                    selected
-                      ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100'
-                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
+                  className={`flex shrink-0 lg:shrink items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors ${selected
+                    ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
                 >
                   {item.icon}
                   <span className="whitespace-nowrap">{item.label}</span>
@@ -1022,1769 +1092,1861 @@ export function AdminDashboard() {
             </Button>
           </header>
 
-      {/* METRIC OVERVIEW CARDS */}
-      {activeAdminSection === 'overview' && (
-      <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        <Card hoverEffect variant="glass">
-          <CardContent className="p-6 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase">Registered Ex-Boys</span>
-              <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                <Image src={militaryManSvg} alt="Registered Ex-Boys" width={20} height={20} className="w-5 h-5 object-contain" />
-              </div>
-            </div>
-            <h3 className="text-2xl font-extrabold text-slate-900">
-              {stats.totalRegistered}{' '}
-              <span className="text-xs font-normal text-slate-500">/ {stats.totalRoster}</span>
-            </h3>
-            <ProgressBar value={Number(registrationPercentage)} showPercentage={false} height="sm" color="emerald" />
-            <p className="text-[11px] text-slate-500">{registrationPercentage}% accreditation rate</p>
-          </CardContent>
-        </Card>
-
-        <Card hoverEffect variant="glass">
-          <CardContent className="p-6 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase">Total Dues Collected</span>
-              <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                <Image src={cardSvg} alt="Dues Levies" width={20} height={20} className="w-5 h-5 object-contain" />
-              </div>
-            </div>
-            <h3 className="text-2xl font-extrabold text-slate-900">
-              ₦{(metrics.totalDuesCollected / 1_000_000).toFixed(1)}M
-            </h3>
-            <ProgressBar value={metrics.complianceRate} showPercentage={false} height="sm" color="emerald" />
-            <p className="text-[11px] text-slate-500">{metrics.complianceRate}% set compliance</p>
-            <p className="text-[11px] text-slate-400">
-              {formatNaira(MONTHLY_DUES_NGN)}/month per Ex-Boy • {formatNaira(ANNUAL_DISCOUNT_NGN)} settles the year
-              (max {formatNaira(ANNUAL_ARREARS_CAP_NGN)})
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card hoverEffect variant="glass">
-          <CardContent className="p-6 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase">Welfare Fund Balance</span>
-              <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                <Image src={buildingSvg} alt="Welfare Fund" width={20} height={20} className="w-5 h-5 object-contain" />
-              </div>
-            </div>
-            <h3 className="text-2xl font-extrabold text-slate-900">
-              ₦{(metrics.welfareFundBalance / 1_000_000).toFixed(1)}M
-            </h3>
-            <div className="flex items-center gap-1.5 text-[11px] text-amber-700 font-medium">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-              <span>{metrics.activeClaimsUnderReview} claims under review</span>
-            </div>
-          </CardContent>
-        </Card>
-
-      </div>
-      </div>
-      )}
-
-      {/* REGISTERED EX-BOYS DIRECTORY & DOSSIER ACCESS TABLE */}
-      {activeAdminSection === 'members' && (
-      <Card hoverEffect variant="glass">
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 shadow-apple-sm flex items-center justify-center">
-                <Image src={dogTagsSvg} alt="Dog Tags Roster" width={22} height={22} className="w-5 h-5 object-contain" />
-              </div>
-              <div>
-                <CardTitle>Accredited Ex-Boys Member Profiles</CardTitle>
-                <CardDescription>
-                  Live member dossiers sorted by {activeSortLabel} ({filteredAndSortedMembers.length} records shown)
-                </CardDescription>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchMembers}
-                icon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
-              >
-                Refresh
-              </Button>
-              <Badge variant="emerald">Live Synchronized</Badge>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          {/* SEARCH & SORT CONTROLS BAR */}
-          <div className="space-y-3 pb-2 border-b border-slate-200/60">
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-              {/* Search Box */}
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search by name, service no (e.g. NMS/08/4912), industry, blood group, skills, state..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
-                />
-              </div>
-
-              {/* Company Filter Dropdown */}
-              <div className="w-full lg:w-44">
-                <select
-                  value={selectedCompany}
-                  onChange={(e) => setSelectedCompany(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
-                >
-                  <option value="ALL">All Companies ({members.length})</option>
-                  <option value="Alpha">Alpha Company ({companyCounts.alpha})</option>
-                  <option value="Bravo">Bravo Company ({companyCounts.bravo})</option>
-                  <option value="Charlie">Charlie Company ({companyCounts.charlie})</option>
-                  <option value="Delta">Delta Company ({companyCounts.delta})</option>
-                  <option value="Echo">Echo Company ({companyCounts.echo})</option>
-                  <option value="Foxtrot">Foxtrot Company ({companyCounts.foxtrot})</option>
-                  <option value="Golf">Golf Company ({companyCounts.golf})</option>
-                </select>
-              </div>
-
-              {/* PRIMARY SORT DROPDOWN BUTTON (Requested by user) */}
-              <div className="relative flex items-center gap-2">
-                <div className="relative">
-                  <Button
-                    variant="emerald"
-                    size="sm"
-                    onClick={() => setShowSortDropdown(!showSortDropdown)}
-                    icon={<ArrowUpDown className="w-3.5 h-3.5" />}
-                    className="shadow-apple-sm whitespace-nowrap"
-                  >
-                    <span>Sort Members By</span>
-                    <span className="ml-1 text-[11px] font-bold bg-white/20 px-2 py-0.5 rounded-full">
-                      {activeSortLabel}
-                    </span>
-                  </Button>
-
-                  {/* Dropdown Menu */}
-                  {showSortDropdown && (
-                    <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-apple-xl border border-slate-200/90 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                      <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                          Sort Criteria
-                        </span>
-                        <span className="text-[10px] text-emerald-700 font-semibold">
-                          Order: {sortOrder === 'asc' ? 'A → Z' : 'Z → A'}
-                        </span>
-                      </div>
-                      <div className="py-1 max-h-72 overflow-y-auto space-y-0.5">
-                        {SORT_OPTIONS.map((opt) => {
-                          const isSelected = sortBy === opt.field;
-                          return (
-                            <button
-                              key={opt.field}
-                              onClick={() => handleSortChange(opt.field)}
-                              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
-                                isSelected
-                                  ? 'bg-emerald-50 text-emerald-900 font-bold'
-                                  : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className={isSelected ? 'text-emerald-700' : 'text-slate-400'}>
-                                  {opt.icon}
-                                </span>
-                                <span>{opt.label}</span>
-                              </div>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-emerald-600" />}
-                            </button>
-                          );
-                        })}
+          {/* METRIC OVERVIEW CARDS */}
+          {activeAdminSection === 'overview' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <Card hoverEffect variant="glass">
+                  <CardContent className="p-6 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-500 uppercase">Registered Ex-Boys</span>
+                      <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                        <Image src={militaryManSvg} alt="Registered Ex-Boys" width={20} height={20} className="w-5 h-5 object-contain" />
                       </div>
                     </div>
-                  )}
-                </div>
+                    <h3 className="text-2xl font-extrabold text-slate-900">
+                      {stats.totalRegistered}{' '}
+                      <span className="text-xs font-normal text-slate-500">/ {stats.totalRoster}</span>
+                    </h3>
+                    <ProgressBar value={Number(registrationPercentage)} showPercentage={false} height="sm" color="emerald" />
+                    <p className="text-[11px] text-slate-500">{registrationPercentage}% accreditation rate</p>
+                  </CardContent>
+                </Card>
 
-                {/* Sort Order Direction Toggle (Ascending / Descending) */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                  title={`Toggle order: currently ${sortOrder === 'asc' ? 'Ascending (A-Z)' : 'Descending (Z-A)'}`}
-                  icon={sortOrder === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-emerald-700" /> : <ArrowDown className="w-3.5 h-3.5 text-emerald-700" />}
-                >
-                  <span className="hidden sm:inline font-mono">{sortOrder === 'asc' ? 'A → Z' : 'Z → A'}</span>
-                </Button>
-              </div>
-            </div>
-
-            {/* QUICK SORT PILL BUTTONS (One-click access to all requested criteria) */}
-            <div className="flex items-center gap-1.5 flex-wrap pt-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">
-                Quick Sort:
-              </span>
-              {[
-                { field: 'industry' as SortField, label: 'Industry', icon: <Briefcase className="w-3 h-3" /> },
-                { field: 'blood_group' as SortField, label: 'Blood Group', icon: <Droplet className="w-3 h-3" /> },
-                { field: 'company' as SortField, label: 'Company', icon: <Shield className="w-3 h-3" /> },
-                { field: 'state_of_origin' as SortField, label: 'State of Origin', icon: <MapPin className="w-3 h-3" /> },
-                { field: 'state_of_residence' as SortField, label: 'State of Residence', icon: <Home className="w-3 h-3" /> },
-                { field: 'business' as SortField, label: 'Business', icon: <Image src={buildingSvg} alt="Business" width={12} height={12} className="w-3 h-3 object-contain" /> },
-                { field: 'skills' as SortField, label: 'Skills', icon: <Sparkles className="w-3 h-3" /> },
-                { field: 'professional_qualifications' as SortField, label: 'Qualifications', icon: <GraduationCap className="w-3 h-3" /> },
-                { field: 'birth_month' as SortField, label: 'Birth Month', icon: <Cake className="w-3 h-3" /> },
-              ].map((pill) => {
-                const isActive = sortBy === pill.field;
-                return (
-                  <button
-                    key={pill.field}
-                    onClick={() => handleSortChange(pill.field)}
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1.5 transition-all shadow-2xs ${
-                      isActive
-                        ? 'bg-emerald-700 text-white shadow-apple-sm ring-2 ring-emerald-600/30'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60'
-                    }`}
-                  >
-                    <span>{pill.icon}</span>
-                    <span>{pill.label}</span>
-                    {isActive && (
-                      <span className="text-[9px] opacity-80">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                    )}
-                  </button>
-                );
-              })}
-
-              {sortBy !== 'created_at' && (
-                <button
-                  onClick={() => {
-                    setSortBy('created_at');
-                    setSortOrder('desc');
-                  }}
-                  className="px-2 py-1 text-[11px] text-rose-600 hover:text-rose-800 font-semibold underline ml-auto"
-                >
-                  Reset Sort
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Members Table — Context-Aware Clean Sort View */}
-          {loading ? (
-            <div className="p-12 text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-3">
-              <RefreshCw className="w-6 h-6 animate-spin text-emerald-600" />
-              <span>Loading verified Ex-Boy dossiers...</span>
-            </div>
-          ) : filteredAndSortedMembers.length === 0 ? (
-            <div className="p-12 text-center text-xs text-slate-500 font-medium bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-              {members.length === 0
-                ? 'No registered member profiles recorded yet. When visitors register, their full profiles will appear here.'
-                : 'No registered members match your search or filter criteria.'}
-            </div>
-          ) : (() => {
-            // Determine if a focused sort is active (not the default "all columns" view)
-            const isDefaultView = sortBy === 'created_at' || sortBy === 'full_name';
-
-            // Build group headers for grouped sort views (birth_month, blood_group, company, etc.)
-            const shouldGroup = !isDefaultView;
-
-            // Grouping key function
-            const getGroupKey = (mem: MemberProfileData): string => {
-              switch (sortBy) {
-                case 'blood_group': return mem.blood_group || 'Not Specified';
-                case 'company': return mem.company || 'Unassigned';
-                case 'state_of_origin': return mem.state_of_origin || 'Not Specified';
-                case 'state_of_residence': return mem.state_of_residence || 'Not Specified';
-                case 'industry': return mem.industry || mem.occupation || 'Not Specified';
-                case 'business': return mem.business || 'Not Specified';
-                case 'skills': return mem.skills || 'Not Specified';
-                case 'professional_qualifications': return mem.professional_qualifications || 'Not Specified';
-                case 'birth_month': return getMonthName(mem.dob || '');
-                case 'dob': return mem.dob || 'Not Specified';
-                default: return '';
-              }
-            };
-
-            // Get group icon and color
-            const getGroupStyle = (): { bg: string; text: string; border: string; icon: React.ReactNode } => {
-              switch (sortBy) {
-                case 'blood_group': return { bg: 'bg-rose-50', text: 'text-rose-800', border: 'border-rose-200', icon: <Droplet className="w-4 h-4 text-rose-600" /> };
-                case 'company': return { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200', icon: <Shield className="w-4 h-4 text-emerald-600" /> };
-                case 'state_of_origin': return { bg: 'bg-indigo-50', text: 'text-indigo-800', border: 'border-indigo-200', icon: <MapPin className="w-4 h-4 text-indigo-600" /> };
-                case 'state_of_residence': return { bg: 'bg-violet-50', text: 'text-violet-800', border: 'border-violet-200', icon: <Home className="w-4 h-4 text-violet-600" /> };
-                case 'industry': return { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', icon: <Briefcase className="w-4 h-4 text-amber-600" /> };
-                case 'business': return { bg: 'bg-orange-50', text: 'text-orange-800', border: 'border-orange-200', icon: <Image src={buildingSvg} alt="Business" width={16} height={16} className="w-4 h-4 object-contain" /> };
-                case 'skills': return { bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-200', icon: <Sparkles className="w-4 h-4 text-blue-600" /> };
-                case 'professional_qualifications': return { bg: 'bg-purple-50', text: 'text-purple-800', border: 'border-purple-200', icon: <GraduationCap className="w-4 h-4 text-purple-600" /> };
-                case 'birth_month': return { bg: 'bg-pink-50', text: 'text-pink-800', border: 'border-pink-200', icon: <Cake className="w-4 h-4 text-pink-600" /> };
-                case 'dob': return { bg: 'bg-teal-50', text: 'text-teal-800', border: 'border-teal-200', icon: <Calendar className="w-4 h-4 text-teal-600" /> };
-                default: return { bg: 'bg-slate-50', text: 'text-slate-800', border: 'border-slate-200', icon: <Layers className="w-4 h-4 text-slate-600" /> };
-              }
-            };
-
-            // Get the contextual value for the sort field
-            const getSortValue = (mem: MemberProfileData): string => {
-              switch (sortBy) {
-                case 'blood_group': return `${mem.blood_group || 'N/A'} (${mem.genotype || 'AA'})`;
-                case 'company': return mem.company || 'N/A';
-                case 'state_of_origin': return mem.state_of_origin || 'N/A';
-                case 'state_of_residence': return mem.state_of_residence || 'N/A';
-                case 'industry': return mem.industry || mem.occupation || 'N/A';
-                case 'business': return mem.business || 'N/A';
-                case 'skills': return mem.skills || 'N/A';
-                case 'professional_qualifications': return mem.professional_qualifications || 'N/A';
-                case 'birth_month': return formatDob(mem.dob || '');
-                case 'dob': return formatDob(mem.dob || '');
-                default: return '';
-              }
-            };
-
-            // Get secondary detail for additional context
-            const getSecondaryDetail = (mem: MemberProfileData): string => {
-              switch (sortBy) {
-                case 'birth_month':
-                  return [mem.phone ? `Tel: ${mem.phone}` : '', mem.state_of_residence ? `Resides: ${mem.state_of_residence}` : '', mem.email].filter(Boolean).join(' • ') || '—';
-                case 'dob':
-                  return [mem.phone ? `Tel: ${mem.phone}` : '', mem.state_of_residence ? `Resides: ${mem.state_of_residence}` : ''].filter(Boolean).join(' • ') || '—';
-                case 'blood_group': {
-                  const parts: string[] = [];
-                  if (mem.next_of_kin) parts.push(`Next of Kin: ${mem.next_of_kin}`);
-                  if (mem.next_of_kin_phone) parts.push(`NOK Tel: ${mem.next_of_kin_phone}`);
-                  return parts.join(' • ') || 'No emergency contact on file';
-                }
-                case 'company':
-                  return [mem.rank_appointment, mem.state_of_residence ? `Resides: ${mem.state_of_residence}` : '', mem.phone].filter(Boolean).join(' • ') || '—';
-                case 'state_of_origin':
-                  return [mem.state_of_residence ? `Current Residence: ${mem.state_of_residence}` : '', mem.phone ? `Tel: ${mem.phone}` : ''].filter(Boolean).join(' • ') || '—';
-                case 'state_of_residence':
-                  return [mem.state_of_origin ? `Origin: ${mem.state_of_origin}` : '', mem.address ? `Address: ${mem.address}` : ''].filter(Boolean).join(' • ') || '—';
-                case 'industry':
-                  return [mem.business ? `Employer: ${mem.business}` : '', mem.occupation ? `Role: ${mem.occupation}` : ''].filter(Boolean).join(' • ') || '—';
-                case 'business':
-                  return [mem.industry ? `Industry: ${mem.industry}` : '', mem.occupation ? `Role: ${mem.occupation}` : ''].filter(Boolean).join(' • ') || '—';
-                case 'skills':
-                  return mem.professional_qualifications ? `Qualifications: ${mem.professional_qualifications}` : '—';
-                case 'professional_qualifications':
-                  return mem.skills ? `Skills: ${mem.skills}` : '—';
-                default:
-                  return '—';
-              }
-            };
-
-            if (isDefaultView) {
-              // DEFAULT VIEW: Show all columns in classic table
-              return (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
-                        <th
-                          className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
-                          onClick={() => handleSortChange('full_name')}
-                        >
-                          <div className="flex items-center gap-1">
-                            <span>Ex-Boy Name</span>
-                            {sortBy === 'full_name' && (
-                              <span className="text-emerald-700">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                            )}
-                          </div>
-                        </th>
-                        <th className="pb-3 px-3">Service No</th>
-                        <th
-                          className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
-                          onClick={() => handleSortChange('company')}
-                          title="Click to sort and focus by Company"
-                        >
-                          <div className="flex items-center gap-1">
-                            <span>Company</span>
-                            <ArrowUpDown className="w-3 h-3 text-slate-300" />
-                          </div>
-                        </th>
-                        <th
-                          className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
-                          onClick={() => handleSortChange('blood_group')}
-                          title="Click to sort and focus by Blood Group"
-                        >
-                          <div className="flex items-center gap-1">
-                            <span>Blood Group</span>
-                            <ArrowUpDown className="w-3 h-3 text-slate-300" />
-                          </div>
-                        </th>
-                        <th
-                          className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
-                          onClick={() => handleSortChange('state_of_origin')}
-                          title="Click to sort and focus by State of Origin"
-                        >
-                          <div className="flex items-center gap-1">
-                            <span>Origin & Residence</span>
-                            <ArrowUpDown className="w-3 h-3 text-slate-300" />
-                          </div>
-                        </th>
-                        <th
-                          className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
-                          onClick={() => handleSortChange('industry')}
-                          title="Click to sort and focus by Industry"
-                        >
-                          <div className="flex items-center gap-1">
-                            <span>Industry & Business</span>
-                            <ArrowUpDown className="w-3 h-3 text-slate-300" />
-                          </div>
-                        </th>
-                        <th
-                          className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
-                          onClick={() => handleSortChange('skills')}
-                          title="Click to sort and focus by Skills & Qualifications"
-                        >
-                          <div className="flex items-center gap-1">
-                            <span>Skills & Qualifications</span>
-                            <ArrowUpDown className="w-3 h-3 text-slate-300" />
-                          </div>
-                        </th>
-                        <th className="pb-3 px-3 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filteredAndSortedMembers.map((mem) => (
-                        <tr key={mem.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-3.5 px-3">
-                            <div className="font-bold text-slate-900">{mem.full_name}</div>
-                            <div className="text-[11px] text-slate-400">{mem.rank_appointment || 'Boy Soldier'}</div>
-                          </td>
-                          <td className="py-3.5 px-3">
-                            <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
-                              {mem.nms_number}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-3">
-                            <div className="font-semibold text-slate-800">{mem.company}</div>
-                            <div className="text-[11px] text-slate-400">{mem.set_appointment || 'Member'}</div>
-                          </td>
-                          <td className="py-3.5 px-3">
-                            <div className="flex items-center gap-1.5">
-                              <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 font-extrabold text-[11px]">
-                                {mem.blood_group || 'O+'}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono">{mem.genotype || 'AA'}</span>
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-3">
-                            <div className="font-medium text-slate-800 flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span>{mem.state_of_origin || 'N/A'}</span>
-                            </div>
-                            <div className="text-[11px] text-slate-500">Resides: {mem.state_of_residence || 'N/A'}</div>
-                          </td>
-                          <td className="py-3.5 px-3">
-                            <div className="font-semibold text-slate-800">{mem.industry || mem.occupation || 'N/A'}</div>
-                            <div className="text-[11px] text-slate-500 truncate max-w-[160px]" title={mem.business}>
-                              {mem.business || mem.occupation || 'Self-employed'}
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-3">
-                            <div className="font-medium text-slate-700 truncate max-w-[170px]" title={mem.professional_qualifications}>
-                              {mem.professional_qualifications || 'N/A'}
-                            </div>
-                            <div className="text-[10px] text-slate-400 truncate max-w-[170px]" title={mem.skills}>
-                              {mem.skills || 'General Management'}
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-3 text-right">
-                            <Button
-                              variant="emerald"
-                              size="sm"
-                              onClick={() => setSelectedMember(mem)}
-                              icon={<Eye className="w-3.5 h-3.5" />}
-                            >
-                              Dossier
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              );
-            }
-
-            // FOCUSED SORT VIEW: Grouped, clean data with only relevant columns
-            const groupStyle = getGroupStyle();
-            const groups: Array<{ key: string; members: MemberProfileData[] }> = [];
-            const groupMap = new Map<string, MemberProfileData[]>();
-
-            filteredAndSortedMembers.forEach((mem) => {
-              const key = getGroupKey(mem);
-              if (!groupMap.has(key)) {
-                groupMap.set(key, []);
-                groups.push({ key, members: groupMap.get(key)! });
-              }
-              groupMap.get(key)!.push(mem);
-            });
-
-            return (
-              <div className="space-y-4">
-                {/* Active Sort Summary Banner */}
-                <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl ${groupStyle.bg} ${groupStyle.border} border`}>
-                  {groupStyle.icon}
-                  <div className="flex-1">
-                    <p className={`font-bold text-sm ${groupStyle.text}`}>
-                      Sorted by {activeSortLabel}
+                <Card hoverEffect variant="glass">
+                  <CardContent className="p-6 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-500 uppercase">Total Dues Collected</span>
+                      <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                        <Image src={cardSvg} alt="Dues Levies" width={20} height={20} className="w-5 h-5 object-contain" />
+                      </div>
+                    </div>
+                    <h3 className="text-2xl font-extrabold text-slate-900">
+                      ₦{(metrics.totalDuesCollected / 1_000_000).toFixed(1)}M
+                    </h3>
+                    <ProgressBar value={metrics.complianceRate} showPercentage={false} height="sm" color="emerald" />
+                    <p className="text-[11px] text-slate-500">{metrics.complianceRate}% set compliance</p>
+                    <p className="text-[11px] text-slate-400">
+                      {formatNaira(MONTHLY_DUES_NGN)}/month per Ex-Boy • {formatNaira(ANNUAL_DISCOUNT_NGN)} settles the year
+                      (max {formatNaira(ANNUAL_ARREARS_CAP_NGN)})
                     </p>
-                    <p className="text-[11px] text-slate-500">
-                      {filteredAndSortedMembers.length} members across {groups.length} group{groups.length !== 1 ? 's' : ''} • {sortOrder === 'asc' ? 'Ascending' : 'Descending'} order
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => { setSortBy('created_at'); setSortOrder('desc'); }}
-                    className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 underline transition-colors"
-                  >
-                    Show All Columns
-                  </button>
-                </div>
+                  </CardContent>
+                </Card>
 
-                {/* Grouped Data Sections */}
-                {groups.map((group) => (
-                  <div key={group.key} className="rounded-2xl border border-slate-200/80 overflow-hidden">
-                    {/* Group Header */}
-                    <div className={`flex items-center justify-between px-4 py-2.5 ${groupStyle.bg} ${groupStyle.border} border-b`}>
-                      <div className="flex items-center gap-2">
-                        {groupStyle.icon}
-                        <h4 className={`font-bold text-sm ${groupStyle.text}`}>{group.key}</h4>
-                      </div>
-                      <Badge variant="emerald" size="sm">
-                        {group.members.length} member{group.members.length !== 1 ? 's' : ''}
-                      </Badge>
-                    </div>
-
-                    {/* Clean Focused Table */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
-                        <thead>
-                          <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase text-[10px] tracking-wider bg-slate-50/50">
-                            <th className="pb-2.5 pt-2.5 px-4">#</th>
-                            <th className="pb-2.5 pt-2.5 px-3">Ex-Boy Name</th>
-                            <th className="pb-2.5 pt-2.5 px-3">Service No</th>
-                            <th className="pb-2.5 pt-2.5 px-3">
-                              {sortBy === 'company' ? 'Role / Appointment' : 'Company'}
-                            </th>
-                            <th className={`pb-2.5 pt-2.5 px-3 ${groupStyle.text} font-bold`}>
-                              {sortBy === 'birth_month' ? 'Date of Birth' : activeSortLabel}
-                            </th>
-                            <th className="pb-2.5 pt-2.5 px-3">Additional Detail</th>
-                            <th className="pb-2.5 pt-2.5 px-3 text-right">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {group.members.map((mem, idx) => (
-                            <tr key={mem.id} className="hover:bg-slate-50/80 transition-colors">
-                              <td className="py-3 px-4 text-slate-400 font-mono text-[11px]">{idx + 1}</td>
-                              <td className="py-3 px-3">
-                                <div className="font-bold text-slate-900">{mem.full_name}</div>
-                                <div className="text-[11px] text-slate-400">{mem.rank_appointment || 'Boy Soldier'}</div>
-                              </td>
-                              <td className="py-3 px-3">
-                                <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 text-[11px]">
-                                  {mem.nms_number}
-                                </span>
-                              </td>
-                              <td className="py-3 px-3">
-                                <div className="font-semibold text-slate-700 text-[11px]">
-                                  {sortBy === 'company' ? (mem.set_appointment || 'Member') : mem.company}
-                                </div>
-                              </td>
-                              <td className={`py-3 px-3 ${groupStyle.bg} rounded-lg`}>
-                                <div className={`font-bold ${groupStyle.text}`}>{getSortValue(mem)}</div>
-                              </td>
-                              <td className="py-3 px-3">
-                                <div className="text-[11px] text-slate-500 max-w-[200px] truncate" title={getSecondaryDetail(mem)}>
-                                  {getSecondaryDetail(mem) || '—'}
-                                </div>
-                              </td>
-                              <td className="py-3 px-3 text-right">
-                                <Button
-                                  variant="emerald"
-                                  size="sm"
-                                  onClick={() => setSelectedMember(mem)}
-                                  icon={<Eye className="w-3.5 h-3.5" />}
-                                >
-                                  Dossier
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
-        </CardContent>
-      </Card>
-      )}
-
-      {/* ACTIVE BROADCAST ANNOUNCEMENTS MANAGEMENT CARD */}
-      {activeAdminSection === 'communications' && (
-      <Card hoverEffect variant="glass">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 shadow-apple-sm flex items-center justify-center">
-                <Image src={speakerSvg} alt="Broadcast Speaker" width={20} height={20} className="w-5 h-auto object-contain" />
-              </div>
-              <div>
-                <CardTitle>Active Portal Broadcasts & Member Notifications</CardTitle>
-                <CardDescription>
-                  Announcements currently live on all member dashboards and the scrolling bulletin ticker
-                </CardDescription>
-              </div>
-            </div>
-
-            <Button
-              variant="emerald"
-              size="sm"
-              onClick={() => setShowBroadcastModal(true)}
-              icon={<Plus className="w-4 h-4" />}
-            >
-              New Announcement
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {activeAnnouncements.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-              No active broadcasts published. Click "New Announcement" to broadcast to all registered pages.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {activeAnnouncements.map((ann) => {
-                const isUrgent = ann.severity === 'urgent';
-                const isWarning = ann.severity === 'warning';
-                return (
-                  <div
-                    key={ann.id}
-                    className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all ${
-                      isUrgent
-                        ? 'bg-rose-50/70 border-rose-200 text-rose-950'
-                        : isWarning
-                        ? 'bg-amber-50/70 border-amber-200 text-amber-950'
-                        : 'bg-white border-slate-200/80 text-slate-800'
-                    }`}
-                  >
-                    <div className="space-y-1.5 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge
-                          variant={isUrgent ? 'rose' : isWarning ? 'amber' : 'emerald'}
-                          size="sm"
-                        >
-                          {ann.type?.toUpperCase() || 'GENERAL'}
-                        </Badge>
-                        <h4 className="font-bold text-sm text-slate-900">{ann.title}</h4>
-                        {ann.showOnTicker && (
-                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
-                            Live on Ticker
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-600 leading-relaxed">{ann.message}</p>
-                      <div className="flex items-center gap-4 text-[11px] text-slate-400 pt-0.5">
-                        <span>By: {ann.postedBy}</span>
-                        <span>•</span>
-                        <span>{new Date(ann.createdAt).toLocaleDateString()}</span>
+                <Card hoverEffect variant="glass">
+                  <CardContent className="p-6 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-500 uppercase">Welfare Fund Balance</span>
+                      <div className="p-2 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                        <Image src={buildingSvg} alt="Welfare Fund" width={20} height={20} className="w-5 h-5 object-contain" />
                       </div>
                     </div>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteAnnouncement(ann.id)}
-                      className="text-rose-600 hover:text-rose-800 hover:bg-rose-100/50 shrink-0"
-                      icon={<Trash2 className="w-4 h-4" />}
-                    >
-                      Retract
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      )}
-
-      {/* PUBLIC SUGGESTION INBOX */}
-      {activeAdminSection === 'suggestions' && (
-      <Card hoverEffect={false} variant="glass">
-        <CardHeader>
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center rounded-2xl bg-sky-100 p-2.5 text-sky-800 shadow-apple-sm">
-                <MessageSquare className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle>Suggestion Inbox</CardTitle>
-                <CardDescription>
-                  Suggestions submitted from the public website. Only administrators can view these messages.
-                </CardDescription>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchSuggestions}
-              disabled={suggestionsLoading}
-              icon={<RefreshCw className={`h-3.5 w-3.5 ${suggestionsLoading ? 'animate-spin' : ''}`} />}
-            >
-              Refresh
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {suggestionError && (
-            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800">
-              {suggestionError}
-            </div>
-          )}
-          {suggestionsLoading && suggestions.length === 0 ? (
-            <div className="py-10 text-center text-sm text-slate-400">Loading suggestions...</div>
-          ) : suggestions.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-10 text-center">
-              <MessageSquare className="mx-auto h-8 w-8 text-slate-300" />
-              <p className="mt-3 text-sm font-semibold text-slate-600">No suggestions yet</p>
-              <p className="mt-1 text-xs text-slate-400">
-                New submissions from the footer suggestion box will appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {suggestions.map((suggestion) => (
-                <article
-                  key={suggestion.id}
-                  className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5"
-                >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                          size="sm"
-                          variant={
-                            suggestion.status === 'new'
-                              ? 'blue'
-                              : suggestion.status === 'reviewed'
-                                ? 'amber'
-                                : 'emerald'
-                          }
-                        >
-                          {suggestion.status}
-                        </Badge>
-                        <Badge size="sm" variant="subtle">{suggestion.category}</Badge>
-                        <span className="text-[11px] text-slate-400">
-                          {new Date(suggestion.created_at).toLocaleString('en-GB')}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                        <span className="font-bold text-slate-800">{suggestion.name || 'Anonymous'}</span>
-                        {suggestion.email && (
-                          <a
-                            href={`mailto:${suggestion.email}`}
-                            className="text-emerald-700 hover:underline"
-                          >
-                            {suggestion.email}
-                          </a>
-                        )}
-                      </div>
-                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-600">
-                        {suggestion.message}
-                      </p>
+                    <h3 className="text-2xl font-extrabold text-slate-900">
+                      ₦{(metrics.welfareFundBalance / 1_000_000).toFixed(1)}M
+                    </h3>
+                    <div className="flex items-center gap-1.5 text-[11px] text-amber-700 font-medium">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{metrics.activeClaimsUnderReview} claims under review</span>
                     </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      {suggestion.status === 'new' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={suggestionBusy !== null}
-                          onClick={() => updateSuggestionStatus(suggestion.id, 'reviewed')}
-                        >
-                          Mark reviewed
-                        </Button>
-                      )}
-                      {suggestion.status !== 'resolved' ? (
-                        <Button
-                          variant="emerald"
-                          size="sm"
-                          disabled={suggestionBusy !== null}
-                          onClick={() => updateSuggestionStatus(suggestion.id, 'resolved')}
-                        >
-                          {suggestionBusy === suggestion.id ? 'Saving...' : 'Resolve'}
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={suggestionBusy !== null}
-                          onClick={() => updateSuggestionStatus(suggestion.id, 'new')}
-                        >
-                          Reopen
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      )}
+                  </CardContent>
+                </Card>
 
-      {/* MANUAL DUES VERIFICATION CARD */}
-      {activeAdminSection === 'dues' && (
-      <Card hoverEffect variant="glass">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 shadow-apple-sm flex items-center justify-center">
-              <CreditCard className="w-5 h-5" />
-            </div>
-            <div>
-              <CardTitle>Dues Verification</CardTitle>
-              <CardDescription>
-                Record that an Ex-Boy has paid their dues — for this month ({formatNaira(MONTHLY_DUES_NGN)}) or the full
-                year ({formatNaira(ANNUAL_DISCOUNT_NGN)}). A verified member sees it on their dashboard straight away.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={duesSearch}
-              onChange={(e) => setDuesSearch(e.target.value)}
-              placeholder="Search a member by name or NMS number…"
-              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-            />
-          </div>
-
-          {duesMessage && (
-            <div
-              className={`text-xs font-medium px-4 py-2.5 rounded-2xl border ${
-                duesMessage.tone === 'ok'
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                  : 'bg-rose-50 border-rose-200 text-rose-800'
-              }`}
-            >
-              {duesMessage.text}
+              </div>
             </div>
           )}
 
-          {duesSearchResults.length > 0 && (
-            <div className="space-y-2">
-              {duesSearchResults.map((m) => (
-                <div
-                  key={m.id || m.nms_number}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border border-slate-200/80 bg-white"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-900 truncate">{m.full_name}</p>
-                    <p className="text-[11px] text-slate-500">
-                      {m.nms_number}
-                      {m.company ? ` • ${m.company}` : ''}
-                    </p>
+          {/* REGISTERED EX-BOYS DIRECTORY & DOSSIER ACCESS TABLE */}
+          {activeAdminSection === 'members' && (
+            <Card hoverEffect variant="glass">
+              <CardHeader>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 shadow-apple-sm flex items-center justify-center">
+                      <Image src={dogTagsSvg} alt="Dog Tags Roster" width={22} height={22} className="w-5 h-5 object-contain" />
+                    </div>
+                    <div>
+                      <CardTitle>Accredited Ex-Boys Member Profiles</CardTitle>
+                      <CardDescription>
+                        Live member dossiers sorted by {activeSortLabel} ({filteredAndSortedMembers.length} records shown)
+                      </CardDescription>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={duesBusy !== null}
-                      onClick={() => markDuesPaid(m, 'monthly')}
+                      onClick={fetchMembers}
+                      icon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
                     >
-                      {duesBusy === `${m.nms_number}:monthly`
-                        ? 'Saving…'
-                        : `Paid This Month · ${formatNaira(MONTHLY_DUES_NGN)}`}
+                      Refresh
+                    </Button>
+                    <Badge variant="emerald">Live Synchronized</Badge>
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                {/* SEARCH & SORT CONTROLS BAR */}
+                <div className="space-y-3 pb-2 border-b border-slate-200/60">
+                  <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+                    {/* Search Box */}
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Search by name, service no (e.g. NMS/08/4912), industry, blood group, skills, state..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+                      />
+                    </div>
+
+                    {/* Company Filter Dropdown */}
+                    <div className="w-full lg:w-44">
+                      <select
+                        value={selectedCompany}
+                        onChange={(e) => setSelectedCompany(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+                      >
+                        <option value="ALL">All Companies ({members.length})</option>
+                        <option value="Alpha">Alpha Company ({companyCounts.alpha})</option>
+                        <option value="Bravo">Bravo Company ({companyCounts.bravo})</option>
+                        <option value="Charlie">Charlie Company ({companyCounts.charlie})</option>
+                        <option value="Delta">Delta Company ({companyCounts.delta})</option>
+                        <option value="Echo">Echo Company ({companyCounts.echo})</option>
+                        <option value="Foxtrot">Foxtrot Company ({companyCounts.foxtrot})</option>
+                        <option value="Golf">Golf Company ({companyCounts.golf})</option>
+                      </select>
+                    </div>
+
+                    {/* PRIMARY SORT DROPDOWN BUTTON (Requested by user) */}
+                    <div className="relative flex items-center gap-2">
+                      <div className="relative">
+                        <Button
+                          variant="emerald"
+                          size="sm"
+                          onClick={() => setShowSortDropdown(!showSortDropdown)}
+                          icon={<ArrowUpDown className="w-3.5 h-3.5" />}
+                          className="shadow-apple-sm whitespace-nowrap"
+                        >
+                          <span>Sort Members By</span>
+                          <span className="ml-1 text-[11px] font-bold bg-white/20 px-2 py-0.5 rounded-full">
+                            {activeSortLabel}
+                          </span>
+                        </Button>
+
+                        {/* Dropdown Menu */}
+                        {showSortDropdown && (
+                          <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-apple-xl border border-slate-200/90 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                            <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                Sort Criteria
+                              </span>
+                              <span className="text-[10px] text-emerald-700 font-semibold">
+                                Order: {sortOrder === 'asc' ? 'A → Z' : 'Z → A'}
+                              </span>
+                            </div>
+                            <div className="py-1 max-h-72 overflow-y-auto space-y-0.5">
+                              {SORT_OPTIONS.map((opt) => {
+                                const isSelected = sortBy === opt.field;
+                                return (
+                                  <button
+                                    key={opt.field}
+                                    onClick={() => handleSortChange(opt.field)}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors ${isSelected
+                                      ? 'bg-emerald-50 text-emerald-900 font-bold'
+                                      : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                                      }`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className={isSelected ? 'text-emerald-700' : 'text-slate-400'}>
+                                        {opt.icon}
+                                      </span>
+                                      <span>{opt.label}</span>
+                                    </div>
+                                    {isSelected && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Sort Order Direction Toggle (Ascending / Descending) */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                        title={`Toggle order: currently ${sortOrder === 'asc' ? 'Ascending (A-Z)' : 'Descending (Z-A)'}`}
+                        icon={sortOrder === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-emerald-700" /> : <ArrowDown className="w-3.5 h-3.5 text-emerald-700" />}
+                      >
+                        <span className="hidden sm:inline font-mono">{sortOrder === 'asc' ? 'A → Z' : 'Z → A'}</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* QUICK SORT PILL BUTTONS (One-click access to all requested criteria) */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                      Quick Sort:
+                    </span>
+                    {[
+                      { field: 'industry' as SortField, label: 'Industry', icon: <Briefcase className="w-3 h-3" /> },
+                      { field: 'blood_group' as SortField, label: 'Blood Group', icon: <Droplet className="w-3 h-3" /> },
+                      { field: 'company' as SortField, label: 'Company', icon: <Shield className="w-3 h-3" /> },
+                      { field: 'state_of_origin' as SortField, label: 'State of Origin', icon: <MapPin className="w-3 h-3" /> },
+                      { field: 'state_of_residence' as SortField, label: 'State of Residence', icon: <Home className="w-3 h-3" /> },
+                      { field: 'business' as SortField, label: 'Business', icon: <Image src={buildingSvg} alt="Business" width={12} height={12} className="w-3 h-3 object-contain" /> },
+                      { field: 'skills' as SortField, label: 'Skills', icon: <Sparkles className="w-3 h-3" /> },
+                      { field: 'professional_qualifications' as SortField, label: 'Qualifications', icon: <GraduationCap className="w-3 h-3" /> },
+                      { field: 'birth_month' as SortField, label: 'Birth Month', icon: <Cake className="w-3 h-3" /> },
+                    ].map((pill) => {
+                      const isActive = sortBy === pill.field;
+                      return (
+                        <button
+                          key={pill.field}
+                          onClick={() => handleSortChange(pill.field)}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1.5 transition-all shadow-2xs ${isActive
+                            ? 'bg-emerald-700 text-white shadow-apple-sm ring-2 ring-emerald-600/30'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60'
+                            }`}
+                        >
+                          <span>{pill.icon}</span>
+                          <span>{pill.label}</span>
+                          {isActive && (
+                            <span className="text-[9px] opacity-80">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+
+                    {sortBy !== 'created_at' && (
+                      <button
+                        onClick={() => {
+                          setSortBy('created_at');
+                          setSortOrder('desc');
+                        }}
+                        className="px-2 py-1 text-[11px] text-rose-600 hover:text-rose-800 font-semibold underline ml-auto"
+                      >
+                        Reset Sort
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Members Table — Context-Aware Clean Sort View */}
+                {loading ? (
+                  <div className="p-12 text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-3">
+                    <RefreshCw className="w-6 h-6 animate-spin text-emerald-600" />
+                    <span>Loading verified Ex-Boy dossiers...</span>
+                  </div>
+                ) : filteredAndSortedMembers.length === 0 ? (
+                  <div className="p-12 text-center text-xs text-slate-500 font-medium bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                    {members.length === 0
+                      ? 'No registered member profiles recorded yet. When visitors register, their full profiles will appear here.'
+                      : 'No registered members match your search or filter criteria.'}
+                  </div>
+                ) : (() => {
+                  // Determine if a focused sort is active (not the default "all columns" view)
+                  const isDefaultView = sortBy === 'created_at' || sortBy === 'full_name';
+
+                  // Build group headers for grouped sort views (birth_month, blood_group, company, etc.)
+                  const shouldGroup = !isDefaultView;
+
+                  // Grouping key function
+                  const getGroupKey = (mem: MemberProfileData): string => {
+                    switch (sortBy) {
+                      case 'blood_group': return mem.blood_group || 'Not Specified';
+                      case 'company': return mem.company || 'Unassigned';
+                      case 'state_of_origin': return mem.state_of_origin || 'Not Specified';
+                      case 'state_of_residence': return mem.state_of_residence || 'Not Specified';
+                      case 'industry': return mem.industry || mem.occupation || 'Not Specified';
+                      case 'business': return mem.business || 'Not Specified';
+                      case 'skills': return mem.skills || 'Not Specified';
+                      case 'professional_qualifications': return mem.professional_qualifications || 'Not Specified';
+                      case 'birth_month': return getMonthName(mem.dob || '');
+                      case 'dob': return mem.dob || 'Not Specified';
+                      default: return '';
+                    }
+                  };
+
+                  // Get group icon and color
+                  const getGroupStyle = (): { bg: string; text: string; border: string; icon: React.ReactNode } => {
+                    switch (sortBy) {
+                      case 'blood_group': return { bg: 'bg-rose-50', text: 'text-rose-800', border: 'border-rose-200', icon: <Droplet className="w-4 h-4 text-rose-600" /> };
+                      case 'company': return { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200', icon: <Shield className="w-4 h-4 text-emerald-600" /> };
+                      case 'state_of_origin': return { bg: 'bg-indigo-50', text: 'text-indigo-800', border: 'border-indigo-200', icon: <MapPin className="w-4 h-4 text-indigo-600" /> };
+                      case 'state_of_residence': return { bg: 'bg-violet-50', text: 'text-violet-800', border: 'border-violet-200', icon: <Home className="w-4 h-4 text-violet-600" /> };
+                      case 'industry': return { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', icon: <Briefcase className="w-4 h-4 text-amber-600" /> };
+                      case 'business': return { bg: 'bg-orange-50', text: 'text-orange-800', border: 'border-orange-200', icon: <Image src={buildingSvg} alt="Business" width={16} height={16} className="w-4 h-4 object-contain" /> };
+                      case 'skills': return { bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-200', icon: <Sparkles className="w-4 h-4 text-blue-600" /> };
+                      case 'professional_qualifications': return { bg: 'bg-purple-50', text: 'text-purple-800', border: 'border-purple-200', icon: <GraduationCap className="w-4 h-4 text-purple-600" /> };
+                      case 'birth_month': return { bg: 'bg-pink-50', text: 'text-pink-800', border: 'border-pink-200', icon: <Cake className="w-4 h-4 text-pink-600" /> };
+                      case 'dob': return { bg: 'bg-teal-50', text: 'text-teal-800', border: 'border-teal-200', icon: <Calendar className="w-4 h-4 text-teal-600" /> };
+                      default: return { bg: 'bg-slate-50', text: 'text-slate-800', border: 'border-slate-200', icon: <Layers className="w-4 h-4 text-slate-600" /> };
+                    }
+                  };
+
+                  // Get the contextual value for the sort field
+                  const getSortValue = (mem: MemberProfileData): string => {
+                    switch (sortBy) {
+                      case 'blood_group': return `${mem.blood_group || 'N/A'} (${mem.genotype || 'AA'})`;
+                      case 'company': return mem.company || 'N/A';
+                      case 'state_of_origin': return mem.state_of_origin || 'N/A';
+                      case 'state_of_residence': return mem.state_of_residence || 'N/A';
+                      case 'industry': return mem.industry || mem.occupation || 'N/A';
+                      case 'business': return mem.business || 'N/A';
+                      case 'skills': return mem.skills || 'N/A';
+                      case 'professional_qualifications': return mem.professional_qualifications || 'N/A';
+                      case 'birth_month': return formatDob(mem.dob || '');
+                      case 'dob': return formatDob(mem.dob || '');
+                      default: return '';
+                    }
+                  };
+
+                  // Get secondary detail for additional context
+                  const getSecondaryDetail = (mem: MemberProfileData): string => {
+                    switch (sortBy) {
+                      case 'birth_month':
+                        return [mem.phone ? `Tel: ${mem.phone}` : '', mem.state_of_residence ? `Resides: ${mem.state_of_residence}` : '', mem.email].filter(Boolean).join(' • ') || '—';
+                      case 'dob':
+                        return [mem.phone ? `Tel: ${mem.phone}` : '', mem.state_of_residence ? `Resides: ${mem.state_of_residence}` : ''].filter(Boolean).join(' • ') || '—';
+                      case 'blood_group': {
+                        const parts: string[] = [];
+                        if (mem.next_of_kin) parts.push(`Next of Kin: ${mem.next_of_kin}`);
+                        if (mem.next_of_kin_phone) parts.push(`NOK Tel: ${mem.next_of_kin_phone}`);
+                        return parts.join(' • ') || 'No emergency contact on file';
+                      }
+                      case 'company':
+                        return [mem.rank_appointment, mem.state_of_residence ? `Resides: ${mem.state_of_residence}` : '', mem.phone].filter(Boolean).join(' • ') || '—';
+                      case 'state_of_origin':
+                        return [mem.state_of_residence ? `Current Residence: ${mem.state_of_residence}` : '', mem.phone ? `Tel: ${mem.phone}` : ''].filter(Boolean).join(' • ') || '—';
+                      case 'state_of_residence':
+                        return [mem.state_of_origin ? `Origin: ${mem.state_of_origin}` : '', mem.address ? `Address: ${mem.address}` : ''].filter(Boolean).join(' • ') || '—';
+                      case 'industry':
+                        return [mem.business ? `Employer: ${mem.business}` : '', mem.occupation ? `Role: ${mem.occupation}` : ''].filter(Boolean).join(' • ') || '—';
+                      case 'business':
+                        return [mem.industry ? `Industry: ${mem.industry}` : '', mem.occupation ? `Role: ${mem.occupation}` : ''].filter(Boolean).join(' • ') || '—';
+                      case 'skills':
+                        return mem.professional_qualifications ? `Qualifications: ${mem.professional_qualifications}` : '—';
+                      case 'professional_qualifications':
+                        return mem.skills ? `Skills: ${mem.skills}` : '—';
+                      default:
+                        return '—';
+                    }
+                  };
+
+                  if (isDefaultView) {
+                    // DEFAULT VIEW: Show all columns in classic table
+                    return (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead>
+                            <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
+                              <th
+                                className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
+                                onClick={() => handleSortChange('full_name')}
+                              >
+                                <div className="flex items-center gap-1">
+                                  <span>Ex-Boy Name</span>
+                                  {sortBy === 'full_name' && (
+                                    <span className="text-emerald-700">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                                  )}
+                                </div>
+                              </th>
+                              <th className="pb-3 px-3">Service No</th>
+                              <th
+                                className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
+                                onClick={() => handleSortChange('company')}
+                                title="Click to sort and focus by Company"
+                              >
+                                <div className="flex items-center gap-1">
+                                  <span>Company</span>
+                                  <ArrowUpDown className="w-3 h-3 text-slate-300" />
+                                </div>
+                              </th>
+                              <th
+                                className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
+                                onClick={() => handleSortChange('blood_group')}
+                                title="Click to sort and focus by Blood Group"
+                              >
+                                <div className="flex items-center gap-1">
+                                  <span>Blood Group</span>
+                                  <ArrowUpDown className="w-3 h-3 text-slate-300" />
+                                </div>
+                              </th>
+                              <th
+                                className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
+                                onClick={() => handleSortChange('state_of_origin')}
+                                title="Click to sort and focus by State of Origin"
+                              >
+                                <div className="flex items-center gap-1">
+                                  <span>Origin & Residence</span>
+                                  <ArrowUpDown className="w-3 h-3 text-slate-300" />
+                                </div>
+                              </th>
+                              <th
+                                className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
+                                onClick={() => handleSortChange('industry')}
+                                title="Click to sort and focus by Industry"
+                              >
+                                <div className="flex items-center gap-1">
+                                  <span>Industry & Business</span>
+                                  <ArrowUpDown className="w-3 h-3 text-slate-300" />
+                                </div>
+                              </th>
+                              <th
+                                className="pb-3 px-3 cursor-pointer hover:text-emerald-700 transition-colors"
+                                onClick={() => handleSortChange('skills')}
+                                title="Click to sort and focus by Skills & Qualifications"
+                              >
+                                <div className="flex items-center gap-1">
+                                  <span>Skills & Qualifications</span>
+                                  <ArrowUpDown className="w-3 h-3 text-slate-300" />
+                                </div>
+                              </th>
+                              <th className="pb-3 px-3 text-right">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {filteredAndSortedMembers.map((mem) => (
+                              <tr key={mem.id} className="hover:bg-slate-50/80 transition-colors">
+                                <td className="py-3.5 px-3">
+                                  <div className="font-bold text-slate-900">{mem.full_name}</div>
+                                  <div className="text-[11px] text-slate-400">{mem.rank_appointment || 'Boy Soldier'}</div>
+                                </td>
+                                <td className="py-3.5 px-3">
+                                  <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
+                                    {mem.nms_number}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 px-3">
+                                  <div className="font-semibold text-slate-800">{mem.company}</div>
+                                  <div className="text-[11px] text-slate-400">{mem.set_appointment || 'Member'}</div>
+                                </td>
+                                <td className="py-3.5 px-3">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 font-extrabold text-[11px]">
+                                      {mem.blood_group || 'O+'}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-mono">{mem.genotype || 'AA'}</span>
+                                  </div>
+                                </td>
+                                <td className="py-3.5 px-3">
+                                  <div className="font-medium text-slate-800 flex items-center gap-1">
+                                    <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                                    <span>{mem.state_of_origin || 'N/A'}</span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-500">Resides: {mem.state_of_residence || 'N/A'}</div>
+                                </td>
+                                <td className="py-3.5 px-3">
+                                  <div className="font-semibold text-slate-800">{mem.industry || mem.occupation || 'N/A'}</div>
+                                  <div className="text-[11px] text-slate-500 truncate max-w-[160px]" title={mem.business}>
+                                    {mem.business || mem.occupation || 'Self-employed'}
+                                  </div>
+                                </td>
+                                <td className="py-3.5 px-3">
+                                  <div className="font-medium text-slate-700 truncate max-w-[170px]" title={mem.professional_qualifications}>
+                                    {mem.professional_qualifications || 'N/A'}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 truncate max-w-[170px]" title={mem.skills}>
+                                    {mem.skills || 'General Management'}
+                                  </div>
+                                </td>
+                                <td className="py-3.5 px-3 text-right">
+                                  <Button
+                                    variant="emerald"
+                                    size="sm"
+                                    onClick={() => setSelectedMember(mem)}
+                                    icon={<Eye className="w-3.5 h-3.5" />}
+                                  >
+                                    Dossier
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  }
+
+                  // FOCUSED SORT VIEW: Grouped, clean data with only relevant columns
+                  const groupStyle = getGroupStyle();
+                  const groups: Array<{ key: string; members: MemberProfileData[] }> = [];
+                  const groupMap = new Map<string, MemberProfileData[]>();
+
+                  filteredAndSortedMembers.forEach((mem) => {
+                    const key = getGroupKey(mem);
+                    if (!groupMap.has(key)) {
+                      groupMap.set(key, []);
+                      groups.push({ key, members: groupMap.get(key)! });
+                    }
+                    groupMap.get(key)!.push(mem);
+                  });
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Active Sort Summary Banner */}
+                      <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl ${groupStyle.bg} ${groupStyle.border} border`}>
+                        {groupStyle.icon}
+                        <div className="flex-1">
+                          <p className={`font-bold text-sm ${groupStyle.text}`}>
+                            Sorted by {activeSortLabel}
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            {filteredAndSortedMembers.length} members across {groups.length} group{groups.length !== 1 ? 's' : ''} • {sortOrder === 'asc' ? 'Ascending' : 'Descending'} order
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => { setSortBy('created_at'); setSortOrder('desc'); }}
+                          className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 underline transition-colors"
+                        >
+                          Show All Columns
+                        </button>
+                      </div>
+
+                      {/* Grouped Data Sections */}
+                      {groups.map((group) => (
+                        <div key={group.key} className="rounded-2xl border border-slate-200/80 overflow-hidden">
+                          {/* Group Header */}
+                          <div className={`flex items-center justify-between px-4 py-2.5 ${groupStyle.bg} ${groupStyle.border} border-b`}>
+                            <div className="flex items-center gap-2">
+                              {groupStyle.icon}
+                              <h4 className={`font-bold text-sm ${groupStyle.text}`}>{group.key}</h4>
+                            </div>
+                            <Badge variant="emerald" size="sm">
+                              {group.members.length} member{group.members.length !== 1 ? 's' : ''}
+                            </Badge>
+                          </div>
+
+                          {/* Clean Focused Table */}
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                              <thead>
+                                <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase text-[10px] tracking-wider bg-slate-50/50">
+                                  <th className="pb-2.5 pt-2.5 px-4">#</th>
+                                  <th className="pb-2.5 pt-2.5 px-3">Ex-Boy Name</th>
+                                  <th className="pb-2.5 pt-2.5 px-3">Service No</th>
+                                  <th className="pb-2.5 pt-2.5 px-3">
+                                    {sortBy === 'company' ? 'Role / Appointment' : 'Company'}
+                                  </th>
+                                  <th className={`pb-2.5 pt-2.5 px-3 ${groupStyle.text} font-bold`}>
+                                    {sortBy === 'birth_month' ? 'Date of Birth' : activeSortLabel}
+                                  </th>
+                                  <th className="pb-2.5 pt-2.5 px-3">Additional Detail</th>
+                                  <th className="pb-2.5 pt-2.5 px-3 text-right">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {group.members.map((mem, idx) => (
+                                  <tr key={mem.id} className="hover:bg-slate-50/80 transition-colors">
+                                    <td className="py-3 px-4 text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                                    <td className="py-3 px-3">
+                                      <div className="font-bold text-slate-900">{mem.full_name}</div>
+                                      <div className="text-[11px] text-slate-400">{mem.rank_appointment || 'Boy Soldier'}</div>
+                                    </td>
+                                    <td className="py-3 px-3">
+                                      <span className="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 text-[11px]">
+                                        {mem.nms_number}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-3">
+                                      <div className="font-semibold text-slate-700 text-[11px]">
+                                        {sortBy === 'company' ? (mem.set_appointment || 'Member') : mem.company}
+                                      </div>
+                                    </td>
+                                    <td className={`py-3 px-3 ${groupStyle.bg} rounded-lg`}>
+                                      <div className={`font-bold ${groupStyle.text}`}>{getSortValue(mem)}</div>
+                                    </td>
+                                    <td className="py-3 px-3">
+                                      <div className="text-[11px] text-slate-500 max-w-[200px] truncate" title={getSecondaryDetail(mem)}>
+                                        {getSecondaryDetail(mem) || '—'}
+                                      </div>
+                                    </td>
+                                    <td className="py-3 px-3 text-right">
+                                      <Button
+                                        variant="emerald"
+                                        size="sm"
+                                        onClick={() => setSelectedMember(mem)}
+                                        icon={<Eye className="w-3.5 h-3.5" />}
+                                      >
+                                        Dossier
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ACTIVE BROADCAST ANNOUNCEMENTS MANAGEMENT CARD */}
+          {activeAdminSection === 'communications' && (
+            <Card hoverEffect variant="glass">
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 shadow-apple-sm flex items-center justify-center">
+                      <Image src={speakerSvg} alt="Broadcast Speaker" width={20} height={20} className="w-5 h-auto object-contain" />
+                    </div>
+                    <div>
+                      <CardTitle>Active Portal Broadcasts & Member Notifications</CardTitle>
+                      <CardDescription>
+                        Announcements currently live on all member dashboards and the scrolling bulletin ticker
+                      </CardDescription>
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="emerald"
+                    size="sm"
+                    onClick={() => setShowBroadcastModal(true)}
+                    icon={<Plus className="w-4 h-4" />}
+                  >
+                    New Announcement
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {activeAnnouncements.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                    No active broadcasts published. Click "New Announcement" to broadcast to all registered pages.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {activeAnnouncements.map((ann) => {
+                      const isUrgent = ann.severity === 'urgent';
+                      const isWarning = ann.severity === 'warning';
+                      return (
+                        <div
+                          key={ann.id}
+                          className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all ${isUrgent
+                            ? 'bg-rose-50/70 border-rose-200 text-rose-950'
+                            : isWarning
+                              ? 'bg-amber-50/70 border-amber-200 text-amber-950'
+                              : 'bg-white border-slate-200/80 text-slate-800'
+                            }`}
+                        >
+                          <div className="space-y-1.5 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge
+                                variant={isUrgent ? 'rose' : isWarning ? 'amber' : 'emerald'}
+                                size="sm"
+                              >
+                                {ann.type?.toUpperCase() || 'GENERAL'}
+                              </Badge>
+                              <h4 className="font-bold text-sm text-slate-900">{ann.title}</h4>
+                              {ann.showOnTicker && (
+                                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                                  Live on Ticker
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-600 leading-relaxed">{ann.message}</p>
+                            <div className="flex items-center gap-4 text-[11px] text-slate-400 pt-0.5">
+                              <span>By: {ann.postedBy}</span>
+                              <span>•</span>
+                              <span>{new Date(ann.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteAnnouncement(ann.id)}
+                            className="text-rose-600 hover:text-rose-800 hover:bg-rose-100/50 shrink-0"
+                            icon={<Trash2 className="w-4 h-4" />}
+                          >
+                            Retract
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* HANDOVER NOTE MANAGEMENT */}
+          {activeAdminSection === 'communications' && (
+            <Card hoverEffect variant="glass">
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 shadow-apple-sm flex items-center justify-center">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <CardTitle>Official Handover Memorandum</CardTitle>
+                      <CardDescription>
+                        Manage the handover note displayed on the public About page
+                      </CardDescription>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {handoverLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-400 py-4">
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Loading status…
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Current status */}
+                    {handoverStatus?.exists ? (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+                        <div className="flex items-start gap-3">
+                          <FileText className="w-5 h-5 text-emerald-700 mt-0.5 shrink-0" />
+                          <div className="space-y-0.5">
+                            <p className="text-sm font-bold text-emerald-900">{handoverStatus.filename || 'handover-note.pdf'}</p>
+                            {handoverStatus.uploadedAt && (
+                              <p className="text-xs text-emerald-700">
+                                Uploaded {new Date(handoverStatus.uploadedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                              </p>
+                            )}
+                            {handoverStatus.url && (
+                              <a href={handoverStatus.url} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-600 underline underline-offset-2 hover:text-emerald-800">
+                                View current document ↗
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleHandoverDelete}
+                          disabled={handoverLoading}
+                          className="text-rose-600 hover:text-rose-800 hover:bg-rose-100/50 shrink-0"
+                          icon={<Trash2 className="w-4 h-4" />}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-400">
+                        No handover note is currently published on the About page.
+                      </div>
+                    )}
+
+                    {/* Upload new */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-slate-700">
+                        {handoverStatus?.exists ? 'Replace with a new document:' : 'Upload handover note (PDF):'}
+                      </p>
+                      <label className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 border-dashed cursor-pointer transition-colors ${handoverUploading ? 'opacity-60 cursor-not-allowed border-slate-200' : 'border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50/40'}`}>
+                        <Plus className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span className="text-xs font-medium text-emerald-700">
+                          {handoverUploading ? 'Uploading…' : 'Click to select PDF file (max 20 MB)'}
+                        </span>
+                        <input
+                          type="file"
+                          accept=".pdf,application/pdf"
+                          className="sr-only"
+                          disabled={handoverUploading}
+                          onChange={handleHandoverUpload}
+                        />
+                      </label>
+                      <p className="text-[11px] text-slate-400">
+                        The uploaded PDF will appear immediately on the public About page under the "Official Handover Memorandum" section.
+                      </p>
+                    </div>
+
+                    {/* Feedback */}
+                    {handoverMessage && (
+                      <div className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-xs font-medium ${handoverMessage.tone === 'ok' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
+                        {handoverMessage.tone === 'ok' ? <Check className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
+                        {handoverMessage.text}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* PUBLIC SUGGESTION INBOX */}
+          {activeAdminSection === 'suggestions' && (
+            <Card hoverEffect={false} variant="glass">
+              <CardHeader>
+                <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center rounded-2xl bg-sky-100 p-2.5 text-sky-800 shadow-apple-sm">
+                      <MessageSquare className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <CardTitle>Suggestion Inbox</CardTitle>
+                      <CardDescription>
+                        Suggestions submitted from the public website. Only administrators can view these messages.
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchSuggestions}
+                    disabled={suggestionsLoading}
+                    icon={<RefreshCw className={`h-3.5 w-3.5 ${suggestionsLoading ? 'animate-spin' : ''}`} />}
+                  >
+                    Refresh
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {suggestionError && (
+                  <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800">
+                    {suggestionError}
+                  </div>
+                )}
+                {suggestionsLoading && suggestions.length === 0 ? (
+                  <div className="py-10 text-center text-sm text-slate-400">Loading suggestions...</div>
+                ) : suggestions.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-10 text-center">
+                    <MessageSquare className="mx-auto h-8 w-8 text-slate-300" />
+                    <p className="mt-3 text-sm font-semibold text-slate-600">No suggestions yet</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      New submissions from the footer suggestion box will appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {suggestions.map((suggestion) => (
+                      <article
+                        key={suggestion.id}
+                        className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5"
+                      >
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge
+                                size="sm"
+                                variant={
+                                  suggestion.status === 'new'
+                                    ? 'blue'
+                                    : suggestion.status === 'reviewed'
+                                      ? 'amber'
+                                      : 'emerald'
+                                }
+                              >
+                                {suggestion.status}
+                              </Badge>
+                              <Badge size="sm" variant="subtle">{suggestion.category}</Badge>
+                              <span className="text-[11px] text-slate-400">
+                                {new Date(suggestion.created_at).toLocaleString('en-GB')}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                              <span className="font-bold text-slate-800">{suggestion.name || 'Anonymous'}</span>
+                              {suggestion.email && (
+                                <a
+                                  href={`mailto:${suggestion.email}`}
+                                  className="text-emerald-700 hover:underline"
+                                >
+                                  {suggestion.email}
+                                </a>
+                              )}
+                            </div>
+                            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-600">
+                              {suggestion.message}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 flex-wrap items-center gap-2">
+                            {suggestion.status === 'new' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={suggestionBusy !== null}
+                                onClick={() => updateSuggestionStatus(suggestion.id, 'reviewed')}
+                              >
+                                Mark reviewed
+                              </Button>
+                            )}
+                            {suggestion.status !== 'resolved' ? (
+                              <Button
+                                variant="emerald"
+                                size="sm"
+                                disabled={suggestionBusy !== null}
+                                onClick={() => updateSuggestionStatus(suggestion.id, 'resolved')}
+                              >
+                                {suggestionBusy === suggestion.id ? 'Saving...' : 'Resolve'}
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={suggestionBusy !== null}
+                                onClick={() => updateSuggestionStatus(suggestion.id, 'new')}
+                              >
+                                Reopen
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* MANUAL DUES VERIFICATION CARD */}
+          {activeAdminSection === 'dues' && (
+            <Card hoverEffect variant="glass">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 shadow-apple-sm flex items-center justify-center">
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <CardTitle>Dues Verification</CardTitle>
+                    <CardDescription>
+                      Record that an Ex-Boy has paid their dues — for this month ({formatNaira(MONTHLY_DUES_NGN)}) or the full
+                      year ({formatNaira(ANNUAL_DISCOUNT_NGN)}). A verified member sees it on their dashboard straight away.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={duesSearch}
+                    onChange={(e) => setDuesSearch(e.target.value)}
+                    placeholder="Search a member by name or NMS number…"
+                    className="w-full pl-10 pr-4 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                  />
+                </div>
+
+                {duesMessage && (
+                  <div
+                    className={`text-xs font-medium px-4 py-2.5 rounded-2xl border ${duesMessage.tone === 'ok'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-rose-50 border-rose-200 text-rose-800'
+                      }`}
+                  >
+                    {duesMessage.text}
+                  </div>
+                )}
+
+                {duesSearchResults.length > 0 && (
+                  <div className="space-y-2">
+                    {duesSearchResults.map((m) => (
+                      <div
+                        key={m.id || m.nms_number}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border border-slate-200/80 bg-white"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-slate-900 truncate">{m.full_name}</p>
+                          <p className="text-[11px] text-slate-500">
+                            {m.nms_number}
+                            {m.company ? ` • ${m.company}` : ''}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={duesBusy !== null}
+                            onClick={() => markDuesPaid(m, 'monthly')}
+                          >
+                            {duesBusy === `${m.nms_number}:monthly`
+                              ? 'Saving…'
+                              : `Paid This Month · ${formatNaira(MONTHLY_DUES_NGN)}`}
+                          </Button>
+                          <Button
+                            variant="emerald"
+                            size="sm"
+                            disabled={duesBusy !== null}
+                            onClick={() => markDuesPaid(m, 'annual')}
+                          >
+                            {duesBusy === `${m.nms_number}:annual`
+                              ? 'Saving…'
+                              : `Paid Full Year · ${formatNaira(ANNUAL_DISCOUNT_NGN)}`}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-3 pt-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    Recently verified by admin
+                  </p>
+                  {duesVerifications.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                      No manual dues verifications recorded yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                      {duesVerifications.map((v) => (
+                        <div
+                          key={v.id}
+                          className="flex items-center justify-between gap-3 p-3 rounded-2xl border border-slate-200/80 bg-white"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 truncate">
+                              {v.full_name || v.nms_number}
+                            </p>
+                            <p className="text-[11px] text-slate-500">
+                              {v.notes} • {formatNaira(Number(v.amount_ngn) || 0)}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={duesBusy !== null}
+                            onClick={() => revokeDuesVerification(v.id)}
+                            className="text-rose-600 hover:text-rose-800 hover:bg-rose-100/50 shrink-0"
+                            icon={<Trash2 className="w-4 h-4" />}
+                          >
+                            Revoke
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* DUES PAYERS LIST CARD */}
+          {activeAdminSection === 'dues' && (
+            <Card hoverEffect variant="glass">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 shadow-apple-sm flex items-center justify-center">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <CardTitle>Members Who Have Paid Dues</CardTitle>
+                    <CardDescription>
+                      All Ex-Boys with at least one dues payment on record — {duesPayersLoading ? 'loading…' : `${duesPayers.length} member${duesPayers.length !== 1 ? 's' : ''}`}.
+                    </CardDescription>
+                  </div>
+                  <button
+                    onClick={fetchDuesPayers}
+                    disabled={duesPayersLoading}
+                    className="shrink-0 text-xs font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl px-3 py-1.5 transition-colors disabled:opacity-50"
+                  >
+                    {duesPayersLoading ? 'Refreshing…' : 'Refresh'}
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={duesPayersSearch}
+                    onChange={(e) => setDuesPayersSearch(e.target.value)}
+                    placeholder="Filter by name, NMS number or company…"
+                    className="w-full pl-10 pr-4 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                  />
+                </div>
+
+                {duesPayersLoading ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3, 4, 5].map((_, i) => (
+                      <div key={i} className="h-14 rounded-2xl bg-slate-100 animate-pulse" />
+                    ))}
+                  </div>
+                ) : filteredDuesPayers.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                    {duesPayersSearch ? 'No matches found.' : 'No dues payments recorded yet.'}
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+                    {/* Header row */}
+                    <div className="grid grid-cols-12 gap-2 px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      <span className="col-span-1 text-center">#</span>
+                      <span className="col-span-4">Name</span>
+                      <span className="col-span-3">NMS Number</span>
+                      <span className="col-span-2">Company</span>
+                      <span className="col-span-2 text-right">Total Paid</span>
+                    </div>
+                    {filteredDuesPayers.map((p, idx) => (
+                      <div
+                        key={p.nms_number}
+                        className="grid grid-cols-12 gap-2 items-center px-3.5 py-3 rounded-2xl border border-slate-200/80 bg-white hover:bg-emerald-50/40 transition-colors"
+                      >
+                        {/* Index */}
+                        <span className="col-span-1 text-center text-xs font-bold text-slate-400">
+                          {idx + 1}
+                        </span>
+
+                        {/* Name */}
+                        <div className="col-span-4 min-w-0">
+                          <p className="text-sm font-bold text-slate-900 truncate">
+                            {p.full_name || '—'}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            {p.payment_count} payment{p.payment_count !== 1 ? 's' : ''}
+                            {p.last_paid_at
+                              ? ` · Last: ${new Date(p.last_paid_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                              : ''}
+                          </p>
+                        </div>
+
+                        {/* NMS Number */}
+                        <div className="col-span-3 min-w-0">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 text-[11px] font-mono font-semibold text-slate-700 truncate max-w-full">
+                            {p.nms_number}
+                          </span>
+                        </div>
+
+                        {/* Company */}
+                        <div className="col-span-2 min-w-0">
+                          <span className="text-xs text-slate-600 truncate block">
+                            {p.company ? p.company.replace(/\s*Company\s*/i, '') : '—'}
+                          </span>
+                        </div>
+
+                        {/* Total paid */}
+                        <div className="col-span-2 text-right">
+                          <span className="text-xs font-bold text-emerald-700">
+                            ₦{(p.total_paid_ngn / 1000).toFixed(0)}k
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Summary footer */}
+                {!duesPayersLoading && duesPayers.length > 0 && (
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+                    <span>
+                      Showing <span className="font-bold text-slate-700">{filteredDuesPayers.length}</span> of{' '}
+                      <span className="font-bold text-slate-700">{duesPayers.length}</span> members
+                    </span>
+                    <span>
+                      Total collected:{' '}
+                      <span className="font-bold text-emerald-700">
+                        ₦{(duesPayers.reduce((s, p) => s + (p.total_paid_ngn || 0), 0) / 1_000_000).toFixed(2)}M
+                      </span>
+                    </span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* WEDDING CONTRIBUTION TRACKER CARD */}
+          {activeAdminSection === 'wedding' && (
+            <Card hoverEffect variant="glass">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-amber-100 text-amber-800 shadow-apple-sm flex items-center justify-center">
+                    <Heart className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <CardTitle>Wedding Contribution Tracker</CardTitle>
+                    <CardDescription>
+                      Log company contributions towards the {formatNaira(WEDDING_GOAL_NGN)} per-company wedding-fund goal as
+                      they come in. Updates appear on the public Companies page.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+                      Company
+                    </label>
+                    <select
+                      value={weddingForm.company}
+                      onChange={(e) => setWeddingForm((f) => ({ ...f, company: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                    >
+                      {WEDDING_COMPANIES.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+                      Amount (₦)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      inputMode="numeric"
+                      value={weddingForm.amount}
+                      onChange={(e) => setWeddingForm((f) => ({ ...f, amount: e.target.value }))}
+                      placeholder="e.g. 5000"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="emerald"
+                      size="md"
+                      disabled={weddingBusy}
+                      onClick={() => submitWeddingContribution('add')}
+                      icon={<Plus className="w-4 h-4" />}
+                    >
+                      {weddingBusy ? 'Saving…' : 'Add'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="md"
+                      disabled={weddingBusy}
+                      onClick={() => submitWeddingContribution('set')}
+                    >
+                      Set total
+                    </Button>
+                  </div>
+                </div>
+
+                {weddingMessage && (
+                  <div
+                    className={`text-xs font-medium px-4 py-2.5 rounded-2xl border ${weddingMessage.tone === 'ok'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-rose-50 border-rose-200 text-rose-800'
+                      }`}
+                  >
+                    {weddingMessage.text}
+                  </div>
+                )}
+
+                <div className="space-y-5 pt-4 border-t border-slate-200/60">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Company progress</p>
+                    <p className="text-xs font-bold text-emerald-800">
+                      {formatNaira(weddingTotalContributed)}{' '}
+                      <span className="text-slate-400 font-medium">of {formatNaira(weddingTotalTarget)}</span>
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                    {weddingContributions.map((c) => (
+                      <ProgressBar
+                        key={c.id}
+                        value={c.amount}
+                        max={WEDDING_GOAL_NGN}
+                        label={c.name}
+                        sublabel={`${formatNaira(c.amount)} of ${formatNaira(WEDDING_GOAL_NGN)}`}
+                        color="amber"
+                        height="md"
+                      />
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* EMPLOYMENT & CAREER DESK SECTION */}
+          {activeAdminSection === 'employment' && (
+            <div className="space-y-6">
+              <Card hoverEffect variant="glass">
+                <CardHeader>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-2xl bg-amber-100 text-amber-800 shadow-apple-sm flex items-center justify-center">
+                        <Briefcase className="w-5 h-5 text-amber-700" />
+                      </div>
+                      <div>
+                        <CardTitle>Employment & Career Opportunities Desk</CardTitle>
+                        <CardDescription>
+                          Registered Ex-Boys currently seeking career placement, advisory roles, or employment opportunities.
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={fetchEmploymentRequests}
+                      disabled={employmentLoading}
+                      className="self-start sm:self-auto shrink-0 text-xs font-semibold text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl px-3.5 py-2 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${employmentLoading ? 'animate-spin' : ''}`} />
+                      <span>{employmentLoading ? 'Refreshing…' : 'Refresh Roster'}</span>
+                    </button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Quick Metrics Bar */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Seekers</span>
+                      <span className="text-xl font-extrabold text-slate-900 mt-0.5 block">{employmentRequests.length}</span>
+                    </div>
+                    <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/70">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">Pending Review</span>
+                      <span className="text-xl font-extrabold text-amber-900 mt-0.5 block">
+                        {employmentRequests.filter((r) => r.status === 'Pending').length}
+                      </span>
+                    </div>
+                    <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200/70">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 block">Under Review</span>
+                      <span className="text-xl font-extrabold text-blue-900 mt-0.5 block">
+                        {employmentRequests.filter((r) => r.status === 'Reviewing' || r.status === 'Contacted').length}
+                      </span>
+                    </div>
+                    <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200/70">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">Placed / Settled</span>
+                      <span className="text-xl font-extrabold text-emerald-900 mt-0.5 block">
+                        {employmentRequests.filter((r) => r.status === 'Placed').length}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={employmentSearch}
+                      onChange={(e) => setEmploymentSearch(e.target.value)}
+                      placeholder="Search by name, NMS number, company, industry, or skills…"
+                      className="w-full pl-10 pr-4 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                    />
+                  </div>
+
+                  {/* List / Cards */}
+                  {employmentLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((_, i) => (
+                        <div key={i} className="h-28 rounded-2xl bg-slate-100 animate-pulse" />
+                      ))}
+                    </div>
+                  ) : filteredEmploymentRequests.length === 0 ? (
+                    <div className="p-10 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 space-y-2">
+                      <Briefcase className="w-8 h-8 text-slate-300 mx-auto" />
+                      <p className="font-semibold text-slate-600">
+                        {employmentSearch ? 'No employment requests matched your search query.' : 'No employment requests recorded yet.'}
+                      </p>
+                      <p className="text-slate-400 max-w-sm mx-auto">
+                        When registered members click &ldquo;Seeking Employment&rdquo; in their dashboard and describe the jobs they are looking for, their dossiers appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3.5">
+                      {filteredEmploymentRequests.map((req) => {
+                        const statusColors: Record<string, { bg: string; text: string; border: string }> = {
+                          Pending: { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200' },
+                          Reviewing: { bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-200' },
+                          Contacted: { bg: 'bg-purple-50', text: 'text-purple-800', border: 'border-purple-200' },
+                          Placed: { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200' },
+                        };
+                        const color = statusColors[req.status] || statusColors.Pending;
+
+                        return (
+                          <div
+                            key={req.id}
+                            className="p-4 sm:p-5 rounded-2xl border border-slate-200/90 bg-white shadow-apple-sm hover:border-amber-300 transition-all space-y-3.5"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 font-extrabold flex items-center justify-center text-sm shadow-sm shrink-0">
+                                  {req.full_name ? req.full_name[0].toUpperCase() : 'E'}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h4 className="text-base font-bold text-slate-900">{req.full_name}</h4>
+                                    <span className="font-mono text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-lg">
+                                      {req.nms_number}
+                                    </span>
+                                    {req.company && (
+                                      <Badge variant="subtle" size="sm">
+                                        {req.company.replace(/\s*Company\s*/i, '')}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-slate-500 mt-0.5">
+                                    Submitted {req.createdAt ? new Date(req.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently'}
+                                    {req.preferred_location ? ` • Preferred: ${req.preferred_location}` : ''}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${color.bg} ${color.text} ${color.border}`}>
+                                  {req.status}
+                                </span>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => setSelectedEmploymentRequest(req)}
+                                  icon={<Eye className="w-3.5 h-3.5 text-amber-700" />}
+                                  className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold shadow-sm"
+                                >
+                                  View Details (Pop Up)
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Industry & Skills row */}
+                            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                              <span className="font-semibold text-slate-600">Industry:</span>
+                              <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 font-bold text-slate-800">
+                                {req.industry || 'Not specified'}
+                              </span>
+                              <span className="text-slate-300">|</span>
+                              <span className="font-semibold text-slate-600">Skills:</span>
+                              <span className="px-2.5 py-0.5 rounded-lg bg-slate-50 border border-slate-200 font-medium text-slate-700">
+                                {req.skills || 'Not specified'}
+                              </span>
+                            </div>
+
+                            {/* Job interests box preview */}
+                            <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200/80 text-xs">
+                              <span className="font-bold text-amber-900 block mb-1">Target Roles & Interests:</span>
+                              <p className="text-slate-700 line-clamp-2 leading-relaxed">
+                                {req.job_interest}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* EVENTS & REUNIONS MANAGEMENT SECTION */}
+          {activeAdminSection === 'events' && (
+            <div className="space-y-6">
+              <Card variant="glass" className="p-6">
+                <AdminEventsManager />
+              </Card>
+            </div>
+          )}
+
+          {/* ACCOUNTABILITY REPORTS SECTION */}
+          {activeAdminSection === 'reports' && (
+            <div className="space-y-6">
+              <Card variant="glass" className="p-6">
+                <AdminReportsManager />
+              </Card>
+            </div>
+          )}
+
+          {/* DETAILED EMPLOYMENT DOSSIER POP UP MODAL */}
+          {selectedEmploymentRequest && (
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+              <div className="w-full max-w-2xl max-h-[92vh] flex flex-col glass-panel rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl border border-white">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between border-b border-slate-200 pb-4 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-2xl bg-amber-100 text-amber-800 shadow-apple-sm flex items-center justify-center">
+                      <Briefcase className="w-6 h-6 text-amber-700" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">Ex-Boy Employment Dossier</h3>
+                      <p className="text-xs text-slate-500 font-mono">
+                        Candidate: {selectedEmploymentRequest.nms_number} • {selectedEmploymentRequest.company}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEmploymentRequest(null)}
+                    className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="overflow-y-auto space-y-5 pr-1 max-h-[64vh]">
+                  {/* Member Overview Card */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-lg font-extrabold text-slate-900">{selectedEmploymentRequest.full_name}</h4>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="font-mono text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                          {selectedEmploymentRequest.nms_number}
+                        </span>
+                        <Badge variant="subtle" size="sm">{selectedEmploymentRequest.company}</Badge>
+                        <span className="text-xs text-slate-500">
+                          Submitted: {selectedEmploymentRequest.createdAt ? new Date(selectedEmploymentRequest.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Status Switcher */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-semibold text-slate-500">Status:</span>
+                      <select
+                        value={selectedEmploymentRequest.status}
+                        disabled={employmentActionBusy !== null}
+                        onChange={(e) => handleUpdateEmploymentStatus(selectedEmploymentRequest.id, e.target.value)}
+                        className="text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Reviewing">Under Review</option>
+                        <option value="Contacted">Contacted</option>
+                        <option value="Placed">Placed / Settled</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Contact Particulars */}
+                  <div className="p-4 rounded-2xl bg-white border border-slate-200/80 space-y-3">
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400">Direct Contact Particulars</h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span className="font-semibold text-slate-800 truncate">
+                            {selectedEmploymentRequest.phone || 'Phone not on file'}
+                          </span>
+                        </div>
+                        {selectedEmploymentRequest.phone && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <a
+                              href={`tel:${selectedEmploymentRequest.phone}`}
+                              className="px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold text-[10px] transition-colors"
+                            >
+                              Call
+                            </a>
+                            <a
+                              href={`https://wa.me/${selectedEmploymentRequest.phone.replace(/[^0-9]/g, '')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition-colors"
+                            >
+                              WhatsApp
+                            </a>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Mail className="w-4 h-4 text-blue-600 shrink-0" />
+                          <span className="font-semibold text-slate-800 truncate">
+                            {selectedEmploymentRequest.email || 'Email not on file'}
+                          </span>
+                        </div>
+                        {selectedEmploymentRequest.email && (
+                          <a
+                            href={`mailto:${selectedEmploymentRequest.email}?subject=NMS 08 Career Opportunity Inquiry`}
+                            className="px-2 py-1 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold text-[10px] shrink-0 transition-colors"
+                          >
+                            Email
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Career Particulars */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Industry Sector</span>
+                      <p className="font-bold text-slate-900 text-sm">{selectedEmploymentRequest.industry || 'Not specified'}</p>
+                    </div>
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Preferred Work Location</span>
+                      <p className="font-bold text-slate-900 text-sm">{selectedEmploymentRequest.preferred_location || 'Flexible / Any'}</p>
+                    </div>
+                  </div>
+
+                  {/* Key Skills */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Key Skills & Competencies</span>
+                    <p className="font-semibold text-slate-900 text-xs leading-relaxed">
+                      {selectedEmploymentRequest.skills || 'Not specified'}
+                    </p>
+                  </div>
+
+                  {/* Target Job Interests Box (Full Description) */}
+                  <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300 space-y-2">
+                    <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                      <Briefcase className="w-4 h-4 text-amber-700" />
+                      <span>Target Jobs & Roles of Interest</span>
+                    </div>
+                    <p className="text-slate-800 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap bg-white/70 p-3.5 rounded-xl border border-amber-200/60 font-medium">
+                      {selectedEmploymentRequest.job_interest}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="pt-3 border-t border-slate-200 flex items-center justify-between shrink-0">
+                  <span className="text-xs text-slate-400">
+                    Request ID: <span className="font-mono">{selectedEmploymentRequest.id}</span>
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedEmploymentRequest(null)}
+                  >
+                    Close Pop Up
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* FULL MEMBER PROFILE DOSSIER MODAL */}
+          {selectedMember && (
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+              <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto glass-panel rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl border border-white">
+                {/* Modal Top Header */}
+                <div className="flex items-start justify-between border-b border-slate-200 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-700 text-white flex items-center justify-center font-bold text-lg shadow-apple-sm">
+                      {selectedMember.full_name ? selectedMember.full_name[0].toUpperCase() : 'N'}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-slate-900">{selectedMember.full_name}</h3>
+                        <Badge variant="emerald" size="sm">Verified Member</Badge>
+                      </div>
+                      <p className="text-xs text-slate-500 font-mono">
+                        Service No: {selectedMember.nms_number} • {selectedMember.company}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedMember(null)}
+                    className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Dossier Categorical Sections */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  {/* 1. Military Background */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-slate-900 pb-1 border-b border-slate-200">
+                      <Image src={dogTagsSvg} alt="Military Dossier" width={18} height={18} className="w-4 h-4 object-contain" />
+                      <span>Military Background</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">NMS Service No:</span>
+                      <span className="font-mono font-bold text-emerald-800">{selectedMember.nms_number}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">School Company:</span>
+                      <span className="font-semibold text-slate-800">{selectedMember.company}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500 flex items-center gap-1.5">
+                        <Image src={rankSvg} alt="Rank" width={14} height={14} className="w-3.5 h-3.5 object-contain inline-block" />
+                        Rank as Boy Soldier:
+                      </span>
+                      <span className="font-semibold text-slate-800">{selectedMember.rank_appointment || 'Boy Soldier'}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">Set Appointment:</span>
+                      <span className="font-semibold text-slate-800">{selectedMember.set_appointment || 'Member'}</span>
+                    </div>
+                  </div>
+
+                  {/* 2. Personal Information */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-slate-900 pb-1 border-b border-slate-200">
+                      <User className="w-4 h-4 text-blue-700" />
+                      <span>Personal Demographics</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">Date of Birth:</span>
+                      <span className="font-semibold text-slate-800">{selectedMember.dob || 'Not specified'}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">Marital Status:</span>
+                      <span className="font-semibold text-slate-800">{selectedMember.marital_status || 'Single'}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">State of Origin:</span>
+                      <span className="font-semibold text-slate-800">{selectedMember.state_of_origin}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">State of Residence:</span>
+                      <span className="font-semibold text-slate-800">{selectedMember.state_of_residence}</span>
+                    </div>
+                    <div className="py-1">
+                      <span className="text-slate-500 block mb-0.5">Address:</span>
+                      <span className="font-medium text-slate-800 block text-[11px] bg-white p-1.5 rounded-lg border border-slate-200">
+                        {selectedMember.address || 'Not specified'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 3. Contact Details */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-slate-900 pb-1 border-b border-slate-200">
+                      <Mail className="w-4 h-4 text-purple-700" />
+                      <span>Contact Information</span>
+                    </div>
+                    <div className="py-1">
+                      <span className="text-slate-500 block text-[11px]">Email Address:</span>
+                      <a href={`mailto:${selectedMember.email}`} className="font-semibold text-emerald-700 hover:underline break-all">
+                        {selectedMember.email}
+                      </a>
+                    </div>
+                    <div className="py-1">
+                      <span className="text-slate-500 block text-[11px]">Phone / WhatsApp:</span>
+                      <a href={`tel:${selectedMember.phone}`} className="font-semibold text-slate-900 hover:underline">
+                        {selectedMember.phone || 'Not specified'}
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* 4. Professional Career */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-slate-900 pb-1 border-b border-slate-200">
+                      <Briefcase className="w-4 h-4 text-indigo-700" />
+                      <span>Professional Career</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">Occupation:</span>
+                      <span className="font-bold text-slate-900">{selectedMember.occupation || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">Industry:</span>
+                      <span className="font-semibold text-slate-800">{selectedMember.industry || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">Employer / Business:</span>
+                      <span className="font-semibold text-slate-800">{selectedMember.business || 'N/A'}</span>
+                    </div>
+                    <div className="py-1">
+                      <span className="text-slate-500 block mb-0.5">Qualifications:</span>
+                      <span className="font-medium text-slate-800 block text-[11px] bg-white p-1.5 rounded-lg border border-slate-200">
+                        {selectedMember.professional_qualifications || 'None specified'}
+                      </span>
+                    </div>
+                    <div className="py-1">
+                      <span className="text-slate-500 block mb-0.5">Skills:</span>
+                      <span className="font-medium text-slate-800 block text-[11px] bg-white p-1.5 rounded-lg border border-slate-200">
+                        {selectedMember.skills || 'None specified'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 5. Medical Emergency Data */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-slate-900 pb-1 border-b border-slate-200">
+                      <Activity className="w-4 h-4 text-rose-700" />
+                      <span>Medical Emergency Info</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-100 text-center">
+                        <span className="text-[10px] uppercase font-bold text-rose-700 block">Blood Group</span>
+                        <span className="text-lg font-extrabold text-rose-900">{selectedMember.blood_group || 'O+'}</span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-100 text-center">
+                        <span className="text-[10px] uppercase font-bold text-amber-700 block">Genotype</span>
+                        <span className="text-lg font-extrabold text-amber-900">{selectedMember.genotype || 'AA'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 6. Next of Kin Information */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-slate-900 pb-1 border-b border-slate-200">
+                      <Heart className="w-4 h-4 text-emerald-700" />
+                      <span>Next of Kin Particulars</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">Next of Kin Name:</span>
+                      <span className="font-bold text-slate-900">{selectedMember.next_of_kin || 'Designated Contact'}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">Relationship:</span>
+                      <span className="font-semibold text-slate-800">{selectedMember.relationship || 'Next of Kin'}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">Contact Phone:</span>
+                      <a href={`tel:${selectedMember.next_of_kin_phone}`} className="font-semibold text-emerald-700 hover:underline">
+                        {selectedMember.next_of_kin_phone || 'Not specified'}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modal Bottom Actions */}
+                <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+                  <span className="text-[11px] text-slate-400">
+                    Registered on: {selectedMember.created_at ? new Date(selectedMember.created_at).toLocaleString() : 'N/A'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.print()}
+                      icon={<Printer className="w-3.5 h-3.5" />}
+                    >
+                      Print Profile
                     </Button>
                     <Button
                       variant="emerald"
                       size="sm"
-                      disabled={duesBusy !== null}
-                      onClick={() => markDuesPaid(m, 'annual')}
+                      onClick={() => setSelectedMember(null)}
                     >
-                      {duesBusy === `${m.nms_number}:annual`
-                        ? 'Saving…'
-                        : `Paid Full Year · ${formatNaira(ANNUAL_DISCOUNT_NGN)}`}
+                      Done
                     </Button>
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
           )}
 
-          <div className="space-y-3 pt-2">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              Recently verified by admin
-            </p>
-            {duesVerifications.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                No manual dues verifications recorded yet.
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {duesVerifications.map((v) => (
-                  <div
-                    key={v.id}
-                    className="flex items-center justify-between gap-3 p-3 rounded-2xl border border-slate-200/80 bg-white"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-900 truncate">
-                        {v.full_name || v.nms_number}
-                      </p>
-                      <p className="text-[11px] text-slate-500">
-                        {v.notes} • {formatNaira(Number(v.amount_ngn) || 0)}
-                      </p>
+          {/* CHARTS SECTION */}
+          {(activeAdminSection === 'overview' || activeAdminSection === 'dues') && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card hoverEffect variant="glass">
+                <CardHeader>
+                  <div>
+                    <CardTitle>Monthly Financial Dues Trend (₦ Millions)</CardTitle>
+                    <CardDescription>₦2,000 monthly instalments collected in 2026</CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {metrics.monthlyDuesTrend.length === 0 ? (
+                    <div className="h-64 flex items-center justify-center text-xs text-slate-400">
+                      No dues payments recorded yet.
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={duesBusy !== null}
-                      onClick={() => revokeDuesVerification(v.id)}
-                      className="text-rose-600 hover:text-rose-800 hover:bg-rose-100/50 shrink-0"
-                      icon={<Trash2 className="w-4 h-4" />}
-                    >
-                      Revoke
-                    </Button>
+                  ) : (
+                    <DuesTrendChart data={metrics.monthlyDuesTrend} />
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card hoverEffect variant="glass">
+                <CardHeader>
+                  <div>
+                    <CardTitle>Company Dues Compliance (%)</CardTitle>
+                    <CardDescription>Inter-Company Performance Ranking</CardDescription>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-      )}
-
-      {/* DUES PAYERS LIST CARD */}
-      {activeAdminSection === 'dues' && (
-      <Card hoverEffect variant="glass">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 shadow-apple-sm flex items-center justify-center">
-              <Users className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <CardTitle>Members Who Have Paid Dues</CardTitle>
-              <CardDescription>
-                All Ex-Boys with at least one dues payment on record — {duesPayersLoading ? 'loading…' : `${duesPayers.length} member${duesPayers.length !== 1 ? 's' : ''}`}.
-              </CardDescription>
-            </div>
-            <button
-              onClick={fetchDuesPayers}
-              disabled={duesPayersLoading}
-              className="shrink-0 text-xs font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl px-3 py-1.5 transition-colors disabled:opacity-50"
-            >
-              {duesPayersLoading ? 'Refreshing…' : 'Refresh'}
-            </button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={duesPayersSearch}
-              onChange={(e) => setDuesPayersSearch(e.target.value)}
-              placeholder="Filter by name, NMS number or company…"
-              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-            />
-          </div>
-
-          {duesPayersLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3, 4, 5].map((_, i) => (
-                <div key={i} className="h-14 rounded-2xl bg-slate-100 animate-pulse" />
-              ))}
-            </div>
-          ) : filteredDuesPayers.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-              {duesPayersSearch ? 'No matches found.' : 'No dues payments recorded yet.'}
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
-              {/* Header row */}
-              <div className="grid grid-cols-12 gap-2 px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                <span className="col-span-1 text-center">#</span>
-                <span className="col-span-4">Name</span>
-                <span className="col-span-3">NMS Number</span>
-                <span className="col-span-2">Company</span>
-                <span className="col-span-2 text-right">Total Paid</span>
-              </div>
-              {filteredDuesPayers.map((p, idx) => (
-                <div
-                  key={p.nms_number}
-                  className="grid grid-cols-12 gap-2 items-center px-3.5 py-3 rounded-2xl border border-slate-200/80 bg-white hover:bg-emerald-50/40 transition-colors"
-                >
-                  {/* Index */}
-                  <span className="col-span-1 text-center text-xs font-bold text-slate-400">
-                    {idx + 1}
-                  </span>
-
-                  {/* Name */}
-                  <div className="col-span-4 min-w-0">
-                    <p className="text-sm font-bold text-slate-900 truncate">
-                      {p.full_name || '—'}
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      {p.payment_count} payment{p.payment_count !== 1 ? 's' : ''}
-                      {p.last_paid_at
-                        ? ` · Last: ${new Date(p.last_paid_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                        : ''}
-                    </p>
-                  </div>
-
-                  {/* NMS Number */}
-                  <div className="col-span-3 min-w-0">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 text-[11px] font-mono font-semibold text-slate-700 truncate max-w-full">
-                      {p.nms_number}
-                    </span>
-                  </div>
-
-                  {/* Company */}
-                  <div className="col-span-2 min-w-0">
-                    <span className="text-xs text-slate-600 truncate block">
-                      {p.company ? p.company.replace(/\s*Company\s*/i, '') : '—'}
-                    </span>
-                  </div>
-
-                  {/* Total paid */}
-                  <div className="col-span-2 text-right">
-                    <span className="text-xs font-bold text-emerald-700">
-                      ₦{(p.total_paid_ngn / 1000).toFixed(0)}k
-                    </span>
-                  </div>
-                </div>
-              ))}
+                </CardHeader>
+                <CardContent>
+                  {metrics.companyBreakdown.length === 0 ? (
+                    <div className="h-64 flex items-center justify-center text-xs text-slate-400">
+                      No company-level dues data recorded yet.
+                    </div>
+                  ) : (
+                    <CompanyComplianceChart data={metrics.companyBreakdown} />
+                  )}
+                </CardContent>
+              </Card>
             </div>
           )}
-
-          {/* Summary footer */}
-          {!duesPayersLoading && duesPayers.length > 0 && (
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
-              <span>
-                Showing <span className="font-bold text-slate-700">{filteredDuesPayers.length}</span> of{' '}
-                <span className="font-bold text-slate-700">{duesPayers.length}</span> members
-              </span>
-              <span>
-                Total collected:{' '}
-                <span className="font-bold text-emerald-700">
-                  ₦{(duesPayers.reduce((s, p) => s + (p.total_paid_ngn || 0), 0) / 1_000_000).toFixed(2)}M
-                </span>
-              </span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      )}
-
-      {/* WEDDING CONTRIBUTION TRACKER CARD */}
-      {activeAdminSection === 'wedding' && (
-      <Card hoverEffect variant="glass">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-amber-100 text-amber-800 shadow-apple-sm flex items-center justify-center">
-              <Heart className="w-5 h-5" />
-            </div>
-            <div>
-              <CardTitle>Wedding Contribution Tracker</CardTitle>
-              <CardDescription>
-                Log company contributions towards the {formatNaira(WEDDING_GOAL_NGN)} per-company wedding-fund goal as
-                they come in. Updates appear on the public Companies page.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-            <div className="flex-1">
-              <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
-                Company
-              </label>
-              <select
-                value={weddingForm.company}
-                onChange={(e) => setWeddingForm((f) => ({ ...f, company: e.target.value }))}
-                className="w-full px-3.5 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-              >
-                {WEDDING_COMPANIES.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex-1">
-              <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
-                Amount (₦)
-              </label>
-              <input
-                type="number"
-                min="1"
-                inputMode="numeric"
-                value={weddingForm.amount}
-                onChange={(e) => setWeddingForm((f) => ({ ...f, amount: e.target.value }))}
-                placeholder="e.g. 5000"
-                className="w-full px-3.5 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="emerald"
-                size="md"
-                disabled={weddingBusy}
-                onClick={() => submitWeddingContribution('add')}
-                icon={<Plus className="w-4 h-4" />}
-              >
-                {weddingBusy ? 'Saving…' : 'Add'}
-              </Button>
-              <Button
-                variant="outline"
-                size="md"
-                disabled={weddingBusy}
-                onClick={() => submitWeddingContribution('set')}
-              >
-                Set total
-              </Button>
-            </div>
-          </div>
-
-          {weddingMessage && (
-            <div
-              className={`text-xs font-medium px-4 py-2.5 rounded-2xl border ${
-                weddingMessage.tone === 'ok'
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                  : 'bg-rose-50 border-rose-200 text-rose-800'
-              }`}
-            >
-              {weddingMessage.text}
-            </div>
-          )}
-
-          <div className="space-y-5 pt-4 border-t border-slate-200/60">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Company progress</p>
-              <p className="text-xs font-bold text-emerald-800">
-                {formatNaira(weddingTotalContributed)}{' '}
-                <span className="text-slate-400 font-medium">of {formatNaira(weddingTotalTarget)}</span>
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-              {weddingContributions.map((c) => (
-                <ProgressBar
-                  key={c.id}
-                  value={c.amount}
-                  max={WEDDING_GOAL_NGN}
-                  label={c.name}
-                  sublabel={`${formatNaira(c.amount)} of ${formatNaira(WEDDING_GOAL_NGN)}`}
-                  color="amber"
-                  height="md"
-                />
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      )}
-
-      {/* EMPLOYMENT & CAREER DESK SECTION */}
-      {activeAdminSection === 'employment' && (
-      <div className="space-y-6">
-        <Card hoverEffect variant="glass">
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-amber-100 text-amber-800 shadow-apple-sm flex items-center justify-center">
-                  <Briefcase className="w-5 h-5 text-amber-700" />
-                </div>
-                <div>
-                  <CardTitle>Employment & Career Opportunities Desk</CardTitle>
-                  <CardDescription>
-                    Registered Ex-Boys currently seeking career placement, advisory roles, or employment opportunities.
-                  </CardDescription>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={fetchEmploymentRequests}
-                disabled={employmentLoading}
-                className="self-start sm:self-auto shrink-0 text-xs font-semibold text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl px-3.5 py-2 transition-colors disabled:opacity-50 flex items-center gap-1.5"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${employmentLoading ? 'animate-spin' : ''}`} />
-                <span>{employmentLoading ? 'Refreshing…' : 'Refresh Roster'}</span>
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Seekers</span>
-                <span className="text-xl font-extrabold text-slate-900 mt-0.5 block">{employmentRequests.length}</span>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/70">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">Pending Review</span>
-                <span className="text-xl font-extrabold text-amber-900 mt-0.5 block">
-                  {employmentRequests.filter((r) => r.status === 'Pending').length}
-                </span>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200/70">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 block">Under Review</span>
-                <span className="text-xl font-extrabold text-blue-900 mt-0.5 block">
-                  {employmentRequests.filter((r) => r.status === 'Reviewing' || r.status === 'Contacted').length}
-                </span>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200/70">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">Placed / Settled</span>
-                <span className="text-xl font-extrabold text-emerald-900 mt-0.5 block">
-                  {employmentRequests.filter((r) => r.status === 'Placed').length}
-                </span>
-              </div>
-            </div>
-
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={employmentSearch}
-                onChange={(e) => setEmploymentSearch(e.target.value)}
-                placeholder="Search by name, NMS number, company, industry, or skills…"
-                className="w-full pl-10 pr-4 py-2.5 text-sm rounded-2xl border border-slate-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-              />
-            </div>
-
-            {/* List / Cards */}
-            {employmentLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((_, i) => (
-                  <div key={i} className="h-28 rounded-2xl bg-slate-100 animate-pulse" />
-                ))}
-              </div>
-            ) : filteredEmploymentRequests.length === 0 ? (
-              <div className="p-10 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 space-y-2">
-                <Briefcase className="w-8 h-8 text-slate-300 mx-auto" />
-                <p className="font-semibold text-slate-600">
-                  {employmentSearch ? 'No employment requests matched your search query.' : 'No employment requests recorded yet.'}
-                </p>
-                <p className="text-slate-400 max-w-sm mx-auto">
-                  When registered members click &ldquo;Seeking Employment&rdquo; in their dashboard and describe the jobs they are looking for, their dossiers appear here.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3.5">
-                {filteredEmploymentRequests.map((req) => {
-                  const statusColors: Record<string, { bg: string; text: string; border: string }> = {
-                    Pending: { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200' },
-                    Reviewing: { bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-200' },
-                    Contacted: { bg: 'bg-purple-50', text: 'text-purple-800', border: 'border-purple-200' },
-                    Placed: { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200' },
-                  };
-                  const color = statusColors[req.status] || statusColors.Pending;
-
-                  return (
-                    <div
-                      key={req.id}
-                      className="p-4 sm:p-5 rounded-2xl border border-slate-200/90 bg-white shadow-apple-sm hover:border-amber-300 transition-all space-y-3.5"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 font-extrabold flex items-center justify-center text-sm shadow-sm shrink-0">
-                            {req.full_name ? req.full_name[0].toUpperCase() : 'E'}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="text-base font-bold text-slate-900">{req.full_name}</h4>
-                              <span className="font-mono text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-lg">
-                                {req.nms_number}
-                              </span>
-                              {req.company && (
-                                <Badge variant="subtle" size="sm">
-                                  {req.company.replace(/\s*Company\s*/i, '')}
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                              Submitted {req.createdAt ? new Date(req.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently'}
-                              {req.preferred_location ? ` • Preferred: ${req.preferred_location}` : ''}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${color.bg} ${color.text} ${color.border}`}>
-                            {req.status}
-                          </span>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setSelectedEmploymentRequest(req)}
-                            icon={<Eye className="w-3.5 h-3.5 text-amber-700" />}
-                            className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold shadow-sm"
-                          >
-                            View Details (Pop Up)
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Industry & Skills row */}
-                      <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                        <span className="font-semibold text-slate-600">Industry:</span>
-                        <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 font-bold text-slate-800">
-                          {req.industry || 'Not specified'}
-                        </span>
-                        <span className="text-slate-300">|</span>
-                        <span className="font-semibold text-slate-600">Skills:</span>
-                        <span className="px-2.5 py-0.5 rounded-lg bg-slate-50 border border-slate-200 font-medium text-slate-700">
-                          {req.skills || 'Not specified'}
-                        </span>
-                      </div>
-
-                      {/* Job interests box preview */}
-                      <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200/80 text-xs">
-                        <span className="font-bold text-amber-900 block mb-1">Target Roles & Interests:</span>
-                        <p className="text-slate-700 line-clamp-2 leading-relaxed">
-                          {req.job_interest}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-      )}
-
-      {/* EVENTS & REUNIONS MANAGEMENT SECTION */}
-      {activeAdminSection === 'events' && (
-        <div className="space-y-6">
-          <Card variant="glass" className="p-6">
-            <AdminEventsManager />
-          </Card>
-        </div>
-      )}
-
-      {/* ACCOUNTABILITY REPORTS SECTION */}
-      {activeAdminSection === 'reports' && (
-        <div className="space-y-6">
-          <Card variant="glass" className="p-6">
-            <AdminReportsManager />
-          </Card>
-        </div>
-      )}
-
-      {/* DETAILED EMPLOYMENT DOSSIER POP UP MODAL */}
-      {selectedEmploymentRequest && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-2xl max-h-[92vh] flex flex-col glass-panel rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl border border-white">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-amber-100 text-amber-800 shadow-apple-sm flex items-center justify-center">
-                  <Briefcase className="w-6 h-6 text-amber-700" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Ex-Boy Employment Dossier</h3>
-                  <p className="text-xs text-slate-500 font-mono">
-                    Candidate: {selectedEmploymentRequest.nms_number} • {selectedEmploymentRequest.company}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedEmploymentRequest(null)}
-                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="overflow-y-auto space-y-5 pr-1 max-h-[64vh]">
-              {/* Member Overview Card */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h4 className="text-lg font-extrabold text-slate-900">{selectedEmploymentRequest.full_name}</h4>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className="font-mono text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
-                      {selectedEmploymentRequest.nms_number}
-                    </span>
-                    <Badge variant="subtle" size="sm">{selectedEmploymentRequest.company}</Badge>
-                    <span className="text-xs text-slate-500">
-                      Submitted: {selectedEmploymentRequest.createdAt ? new Date(selectedEmploymentRequest.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Status Switcher */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs font-semibold text-slate-500">Status:</span>
-                  <select
-                    value={selectedEmploymentRequest.status}
-                    disabled={employmentActionBusy !== null}
-                    onChange={(e) => handleUpdateEmploymentStatus(selectedEmploymentRequest.id, e.target.value)}
-                    className="text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Reviewing">Under Review</option>
-                    <option value="Contacted">Contacted</option>
-                    <option value="Placed">Placed / Settled</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Contact Particulars */}
-              <div className="p-4 rounded-2xl bg-white border border-slate-200/80 space-y-3">
-                <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400">Direct Contact Particulars</h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span className="font-semibold text-slate-800 truncate">
-                        {selectedEmploymentRequest.phone || 'Phone not on file'}
-                      </span>
-                    </div>
-                    {selectedEmploymentRequest.phone && (
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <a
-                          href={`tel:${selectedEmploymentRequest.phone}`}
-                          className="px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold text-[10px] transition-colors"
-                        >
-                          Call
-                        </a>
-                        <a
-                          href={`https://wa.me/${selectedEmploymentRequest.phone.replace(/[^0-9]/g, '')}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition-colors"
-                        >
-                          WhatsApp
-                        </a>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Mail className="w-4 h-4 text-blue-600 shrink-0" />
-                      <span className="font-semibold text-slate-800 truncate">
-                        {selectedEmploymentRequest.email || 'Email not on file'}
-                      </span>
-                    </div>
-                    {selectedEmploymentRequest.email && (
-                      <a
-                        href={`mailto:${selectedEmploymentRequest.email}?subject=NMS 08 Career Opportunity Inquiry`}
-                        className="px-2 py-1 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold text-[10px] shrink-0 transition-colors"
-                      >
-                        Email
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Career Particulars */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Industry Sector</span>
-                  <p className="font-bold text-slate-900 text-sm">{selectedEmploymentRequest.industry || 'Not specified'}</p>
-                </div>
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Preferred Work Location</span>
-                  <p className="font-bold text-slate-900 text-sm">{selectedEmploymentRequest.preferred_location || 'Flexible / Any'}</p>
-                </div>
-              </div>
-
-              {/* Key Skills */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Key Skills & Competencies</span>
-                <p className="font-semibold text-slate-900 text-xs leading-relaxed">
-                  {selectedEmploymentRequest.skills || 'Not specified'}
-                </p>
-              </div>
-
-              {/* Target Job Interests Box (Full Description) */}
-              <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300 space-y-2">
-                <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
-                  <Briefcase className="w-4 h-4 text-amber-700" />
-                  <span>Target Jobs & Roles of Interest</span>
-                </div>
-                <p className="text-slate-800 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap bg-white/70 p-3.5 rounded-xl border border-amber-200/60 font-medium">
-                  {selectedEmploymentRequest.job_interest}
-                </p>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="pt-3 border-t border-slate-200 flex items-center justify-between shrink-0">
-              <span className="text-xs text-slate-400">
-                Request ID: <span className="font-mono">{selectedEmploymentRequest.id}</span>
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedEmploymentRequest(null)}
-              >
-                Close Pop Up
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* FULL MEMBER PROFILE DOSSIER MODAL */}
-      {selectedMember && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto glass-panel rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl border border-white">
-            {/* Modal Top Header */}
-            <div className="flex items-start justify-between border-b border-slate-200 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-700 text-white flex items-center justify-center font-bold text-lg shadow-apple-sm">
-                  {selectedMember.full_name ? selectedMember.full_name[0].toUpperCase() : 'N'}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-bold text-slate-900">{selectedMember.full_name}</h3>
-                    <Badge variant="emerald" size="sm">Verified Member</Badge>
-                  </div>
-                  <p className="text-xs text-slate-500 font-mono">
-                    Service No: {selectedMember.nms_number} • {selectedMember.company}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedMember(null)}
-                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Dossier Categorical Sections */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              {/* 1. Military Background */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-slate-900 pb-1 border-b border-slate-200">
-                  <Image src={dogTagsSvg} alt="Military Dossier" width={18} height={18} className="w-4 h-4 object-contain" />
-                  <span>Military Background</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">NMS Service No:</span>
-                  <span className="font-mono font-bold text-emerald-800">{selectedMember.nms_number}</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">School Company:</span>
-                  <span className="font-semibold text-slate-800">{selectedMember.company}</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500 flex items-center gap-1.5">
-                    <Image src={rankSvg} alt="Rank" width={14} height={14} className="w-3.5 h-3.5 object-contain inline-block" />
-                    Rank as Boy Soldier:
-                  </span>
-                  <span className="font-semibold text-slate-800">{selectedMember.rank_appointment || 'Boy Soldier'}</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">Set Appointment:</span>
-                  <span className="font-semibold text-slate-800">{selectedMember.set_appointment || 'Member'}</span>
-                </div>
-              </div>
-
-              {/* 2. Personal Information */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-slate-900 pb-1 border-b border-slate-200">
-                  <User className="w-4 h-4 text-blue-700" />
-                  <span>Personal Demographics</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">Date of Birth:</span>
-                  <span className="font-semibold text-slate-800">{selectedMember.dob || 'Not specified'}</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">Marital Status:</span>
-                  <span className="font-semibold text-slate-800">{selectedMember.marital_status || 'Single'}</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">State of Origin:</span>
-                  <span className="font-semibold text-slate-800">{selectedMember.state_of_origin}</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">State of Residence:</span>
-                  <span className="font-semibold text-slate-800">{selectedMember.state_of_residence}</span>
-                </div>
-                <div className="py-1">
-                  <span className="text-slate-500 block mb-0.5">Address:</span>
-                  <span className="font-medium text-slate-800 block text-[11px] bg-white p-1.5 rounded-lg border border-slate-200">
-                    {selectedMember.address || 'Not specified'}
-                  </span>
-                </div>
-              </div>
-
-              {/* 3. Contact Details */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-slate-900 pb-1 border-b border-slate-200">
-                  <Mail className="w-4 h-4 text-purple-700" />
-                  <span>Contact Information</span>
-                </div>
-                <div className="py-1">
-                  <span className="text-slate-500 block text-[11px]">Email Address:</span>
-                  <a href={`mailto:${selectedMember.email}`} className="font-semibold text-emerald-700 hover:underline break-all">
-                    {selectedMember.email}
-                  </a>
-                </div>
-                <div className="py-1">
-                  <span className="text-slate-500 block text-[11px]">Phone / WhatsApp:</span>
-                  <a href={`tel:${selectedMember.phone}`} className="font-semibold text-slate-900 hover:underline">
-                    {selectedMember.phone || 'Not specified'}
-                  </a>
-                </div>
-              </div>
-
-              {/* 4. Professional Career */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-slate-900 pb-1 border-b border-slate-200">
-                  <Briefcase className="w-4 h-4 text-indigo-700" />
-                  <span>Professional Career</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">Occupation:</span>
-                  <span className="font-bold text-slate-900">{selectedMember.occupation || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">Industry:</span>
-                  <span className="font-semibold text-slate-800">{selectedMember.industry || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">Employer / Business:</span>
-                  <span className="font-semibold text-slate-800">{selectedMember.business || 'N/A'}</span>
-                </div>
-                <div className="py-1">
-                  <span className="text-slate-500 block mb-0.5">Qualifications:</span>
-                  <span className="font-medium text-slate-800 block text-[11px] bg-white p-1.5 rounded-lg border border-slate-200">
-                    {selectedMember.professional_qualifications || 'None specified'}
-                  </span>
-                </div>
-                <div className="py-1">
-                  <span className="text-slate-500 block mb-0.5">Skills:</span>
-                  <span className="font-medium text-slate-800 block text-[11px] bg-white p-1.5 rounded-lg border border-slate-200">
-                    {selectedMember.skills || 'None specified'}
-                  </span>
-                </div>
-              </div>
-
-              {/* 5. Medical Emergency Data */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-slate-900 pb-1 border-b border-slate-200">
-                  <Activity className="w-4 h-4 text-rose-700" />
-                  <span>Medical Emergency Info</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-100 text-center">
-                    <span className="text-[10px] uppercase font-bold text-rose-700 block">Blood Group</span>
-                    <span className="text-lg font-extrabold text-rose-900">{selectedMember.blood_group || 'O+'}</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-100 text-center">
-                    <span className="text-[10px] uppercase font-bold text-amber-700 block">Genotype</span>
-                    <span className="text-lg font-extrabold text-amber-900">{selectedMember.genotype || 'AA'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 6. Next of Kin Information */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-slate-900 pb-1 border-b border-slate-200">
-                  <Heart className="w-4 h-4 text-emerald-700" />
-                  <span>Next of Kin Particulars</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">Next of Kin Name:</span>
-                  <span className="font-bold text-slate-900">{selectedMember.next_of_kin || 'Designated Contact'}</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">Relationship:</span>
-                  <span className="font-semibold text-slate-800">{selectedMember.relationship || 'Next of Kin'}</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">Contact Phone:</span>
-                  <a href={`tel:${selectedMember.next_of_kin_phone}`} className="font-semibold text-emerald-700 hover:underline">
-                    {selectedMember.next_of_kin_phone || 'Not specified'}
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Bottom Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-200">
-              <span className="text-[11px] text-slate-400">
-                Registered on: {selectedMember.created_at ? new Date(selectedMember.created_at).toLocaleString() : 'N/A'}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.print()}
-                  icon={<Printer className="w-3.5 h-3.5" />}
-                >
-                  Print Profile
-                </Button>
-                <Button
-                  variant="emerald"
-                  size="sm"
-                  onClick={() => setSelectedMember(null)}
-                >
-                  Done
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CHARTS SECTION */}
-      {(activeAdminSection === 'overview' || activeAdminSection === 'dues') && (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card hoverEffect variant="glass">
-          <CardHeader>
-            <div>
-              <CardTitle>Monthly Financial Dues Trend (₦ Millions)</CardTitle>
-              <CardDescription>₦2,000 monthly instalments collected in 2026</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {metrics.monthlyDuesTrend.length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-xs text-slate-400">
-                No dues payments recorded yet.
-              </div>
-            ) : (
-              <DuesTrendChart data={metrics.monthlyDuesTrend} />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card hoverEffect variant="glass">
-          <CardHeader>
-            <div>
-              <CardTitle>Company Dues Compliance (%)</CardTitle>
-              <CardDescription>Inter-Company Performance Ranking</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {metrics.companyBreakdown.length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-xs text-slate-400">
-                No company-level dues data recorded yet.
-              </div>
-            ) : (
-              <CompanyComplianceChart data={metrics.companyBreakdown} />
-            )}
-          </CardContent>
-        </Card>
-      </div>
-      )}
         </main>
       </div>
 

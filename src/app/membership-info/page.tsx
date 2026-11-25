@@ -7,7 +7,7 @@ import medalSvg from '@/assets/medal.svg';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { CheckCircle2, Shield, CreditCard, Heart, Award } from 'lucide-react';
+import { CheckCircle2, Shield, CreditCard, Heart, Award, AlertCircle, HelpCircle } from 'lucide-react';
 import { ANNUAL_ARREARS_CAP_NGN, ANNUAL_DISCOUNT_NGN, MONTHLY_DUES_NGN } from '@/lib/dues-utils';
 
 export default function MembershipInfoPage() {
@@ -86,25 +86,57 @@ export default function MembershipInfoPage() {
           </Link>
         </Card>
 
-        <Card hoverEffect variant="glass" className="p-6 space-y-4">
-          <Badge variant="emerald" className="inline-flex items-center gap-1.5">
-            <Image src={medalSvg} alt="Reunion Medal" width={14} height={14} className="w-3.5 h-3.5 object-contain" />
-            <span>Reunion Gala Contribution</span>
-          </Badge>
-          <div className="space-y-1">
-            <h3 className="text-3xl font-extrabold text-slate-900">₦30,000</h3>
-            <span className="text-xs text-slate-500">Per Event Levy</span>
+        <Card hoverEffect variant="glass" className="p-6 space-y-4 flex flex-col justify-between">
+          <div className="space-y-4">
+            <Badge variant="emerald" className="inline-flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Payment Terms & Conditions</span>
+            </Badge>
+
+            <div className="space-y-1">
+              <h3 className="text-xl font-bold text-slate-900">
+                Gateway & Dues Policy
+              </h3>
+              <p className="text-xs text-slate-500">
+                Secure automated processing via Paystack
+              </p>
+            </div>
+
+            <ul className="space-y-2.5 text-xs text-slate-600">
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Bank-Grade Encryption:</strong> All transactions are processed through PCIDSS-compliant Paystack channels. Card credentials are never stored on our servers.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Instant Reconciliation:</strong> Successful payments immediately update your financial records, generate digital receipts, and grant voting eligibility.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Final Settlement:</strong> Dues and welfare contributions are classified as statutory alumni commitments and are non-refundable once reconciled.
+                </span>
+              </li>
+            </ul>
+
+            <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200/80 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-amber-900 font-bold text-xs">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Payment Support Notice</span>
+              </div>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                In the event of a failed, debited but uncredited dues payment, or network timeout, please immediately contact the <strong>Financial Secretary</strong> or the alumni secretariat with your payment reference and debit alert for swift reconciliation.
+              </p>
+            </div>
           </div>
 
-          <ul className="space-y-2 text-xs text-slate-600">
-            <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> Full Access Pass to Annual Reunion Gala</li>
-            <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> Complimentary Event Merchandise Kit</li>
-            <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> Gala Dinner & Business Networking</li>
-          </ul>
-
-          <Link href="/events" className="block pt-2">
-            <Button variant="outline" className="w-full justify-center">
-              View Events Calendar
+          <Link href="/contact" className="block pt-2">
+            <Button variant="outline" className="w-full justify-center text-xs">
+              Special Adviser Governance & Strategy
             </Button>
           </Link>
         </Card>

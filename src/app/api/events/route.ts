@@ -11,6 +11,104 @@ const isUuid = (val?: string) =>
 
 const DATA_DIR = path.join(process.cwd(), '.data');
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
+const DELETED_EVENTS_FILE = path.join(DATA_DIR, 'deleted_events.json');
+
+const STATIC_SEED_EVENTS = [
+  {
+    id: 'wed-2026-11-14-oifoh',
+    title: 'ASP Oifoh David Okaka weds Blessing Anjolaoluwa Koleoso',
+    description: 'Wedding Fatiha & Solemnization of ASP Oifoh David Okaka and Blessing Anjolaoluwa Koleoso.',
+    event_date: '2026-11-14',
+    event_time: '10:00 AM',
+    location: 'Abuja, Nigeria',
+    category: 'Wedding',
+    image_url: null,
+    flyer_static_id: 'wed-2026-11-14-oifoh',
+    organizer: 'NMS 08 Brotherhood',
+    is_featured: false,
+    status: 'published',
+  },
+  {
+    id: 'wed-2026-11-21-queen',
+    title: 'Queen Asam weds Hope Douglas',
+    description: 'Solemnization of holy matrimony between Queen Asam and Hope Douglas.',
+    event_date: '2026-11-21',
+    event_time: '10:00 AM',
+    location: 'Nigeria',
+    category: 'Wedding',
+    image_url: null,
+    flyer_static_id: 'wed-2026-11-21-queen',
+    organizer: 'NMS 08 Brotherhood',
+    is_featured: false,
+    status: 'published',
+  },
+  {
+    id: 'wed-2026-11-27-rilwan',
+    title: 'Rilwan Haliru Tambuwal weds Sadiya Abbakar Zaki Tambuwal',
+    description: 'Wedding ceremony for Rilwan Haliru Tambuwal and Sadiya Abbakar Zaki Tambuwal.',
+    event_date: '2026-11-27',
+    event_time: '10:00 AM',
+    location: 'Tambuwal, Sokoto State',
+    category: 'Wedding',
+    image_url: null,
+    flyer_static_id: 'wed-2026-11-27-rilwan',
+    organizer: 'NMS 08 Brotherhood',
+    is_featured: false,
+    status: 'published',
+  },
+  {
+    id: 'wed-2026-12-18-farouq',
+    title: 'Farouq Haruna weds Bar. Maryam Sani Ahmad',
+    description: 'Wedding Fatiha of Farouq Haruna and Bar. Maryam Sani Ahmad.',
+    event_date: '2026-12-18',
+    event_time: '10:00 AM',
+    location: 'Kano State, Nigeria',
+    category: 'Wedding',
+    image_url: null,
+    flyer_static_id: 'wed-2026-12-18-farouq',
+    organizer: 'NMS 08 Brotherhood',
+    is_featured: false,
+    status: 'published',
+  },
+  {
+    id: 'wed-2026-12-25-imrana',
+    title: 'LT. Imrana Aminu Mani weds Khadija Aminu Muhammad',
+    description: 'Wedding ceremony of LT. Imrana Aminu Mani and Khadija Aminu Muhammad.',
+    event_date: '2026-12-25',
+    event_time: '10:00 AM',
+    location: 'Katsina State, Nigeria',
+    category: 'Wedding',
+    image_url: null,
+    flyer_static_id: 'wed-2026-12-25-imrana',
+    organizer: 'NMS 08 Brotherhood',
+    is_featured: false,
+    status: 'published',
+  },
+];
+
+function getDeletedEventIds(): Set<string> {
+  try {
+    if (!fs.existsSync(DELETED_EVENTS_FILE)) return new Set();
+    const content = fs.readFileSync(DELETED_EVENTS_FILE, 'utf8');
+    const parsed = JSON.parse(content);
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDeletedEventId(id: string): void {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    const set = getDeletedEventIds();
+    set.add(id);
+    fs.writeFileSync(DELETED_EVENTS_FILE, JSON.stringify(Array.from(set), null, 2), 'utf8');
+  } catch (err) {
+    console.error('Failed to save deleted event ID:', err);
+  }
+}
 
 function getLocalEvents(): any[] {
   try {
@@ -46,9 +144,21 @@ export async function GET(request: Request) {
   const supabase = getSupabase();
   const { searchParams } = new URL(request.url);
   const admin = searchParams.get('admin') === 'true';
+  const deletedIds = getDeletedEventIds();
+
+  const filterDeleted = (list: any[]) => list.filter((e) => !deletedIds.has(e.id));
 
   if (!supabase) {
-    return NextResponse.json({ ok: true, events: getLocalEvents() });
+    const local = filterDeleted(getLocalEvents());
+    const existingIds = new Set(local.map((e: any) => e.id));
+    const merged = [...local];
+    for (const seed of STATIC_SEED_EVENTS) {
+      if (!deletedIds.has(seed.id) && !existingIds.has(seed.id)) {
+        merged.push(seed);
+      }
+    }
+    merged.sort((a, b) => b.event_date.localeCompare(a.event_date));
+    return NextResponse.json({ ok: true, events: admin ? merged : merged.filter((e) => e.status !== 'draft') });
   }
 
   try {
@@ -63,29 +173,40 @@ export async function GET(request: Request) {
 
     const { data, error } = await query;
 
+    let baseList = data && !error ? data : [];
     if (error) {
-      // If table is not yet in Supabase schema cache, use local storage fallback
       console.warn('Events query (using local fallback if table pending migration):', error.message);
-      const local = getLocalEvents();
-      const filtered = admin ? local : local.filter((e) => e.status !== 'draft');
-      return NextResponse.json({ ok: true, events: filtered });
+      baseList = getLocalEvents();
     }
+
+    const existingIds = new Set(baseList.map((e: any) => e.id));
+    const merged = [...baseList];
 
     // Merge with any local offline events
     const local = getLocalEvents();
-    const existingIds = new Set((data || []).map((e: any) => e.id));
-    const merged = [...(data || [])];
     for (const le of local) {
       if (!existingIds.has(le.id) && (admin || le.status !== 'draft')) {
         merged.push(le);
+        existingIds.add(le.id);
       }
     }
-    merged.sort((a, b) => b.event_date.localeCompare(a.event_date));
 
-    return NextResponse.json({ ok: true, events: merged });
+    // Merge static seed events (weddings, etc.) unless deleted
+    for (const seed of STATIC_SEED_EVENTS) {
+      if (!deletedIds.has(seed.id) && !existingIds.has(seed.id)) {
+        merged.push(seed);
+        existingIds.add(seed.id);
+      }
+    }
+
+    const finalEvents = filterDeleted(merged);
+    finalEvents.sort((a, b) => (b.event_date || '').localeCompare(a.event_date || ''));
+
+    return NextResponse.json({ ok: true, events: finalEvents });
   } catch (err) {
     console.error('Events GET error:', err);
-    return NextResponse.json({ ok: true, events: getLocalEvents() });
+    const local = filterDeleted(getLocalEvents());
+    return NextResponse.json({ ok: true, events: local });
   }
 }
 
@@ -210,7 +331,10 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ ok: false, message: 'Event ID is required.' }, { status: 400 });
   }
 
-  // Always remove from local fallback if present
+  // Always register as deleted so static events and offline events are removed
+  saveDeletedEventId(id);
+
+  // Remove from local fallback if present
   const local = getLocalEvents();
   const filtered = local.filter((e) => e.id !== id);
   if (filtered.length !== local.length) {
@@ -224,10 +348,11 @@ export async function DELETE(request: Request) {
   try {
     const { error } = await supabase.from('events').delete().eq('id', id);
     if (error && !error.message.includes('schema cache')) {
-      return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
+      console.warn('Database event delete notice:', error.message);
     }
     return NextResponse.json({ ok: true, message: 'Event deleted successfully.' });
   } catch (err: any) {
-    return NextResponse.json({ ok: false, message: err?.message || 'Server error' }, { status: 500 });
+    console.warn('Events delete error:', err?.message || err);
+    return NextResponse.json({ ok: true, message: 'Event deleted successfully.' });
   }
 }

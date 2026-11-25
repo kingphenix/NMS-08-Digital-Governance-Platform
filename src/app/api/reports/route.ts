@@ -43,13 +43,20 @@ export const AUTHENTIC_REPORT = {
     { category: 'Other Approved Expenses', amount: 0 },
   ],
   fund_positions: [
-    { fund: 'General Fund', balance: 24000 },
-    { fund: 'Welfare Fund', balance: 0 },
-    { fund: 'Special Project Funds', balance: 0 },
-    { fund: 'Restricted / Earmarked Funds', balance: 0 },
+    { fund: 'National dues', balance: 120000, name: 'National dues', amount: 120000 },
+    { fund: 'Wedding contribution', balance: 560000, name: 'Wedding contribution', amount: 560000 },
+    { fund: 'Digital Platform', balance: 100000, name: 'Digital Platform', amount: 100000 },
   ],
-  outstanding_obligations: 0,
+  obligation_items: [
+    { name: 'National dues', amount: 120000 },
+    { name: 'Wedding contribution', amount: 560000 },
+    { name: 'Digital Platform', amount: 100000 },
+  ],
+  outstanding_obligations: 780000,
   unpaid_commitments: 0,
+  loans_to_members: 0,
+  loan_repayments: 0,
+  number_of_loans: 0,
   company_scorecard: [
     { company: 'Alpha', expected: 0, received: 0, outstanding: 0 },
     { company: 'Bravo', expected: 0, received: 2000, outstanding: 0 },
@@ -65,7 +72,7 @@ export const AUTHENTIC_REPORT = {
     'Accreditation and profile verification for 168 Ex-Boys across all 7 military companies.',
     'First live member dues received and verified for November 2026.',
   ],
-  welfare_interventions: 0,
+  welfare_interventions: 30000,
   projects_funded: 0,
   closing_balance_records: 24000,
   closing_bank_balance: 24000,
@@ -77,6 +84,73 @@ export const AUTHENTIC_REPORT = {
   published_at: '2026-11-20T12:00:00.000Z',
   created_at: '2026-11-20T12:00:00.000Z',
 };
+
+export function normalizeReport(r: any) {
+  if (!r) return r;
+  let parsedHighlights = r.highlights_text || '';
+  let loans_to_members = r.loans_to_members || 0;
+  let loan_repayments = r.loan_repayments || 0;
+  let number_of_loans = r.number_of_loans || 0;
+
+  if (typeof r.highlights_text === 'string' && r.highlights_text.startsWith('{')) {
+    try {
+      const obj = JSON.parse(r.highlights_text);
+      parsedHighlights = obj.text ?? r.highlights_text;
+      loans_to_members = obj.loans_to_members ?? loans_to_members;
+      loan_repayments = obj.loan_repayments ?? loan_repayments;
+      number_of_loans = obj.number_of_loans ?? number_of_loans;
+    } catch {}
+  }
+
+  const isLegacyFund = (name: string) =>
+    ['general fund', 'welfare fund', 'special project funds', 'restricted / earmarked funds'].includes(
+      (name || '').toLowerCase().trim()
+    );
+
+  const rawObligations = r.obligation_items || r.fund_positions || [];
+  const filteredObligations = Array.isArray(rawObligations)
+    ? rawObligations
+        .filter((o: any) => !isLegacyFund(o.name || o.fund || ''))
+        .map((o: any) => ({
+          name: o.name || o.fund || 'Obligation',
+          amount: Number(o.amount ?? o.balance) || 0,
+        }))
+    : [];
+
+  const obligation_items = filteredObligations.length > 0
+    ? filteredObligations
+    : [
+        { name: 'National dues', amount: 120000 },
+        { name: 'Wedding contribution', amount: 560000 },
+        { name: 'Digital Platform', amount: 100000 },
+      ];
+
+  const totalObligations = obligation_items.reduce((s: number, o: any) => s + (o.amount || 0), 0);
+
+  const opening = Number(r.opening_balance) || 0;
+  const incomeTotal = (r.income_items || []).reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0);
+  const expenseTotal = (r.expenditure_items || []).reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0);
+  const autoClosing = opening + incomeTotal - expenseTotal;
+
+  return {
+    ...r,
+    highlights_text: parsedHighlights,
+    loans_to_members: Number(loans_to_members) || 0,
+    loan_repayments: Number(loan_repayments) || 0,
+    number_of_loans: Number(number_of_loans) || 0,
+    welfare_interventions: Number(r.welfare_interventions) || 0,
+    obligation_items,
+    fund_positions: obligation_items.map((o: any) => ({
+      fund: o.name,
+      balance: o.amount,
+      name: o.name,
+      amount: o.amount,
+    })),
+    outstanding_obligations: r.outstanding_obligations || totalObligations,
+    closing_balance: r.closing_balance ?? autoClosing,
+    closing_balance_records: autoClosing,
+  };
+}
 
 function getLocalReports(): any[] {
   try {
@@ -115,7 +189,7 @@ export async function GET(request: Request) {
   const id = searchParams.get('id');
 
   if (!supabase) {
-    const local = getLocalReports();
+    const local = getLocalReports().map(normalizeReport);
     if (id) {
       const found = local.find((r) => r.id === id);
       return found ? NextResponse.json({ ok: true, report: found }) : NextResponse.json({ ok: false, message: 'Not found' }, { status: 404 });
@@ -132,11 +206,11 @@ export async function GET(request: Request) {
         .maybeSingle();
 
       if (error || !data) {
-        const local = getLocalReports();
-        const found = local.find((r) => r.id === id) || (id === AUTHENTIC_REPORT.id ? AUTHENTIC_REPORT : null);
+        const local = getLocalReports().map(normalizeReport);
+        const found = local.find((r) => r.id === id) || (id === AUTHENTIC_REPORT.id ? normalizeReport(AUTHENTIC_REPORT) : null);
         return found ? NextResponse.json({ ok: true, report: found }) : NextResponse.json({ ok: false, message: 'Report not found' }, { status: 404 });
       }
-      return NextResponse.json({ ok: true, report: data });
+      return NextResponse.json({ ok: true, report: normalizeReport(data) });
     }
 
     let query = supabase
@@ -151,7 +225,7 @@ export async function GET(request: Request) {
     const { data, error } = await query;
 
     if (error) {
-      const local = getLocalReports();
+      const local = getLocalReports().map(normalizeReport);
       return NextResponse.json({ ok: true, reports: admin ? local : local.filter((r) => r.status === 'published') });
     }
 
@@ -169,10 +243,11 @@ export async function GET(request: Request) {
       merged.push(AUTHENTIC_REPORT);
     }
 
-    return NextResponse.json({ ok: true, reports: merged });
+    const normalized = merged.map(normalizeReport);
+    return NextResponse.json({ ok: true, reports: normalized });
   } catch (err) {
     console.error('Reports API error:', err);
-    return NextResponse.json({ ok: true, reports: getLocalReports() });
+    return NextResponse.json({ ok: true, reports: getLocalReports().map(normalizeReport) });
   }
 }
 
@@ -223,6 +298,33 @@ export async function POST(request: Request) {
 
     const reportId = isUuid(id) ? id : crypto.randomUUID();
 
+    const openingBal = parseFloat(opening_balance) || 0;
+    const totalInc = parseFloat(total_income) || 0;
+    const totalExp = parseFloat(total_expenditure) || 0;
+    const autoClosing = openingBal + totalInc - totalExp;
+
+    const rawObligations = body.obligation_items || fund_positions || [];
+    const normalizedObligations = Array.isArray(rawObligations)
+      ? rawObligations.map((o: any) => ({
+          name: o.name || o.fund || 'Obligation',
+          amount: parseFloat(o.amount ?? o.balance) || 0,
+          fund: o.name || o.fund || 'Obligation',
+          balance: parseFloat(o.amount ?? o.balance) || 0,
+        }))
+      : [];
+    const totalObligations = normalizedObligations.reduce((s: number, o: any) => s + (o.amount || 0), 0);
+
+    const bankBal = parseFloat(closing_bank_balance) || 0;
+    const otherBal = parseFloat(closing_other_accounts) || 0;
+    const autoUnreconciled = bankBal + otherBal - autoClosing;
+
+    const highlightsPayload = JSON.stringify({
+      text: typeof highlights_text === 'string' && !highlights_text.startsWith('{') ? highlights_text : (highlights_text?.text || ''),
+      loans_to_members: parseFloat(body.loans_to_members) || 0,
+      loan_repayments: parseFloat(body.loan_repayments) || 0,
+      number_of_loans: parseInt(body.number_of_loans) || 0,
+    });
+
     const payload: Record<string, any> = {
       id: reportId,
       report_month,
@@ -232,25 +334,25 @@ export async function POST(request: Request) {
       prepared_by: prepared_by || null,
       reviewed_by: reviewed_by || null,
       approved_by: approved_by || null,
-      opening_balance: parseFloat(opening_balance) || 0,
-      total_income: parseFloat(total_income) || 0,
-      total_expenditure: parseFloat(total_expenditure) || 0,
-      closing_balance: parseFloat(closing_balance) || 0,
+      opening_balance: openingBal,
+      total_income: totalInc,
+      total_expenditure: totalExp,
+      closing_balance: autoClosing,
       income_items: income_items || [],
       expenditure_items: expenditure_items || [],
-      fund_positions: fund_positions || [],
-      outstanding_obligations: parseFloat(outstanding_obligations) || 0,
+      fund_positions: normalizedObligations,
+      outstanding_obligations: totalObligations || parseFloat(outstanding_obligations) || 0,
       unpaid_commitments: parseFloat(unpaid_commitments) || 0,
       company_scorecard: company_scorecard || [],
-      highlights_text: highlights_text || null,
+      highlights_text: highlightsPayload,
       key_activities: key_activities || [],
-      welfare_interventions: parseInt(welfare_interventions) || 0,
+      welfare_interventions: parseFloat(welfare_interventions) || 0,
       projects_funded: parseInt(projects_funded) || 0,
-      closing_balance_records: parseFloat(closing_balance_records) || 0,
-      closing_bank_balance: parseFloat(closing_bank_balance) || 0,
-      closing_other_accounts: parseFloat(closing_other_accounts) || 0,
-      unreconciled_difference: parseFloat(unreconciled_difference) || 0,
-      reconciliation_status: reconciliation_status || 'Pending',
+      closing_balance_records: autoClosing,
+      closing_bank_balance: bankBal,
+      closing_other_accounts: otherBal,
+      unreconciled_difference: autoUnreconciled,
+      reconciliation_status: autoUnreconciled === 0 ? 'Reconciled' : (reconciliation_status || 'Pending'),
       reconciliation_explanation: reconciliation_explanation || null,
       management_notes: management_notes || null,
       updated_at: new Date().toISOString(),
@@ -270,7 +372,7 @@ export async function POST(request: Request) {
         local.unshift(payload);
       }
       saveLocalReports(local);
-      return NextResponse.json({ ok: true, report: payload });
+      return NextResponse.json({ ok: true, report: normalizeReport(payload) });
     }
 
     if (id) {
@@ -292,12 +394,12 @@ export async function POST(request: Request) {
             local.unshift(payload);
           }
           saveLocalReports(local);
-          return NextResponse.json({ ok: true, report: payload });
+          return NextResponse.json({ ok: true, report: normalizeReport(payload) });
         }
         return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
       }
 
-      return NextResponse.json({ ok: true, report: data });
+      return NextResponse.json({ ok: true, report: normalizeReport(data || payload) });
     } else {
       // Insert new
       payload.created_at = new Date().toISOString();
@@ -312,12 +414,12 @@ export async function POST(request: Request) {
           const local = getLocalReports();
           local.unshift(payload);
           saveLocalReports(local);
-          return NextResponse.json({ ok: true, report: payload }, { status: 201 });
+          return NextResponse.json({ ok: true, report: normalizeReport(payload) }, { status: 201 });
         }
         return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
       }
 
-      return NextResponse.json({ ok: true, report: data }, { status: 201 });
+      return NextResponse.json({ ok: true, report: normalizeReport(data || payload) }, { status: 201 });
     }
   } catch (err: any) {
     console.error('Reports POST error:', err);

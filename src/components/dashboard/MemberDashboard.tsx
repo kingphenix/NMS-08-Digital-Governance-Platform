@@ -260,6 +260,7 @@ export function MemberDashboard() {
     goodwillTotal: 0,
   });
   const [profileEditForm, setProfileEditForm] = useState({
+    fullName: '',
     company: '',
     homeCell: '',
     phone: '',
@@ -778,6 +779,7 @@ export function MemberDashboard() {
 
   const openEditProfile = () => {
     setProfileEditForm({
+      fullName: profile.name || '',
       company: profile.company || 'Alpha Company',
       homeCell: profile.homeCell || 'Abuja Executive Chapter',
       phone: profile.phone || '',
@@ -812,6 +814,7 @@ export function MemberDashboard() {
       const updated = {
         ...profile,
         ...profileEditForm,
+        name: profileEditForm.fullName?.trim() || profile.name,
         squad: derivedSquad || profile.squad,
       };
       setProfile(updated);
@@ -820,6 +823,8 @@ export function MemberDashboard() {
         const stored = sessionStorage.getItem('nms08_current_profile');
         const parsed = stored ? JSON.parse(stored) : {};
         Object.assign(parsed, profileEditForm);
+        parsed.full_name = profileEditForm.fullName?.trim() || parsed.full_name || profile.name;
+        parsed.name = parsed.full_name;
         parsed.home_cell = profileEditForm.homeCell;
         parsed.squad = derivedSquad;
         sessionStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
@@ -829,6 +834,8 @@ export function MemberDashboard() {
         const stored = localStorage.getItem('nms08_current_profile');
         const parsed = stored ? JSON.parse(stored) : {};
         Object.assign(parsed, profileEditForm);
+        parsed.full_name = profileEditForm.fullName?.trim() || parsed.full_name || profile.name;
+        parsed.name = parsed.full_name;
         parsed.home_cell = profileEditForm.homeCell;
         parsed.squad = derivedSquad;
         localStorage.setItem('nms08_current_profile', JSON.stringify(parsed));
@@ -840,6 +847,7 @@ export function MemberDashboard() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             nms: profile.nmsNo,
+            full_name: profileEditForm.fullName?.trim() || undefined,
             company: profileEditForm.company,
             home_cell: profileEditForm.homeCell,
             phone: profileEditForm.phone,
@@ -3397,6 +3405,23 @@ export function MemberDashboard() {
 
             <form onSubmit={handleSaveProfile} className="overflow-y-auto space-y-4 pr-1 max-h-[60vh]">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Full Legal Name / Display Name <span className="text-emerald-700">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={profileEditForm.fullName}
+                    onChange={(e) => setProfileEditForm({ ...profileEditForm, fullName: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
+                    placeholder="e.g. John Doe"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Update the official spelling of your name across your portal, directory profile, receipts, and membership records.
+                  </p>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Military Company Affiliation <span className="text-emerald-700">*</span>
