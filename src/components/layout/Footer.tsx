@@ -44,7 +44,6 @@ export function Footer() {
               <li><Link href="/about" className="hover:text-emerald-400 transition-colors">About NMS 08</Link></li>
               <li><Link href="/leadership" className="hover:text-emerald-400 transition-colors">Executive Council</Link></li>
               <li><Link href="/companies" className="hover:text-emerald-400 transition-colors">Companies</Link></li>
-              <li><Link href="/news" className="hover:text-emerald-400 transition-colors">News & Press</Link></li>
               <li><Link href="/events" className="hover:text-emerald-400 transition-colors">Events & Reunions</Link></li>
               <li><SuggestionBox /></li>
             </ul>
@@ -57,7 +56,6 @@ export function Footer() {
               <li><Link href="/dashboard" className="hover:text-emerald-400 transition-colors flex items-center gap-1.5">Member Portal <ExternalLink className="w-3 h-3 text-slate-500" /></Link></li>
               <li><Link href="/reports" className="hover:text-emerald-400 transition-colors">Financial Reports</Link></li>
               <li><Link href="/membership-info" className="hover:text-emerald-400 transition-colors">Dues & Welfare Information</Link></li>
-              <li><Link href="/gallery" className="hover:text-emerald-400 transition-colors">Photo Gallery</Link></li>
               <li><Link href="/login" className="hover:text-emerald-400 transition-colors">Member Sign In</Link></li>
               <li><Link href="/register" className="hover:text-emerald-400 transition-colors">Register Profile</Link></li>
             </ul>

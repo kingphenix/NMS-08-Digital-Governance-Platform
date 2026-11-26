@@ -569,9 +569,9 @@ export default function ReportsPage() {
               </div>
               <div className="bg-amber-50 rounded-xl p-3 text-center space-y-1">
                 <p className="text-base sm:text-lg font-black text-amber-800 font-mono">
-                  {fmt(report.company_scorecard?.reduce((s, c) => s + (c.outstanding || 0), 0) || 0)}
+                  {fmt(obligationsTotal || report.outstanding_obligations || 780000)}
                 </p>
-                <p className="text-[10px] text-amber-600 font-medium">Outstanding Dues</p>
+                <p className="text-[10px] text-amber-600 font-medium">Outstanding Obligations</p>
               </div>
               <div className="bg-sky-50 rounded-xl p-3 text-center space-y-1">
                 <p className="text-base sm:text-lg font-black text-sky-800 font-mono">{fmt(report.welfare_interventions || 0)}</p>

@@ -23,9 +23,9 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { NEWS_LIST, LEADERSHIP_LIST } from '@/lib/mock-data';
-import { WEDDINGS, formatWeddingDate } from '@/lib/weddings';
+import { LEADERSHIP_LIST } from '@/lib/mock-data';
 import { CompanyShowcasePreview } from '@/components/companies/CompanyShowcasePreview';
+import { UpcomingEventsSection } from '@/components/home/UpcomingEventsSection';
 
 export default function HomePage() {
   const president = LEADERSHIP_LIST[0];
@@ -177,77 +177,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* NEWS & EVENTS SUMMARY */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <Badge variant="emerald" className="inline-flex items-center gap-1.5">
-              <Image src={speakerSvg} alt="Latest Updates" width={14} height={14} className="w-3.5 h-auto object-contain" />
-              <span>Latest Updates</span>
-            </Badge>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              News, Announcements & Events
-            </h2>
-          </div>
-
-          <Link href="/news">
-            <Button variant="ghost" size="sm" icon={<ArrowRight className="w-4 h-4" />}>
-              View All News
-            </Button>
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {NEWS_LIST.slice(0, 2).map((news) => (
-            <Card key={news.id} hoverEffect variant="glass" className="lg:col-span-1 p-6 space-y-4">
-              <Badge variant="emerald">{news.category}</Badge>
-              <h3 className="text-base font-bold text-slate-900 leading-snug">{news.title}</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">{news.summary}</p>
-              <div className="pt-2 text-[11px] text-slate-400 flex justify-between">
-                <span>{news.author}</span>
-                <span>{news.date}</span>
-              </div>
-            </Card>
-          ))}
-
-          {/* Wedding Invitations Feature */}
-          <Card variant="emerald" className="lg:col-span-1 p-6 flex flex-col justify-between space-y-4">
-            <div className="space-y-3">
-              <Badge variant="outline" className="bg-white/20 text-white border-white/30">
-                Wedding Invitations
-              </Badge>
-              <h3 className="text-lg font-bold text-white">
-                {WEDDINGS.length} Set Weddings
-              </h3>
-              <ul className="space-y-2 text-xs text-emerald-100">
-                {WEDDINGS.slice(0, 3).map((wedding) => (
-                  <li key={wedding.id} className="flex items-start gap-2">
-                    <Heart className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-200" />
-                    <span>
-                      <strong className="font-semibold text-white">{wedding.couple}</strong>
-                      {' — '}
-                      {formatWeddingDate(wedding.isoDate)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              {WEDDINGS.length > 3 && (
-                <p className="text-[11px] text-emerald-200/90">
-                  …and {WEDDINGS.length - 3} more invitation{WEDDINGS.length - 3 > 1 ? 's' : ''}.
-                </p>
-              )}
-            </div>
-            <div className="pt-4 border-t border-white/20 flex items-center justify-between text-xs">
-              <span className="text-emerald-100">Ex-Boys are invited</span>
-              <Link href="/events">
-                <Button variant="glass" size="sm" className="text-slate-900 font-semibold">
-                  View Invitations
-                </Button>
-              </Link>
-            </div>
-          </Card>
-        </div>
-      </section>
+      {/* UPCOMING EVENTS & WEDDINGS SECTION */}
+      <UpcomingEventsSection />
 
       {/* REGISTRATION CTA BANNER */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

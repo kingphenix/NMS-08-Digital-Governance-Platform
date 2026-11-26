@@ -68,8 +68,8 @@ export default function MembershipInfoPage() {
             <span>Welfare Fund Levy</span>
           </Badge>
           <div className="space-y-1">
-            <h3 className="text-3xl font-extrabold text-white">₦50,000</h3>
-            <span className="text-xs text-emerald-100">Annual Mandatory Support</span>
+            <h3 className="text-3xl font-extrabold text-white">₦70,000</h3>
+            <span className="text-xs text-emerald-100">Capped Mandatory Support</span>
           </div>
 
           <ul className="space-y-2 text-xs text-emerald-100">
